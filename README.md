@@ -1,6 +1,6 @@
 # LLM Proxy
 
-Un servicio proxy para APIs de modelos de lenguaje grande (LLM) desarrollado con CodeIgniter 3.
+Un servicio proxy para APIs de modelos de lenguaje grande (LLM) desarrollado con CodeIgniter 4.
 
 ![LLM Proxy](https://via.placeholder.com/800x400?text=LLM+Proxy)
 
