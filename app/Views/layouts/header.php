@@ -4,10 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= isset($title) ? $title : 'Tenant Management'; ?></title>
+    <title><?= isset($title) ? $title : 'LLM Proxy Dashboard'; ?></title>
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
@@ -111,6 +113,51 @@
             border-radius: 15px;
             font-size: 0.8rem;
         }
+
+        .badge-provider {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+        }
+
+        .badge-model {
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+        }
+
+        /* Dashboard stats cards */
+        .stat-card {
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-icon {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .stat-number {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
     </style>
 </head>
 
@@ -142,9 +189,32 @@
                         </a>
                     </li>
                     <li class="nav-item">
+                        <a class="nav-link <?= uri_string() == 'usage/providers' ? 'active' : '' ?>" href="<?= site_url('usage/providers') ?>">
+                            <i class="fas fa-server me-1"></i> Providers
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link <?= uri_string() == 'usage/cache' ? 'active' : '' ?>" href="<?= site_url('usage/cache') ?>">
+                            <i class="fas fa-memory me-1"></i> Cache
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link <?= strpos(uri_string(), 'tenants') === 0 ? 'active' : '' ?>" href="<?= site_url('tenants') ?>">
                             <i class="fas fa-building me-1"></i> Tenants
                         </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-user-circle me-1"></i>
+                            <?= session()->get('name') ?? 'Account' ?>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                            <li><a class="dropdown-item" href="<?= site_url('auth/profile') ?>">Profile</a></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li><a class="dropdown-item" href="<?= site_url('auth/logout') ?>">Logout</a></li>
+                        </ul>
                     </li>
                 </ul>
             </div>
@@ -152,7 +222,7 @@
     </nav>
 
     <div class="container mt-4 mb-5">
-        <h1 class="mb-4"><?= isset($title) ? $title : 'Tenant Management'; ?></h1>
+        <h1 class="mb-4"><?= isset($title) ? $title : 'LLM Proxy Dashboard'; ?></h1>
 
         <?php if (session()->getFlashdata('success')): ?>
             <div class="alert alert-success">

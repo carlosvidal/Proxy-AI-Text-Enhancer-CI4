@@ -1,4 +1,7 @@
-<!-- app/Views/usage/index.php -->
+<?= $this->extend('layouts/main') ?>
+
+<?= $this->section('content') ?>
+
 <?php if (!$tables_exist['usage_logs'] || !$tables_exist['user_quotas']): ?>
     <div class="alert alert-warning" role="alert">
         <h4 class="alert-heading"><i class="fas fa-exclamation-circle me-2"></i> Database Setup Required</h4>
@@ -290,3 +293,5 @@
         });
     </script>
 <?php endif; ?>
+
+<?= $this->endSection() ?>

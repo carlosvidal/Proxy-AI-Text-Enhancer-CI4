@@ -1,3 +1,7 @@
+<?= $this->extend('layouts/main') ?>
+
+<?= $this->section('content') ?>
+
 <div class="card">
     <div class="card-header">
         <i class="fas fa-plus-circle me-1"></i>
@@ -36,3 +40,5 @@
         </form>
     </div>
 </div>
+
+<?= $this->endSection() ?>

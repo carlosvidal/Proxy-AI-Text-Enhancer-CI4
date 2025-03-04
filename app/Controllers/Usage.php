@@ -38,9 +38,7 @@ class Usage extends Controller
         $data['charts_data'] = $this->_get_charts_data();
 
         // Mostrar vista
-        return view('usage/header', $data)
-            . view('usage/index', $data)
-            . view('usage/footer');
+        return view('usage/index', $data);
     }
 
     /**
@@ -55,9 +53,7 @@ class Usage extends Controller
         $tables = $db->listTables();
         if (!in_array('usage_logs', $tables)) {
             $data['error'] = 'The usage_logs table does not exist. Please run migrations first.';
-            return view('usage/header', $data)
-                . view('usage/error', $data)
-                . view('usage/footer');
+            return view('usage/error', $data);
         }
 
         // Configuración de paginación
@@ -77,9 +73,7 @@ class Usage extends Controller
         $data['logs'] = $builder->get()->getResult();
 
         // Mostrar vista
-        return view('usage/header', $data)
-            . view('usage/logs', $data)
-            . view('usage/footer');
+        return view('usage/logs', $data);
     }
 
     /**
@@ -94,9 +88,7 @@ class Usage extends Controller
         $tables = $db->listTables();
         if (!in_array('user_quotas', $tables) || !in_array('usage_logs', $tables)) {
             $data['error'] = 'The user_quotas or usage_logs table does not exist. Please run migrations first.';
-            return view('usage/header', $data)
-                . view('usage/error', $data)
-                . view('usage/footer');
+            return view('usage/error', $data);
         }
 
         // Obtener registros de cuotas con uso actual
@@ -122,9 +114,7 @@ class Usage extends Controller
         $data['quotas'] = $query->getResult();
 
         // Mostrar vista
-        return view('usage/header', $data)
-            . view('usage/quotas', $data)
-            . view('usage/footer');
+        return view('usage/quotas', $data);
     }
 
     /**
@@ -139,9 +129,7 @@ class Usage extends Controller
         $tables = $db->listTables();
         if (!in_array('usage_logs', $tables)) {
             $data['error'] = 'The usage_logs table does not exist. Please run migrations first.';
-            return view('usage/header', $data)
-                . view('usage/error', $data)
-                . view('usage/footer');
+            return view('usage/error', $data);
         }
 
         // Obtener estadísticas por proveedor
@@ -181,9 +169,7 @@ class Usage extends Controller
         $data['model_stats'] = $query->getResult();
 
         // Mostrar vista
-        return view('usage/header', $data)
-            . view('usage/providers', $data)
-            . view('usage/footer');
+        return view('usage/providers', $data);
     }
 
     /**
@@ -198,9 +184,7 @@ class Usage extends Controller
         $tables = $db->listTables();
         if (!in_array('llm_cache', $tables)) {
             $data['error'] = 'The llm_cache table does not exist. Please run migrations first.';
-            return view('usage/header', $data)
-                . view('usage/error', $data)
-                . view('usage/footer');
+            return view('usage/error', $data);
         }
 
         // Obtener estadísticas de caché
@@ -230,9 +214,7 @@ class Usage extends Controller
         $data['recent_entries'] = $builder->get()->getResult();
 
         // Mostrar vista
-        return view('usage/header', $data)
-            . view('usage/cache', $data)
-            . view('usage/footer');
+        return view('usage/cache', $data);
     }
 
     /**

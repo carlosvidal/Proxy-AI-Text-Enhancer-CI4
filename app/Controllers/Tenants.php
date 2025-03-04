@@ -23,9 +23,7 @@ class Tenants extends Controller
         $data['title'] = 'Tenant Management';
         $data['tenants'] = $this->tenantsModel->findAll();
 
-        return view('tenants/header', $data)
-            . view('tenants/index', $data)
-            . view('tenants/footer');
+        return view('tenants/index', $data);
     }
 
     /**
@@ -43,9 +41,7 @@ class Tenants extends Controller
         // Obtener usuarios del tenant
         $data['users'] = $this->tenantsModel->getUsers($tenant_id);
 
-        return view('tenants/header', $data)
-            . view('tenants/view', $data)
-            . view('tenants/footer');
+        return view('tenants/view', $data);
     }
 
     /**
@@ -81,9 +77,7 @@ class Tenants extends Controller
             }
         }
 
-        return view('tenants/header', $data)
-            . view('tenants/create', $data)
-            . view('tenants/footer');
+        return view('tenants/create', $data);
     }
 
     /**
@@ -124,9 +118,7 @@ class Tenants extends Controller
             }
         }
 
-        return view('tenants/header', $data)
-            . view('tenants/edit', $data)
-            . view('tenants/footer');
+        return view('tenants/edit', $data);
     }
 
     /**
@@ -161,9 +153,7 @@ class Tenants extends Controller
 
         $data['users'] = $this->tenantsModel->getUsers($tenant_id);
 
-        return view('tenants/header', $data)
-            . view('tenants/users', $data)
-            . view('tenants/footer');
+        return view('tenants/users', $data);
     }
 
     /**
@@ -207,8 +197,5 @@ class Tenants extends Controller
             }
         }
 
-        return view('tenants/header', $data)
-            . view('tenants/add_user', $data)
-            . view('tenants/footer');
+        return view('tenants/add_user', $data);
     }
-}

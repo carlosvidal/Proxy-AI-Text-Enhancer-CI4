@@ -1,3 +1,7 @@
+<?= $this->extend('layouts/main') ?>
+
+<?= $this->section('content') ?>
+
 <div class="card mb-4">
     <div class="card-header">
         <i class="fas fa-list-alt me-1"></i>
@@ -61,3 +65,5 @@
         <?php endif; ?>
     </div>
 </div>
+
+<?= $this->endSection() ?>

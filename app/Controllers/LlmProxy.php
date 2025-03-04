@@ -91,7 +91,7 @@ class LlmProxy extends Controller
         $model = $request_data['model'];
         $messages = isset($request_data['messages']) ? $request_data['messages'] : [];
         $temperature = isset($request_data['temperature']) ? $request_data['temperature'] : 0.7;
-        $stream = isset($request_data['stream']) ? $request_data['stream'] : FALSE;
+        $stream = isset($request_data['stream']) ? $request_data['stream'] : TRUE;
         $tenant_id = isset($request_data['tenantId']) ? $request_data['tenantId'] : '';
         $user_id = isset($request_data['userId']) ? $request_data['userId'] : '';
         $has_image = isset($request_data['hasImage']) ? $request_data['hasImage'] : FALSE;

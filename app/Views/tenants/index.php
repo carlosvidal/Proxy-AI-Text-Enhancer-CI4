@@ -1,3 +1,7 @@
+<?= $this->extend('layouts/main') ?>
+
+<?= $this->section('content') ?>
+
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>Tenant List</h2>
     <a href="<?= site_url('tenants/create') ?>" class="btn btn-primary">
@@ -62,3 +66,5 @@
         <?php endif; ?>
     </div>
 </div>
+
+<?= $this->endSection() ?>
