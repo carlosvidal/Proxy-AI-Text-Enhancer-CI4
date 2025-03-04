@@ -50,8 +50,22 @@ class Auth extends Controller
 
                     session()->set($sessionData);
 
-                    // Actualizar último login
-                    $model->update($user['id'], ['last_login' => date('Y-m-d H:i:s')]);
+                    // Check if the last_login column exists before updating it
+                    $db = db_connect();
+                    $tableInfo = $db->getFieldData('admin_users');
+                    $hasLastLoginColumn = false;
+
+                    foreach ($tableInfo as $field) {
+                        if ($field->name === 'last_login') {
+                            $hasLastLoginColumn = true;
+                            break;
+                        }
+                    }
+
+                    // Only update last_login if the column exists
+                    if ($hasLastLoginColumn) {
+                        $model->update($user['id'], ['last_login' => date('Y-m-d H:i:s')]);
+                    }
 
                     return redirect()->to('usage');
                 } else {
