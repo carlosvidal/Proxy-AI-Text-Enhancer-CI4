@@ -787,7 +787,8 @@ class LlmProxy extends Controller
         ];
 
         // Cargar también la configuración de CORS
-        $allowed_origins_str = env('ALLOWED_ORIGINS', 'https://llmproxy.mitienda.host,https://panel.mitienda.host,http://llmproxy2.test:8080,http://127.0.0.1:5500,http://localhost:5500');
+        //$allowed_origins_str = env('ALLOWED_ORIGINS', 'https://llmproxy.mitienda.host,https://panel.mitienda.host,http://llmproxy2.test:8080,http://127.0.0.1:5500,http://localhost:5500');
+        $allowed_origins_str = env('ALLOWED_ORIGINS', '*');
         $this->allowed_origins = $allowed_origins_str === '*' ? '*' : explode(',', $allowed_origins_str);
 
         log_message('debug', 'ALLOWED_ORIGINS from env: ' . env('ALLOWED_ORIGINS', 'NOT FOUND'));

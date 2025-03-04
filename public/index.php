@@ -2,7 +2,8 @@
 
 // CORS Headers - Configuración directa
 $origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
-$allowed_origins = ['https://panel.mitienda.host', 'http://localhost:5500'];
+#$allowed_origins = ['https://panel.mitienda.host', 'http://localhost:5500'];
+$allowed_origins = ['*'];
 
 if (in_array($origin, $allowed_origins)) {
     header("Access-Control-Allow-Origin: " . $origin);
