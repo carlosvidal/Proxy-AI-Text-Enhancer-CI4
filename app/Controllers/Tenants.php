@@ -59,7 +59,11 @@ class Tenants extends Controller
             ];
 
             if ($this->validate($rules)) {
+                // Generate a unique tenant_id based on the name
+                $tenant_id = $this->tenantsModel->generateTenantId($this->request->getPost('name'));
+
                 $tenantData = [
+                    'tenant_id' => $tenant_id, // Add the tenant_id
                     'name' => $this->request->getPost('name'),
                     'email' => $this->request->getPost('email'),
                     'quota' => $this->request->getPost('quota'),

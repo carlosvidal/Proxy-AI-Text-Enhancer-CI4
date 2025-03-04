@@ -14,6 +14,7 @@ class TenantsModel extends Model
     protected $useSoftDeletes = false;
 
     protected $allowedFields = [
+        'tenant_id',  // Added tenant_id to allowedFields
         'name',
         'email',
         'quota',
@@ -100,5 +101,22 @@ class TenantsModel extends Model
         $builder->where('user_id', $user_id);
         $builder->where('active', 1);
         return $builder->countAllResults() > 0;
+    }
+
+    /**
+     * Genera un tenant_id único para un nuevo tenant
+     * 
+     * @return string Tenant ID único
+     */
+    public function generateTenantId($name)
+    {
+        // Create a base tenant_id from the name
+        $base = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $name));
+        $base = substr($base, 0, 10); // Limit length
+
+        // Add a random string to ensure uniqueness
+        $random = substr(md5(uniqid(mt_rand(), true)), 0, 6);
+
+        return $base . $random;
     }
 }

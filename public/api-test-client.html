@@ -503,6 +503,7 @@
               },
             ],
             temperature: 0.7,
+            stream: false, // Importante: especificar explícitamente que no queremos streaming
           };
 
           const response = await fetch(
@@ -526,21 +527,80 @@
             return handleTestLlm();
           }
 
-          const data = await response.json();
+          // Check if we got a streaming response (text/event-stream)
+          const contentType = response.headers.get("content-type");
+          if (contentType && contentType.includes("text/event-stream")) {
+            displayResponse("Received a streaming response. Processing...");
 
-          if (!response.ok) {
-            throw new Error(
-              data.error?.message || `API error: ${response.status}`
-            );
+            // Handle streaming response
+            const reader = response.body.getReader();
+            let resultText = "";
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              // Convert the Uint8Array to a string
+              const chunk = new TextDecoder().decode(value);
+              resultText += chunk;
+
+              // Update response with the current progress
+              displayResponse("Streaming response:\n\n" + resultText);
+            }
+
+            // Try to extract the final message from the stream
+            try {
+              const lines = resultText.split("\n");
+              let finalMessage = "";
+
+              for (const line of lines) {
+                if (line.startsWith("data:") && line !== "data: [DONE]") {
+                  const jsonStr = line.substring(5).trim();
+                  try {
+                    const jsonData = JSON.parse(jsonStr);
+                    if (
+                      jsonData.choices &&
+                      jsonData.choices[0].delta &&
+                      jsonData.choices[0].delta.content
+                    ) {
+                      finalMessage += jsonData.choices[0].delta.content;
+                    }
+                  } catch (e) {
+                    // Skip invalid JSON
+                  }
+                }
+              }
+
+              if (finalMessage) {
+                displayResponse({
+                  status: "LLM request successful (streamed)",
+                  response: finalMessage,
+                });
+              }
+            } catch (e) {
+              // If parsing fails, just show the raw response
+              displayResponse(
+                "Streaming response completed but could not parse content"
+              );
+            }
+          } else {
+            // Handle normal JSON response
+            const data = await response.json();
+
+            if (!response.ok) {
+              throw new Error(
+                data.error?.message || `API error: ${response.status}`
+              );
+            }
+
+            // Extract and display just the assistant's message
+            const assistantMessage = data.choices[0].message.content;
+            displayResponse({
+              status: "LLM request successful",
+              model: data.model,
+              response: assistantMessage,
+            });
           }
-
-          // Extract and display just the assistant's message
-          const assistantMessage = data.choices[0].message.content;
-          displayResponse({
-            status: "LLM request successful",
-            model: data.model,
-            response: assistantMessage,
-          });
         } catch (error) {
           displayResponse(`Error: ${error.message}`);
         } finally {
