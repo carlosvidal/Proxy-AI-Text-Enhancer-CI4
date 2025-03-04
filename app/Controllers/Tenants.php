@@ -199,3 +199,79 @@ class Tenants extends Controller
 
         return view('tenants/add_user', $data);
     }
+
+    /**
+     * Editar un usuario existente de un tenant
+     */
+    public function edit_user($user_id)
+    {
+        $data['title'] = 'Edit User';
+        $db = db_connect();
+
+        // Obtener información del usuario
+        $builder = $db->table('tenant_users');
+        $builder->where('id', $user_id);
+        $user = $builder->get()->getRow();
+
+        if (empty($user)) {
+            return redirect()->to('/tenants')->with('error', 'User not found');
+        }
+
+        $data['user'] = $user;
+        $data['tenant'] = $this->tenantsModel->find($user->tenant_id);
+
+        if ($this->request->getMethod() === 'post') {
+            $rules = [
+                'email' => 'required|valid_email',
+                'name' => 'required|min_length[3]|max_length[255]',
+                'quota' => 'required|numeric'
+            ];
+
+            if ($this->validate($rules)) {
+                $userData = [
+                    'email' => $this->request->getPost('email'),
+                    'name' => $this->request->getPost('name'),
+                    'quota' => $this->request->getPost('quota'),
+                    'active' => $this->request->getPost('active'),
+                    'updated_at' => date('Y-m-d H:i:s')
+                ];
+
+                if ($this->tenantsModel->updateUser($user_id, $userData)) {
+                    return redirect()->to("/tenants/users/{$user->tenant_id}")->with('success', 'User updated successfully');
+                } else {
+                    return redirect()->back()->with('error', 'Error updating user')->withInput();
+                }
+            } else {
+                $data['validation'] = $this->validator;
+            }
+        }
+
+        return view('tenants/edit_user', $data);
+    }
+
+    /**
+     * Eliminar un usuario de un tenant
+     */
+    public function delete_user($user_id)
+    {
+        $db = db_connect();
+
+        // Obtener información del usuario para saber a qué tenant volver
+        $builder = $db->table('tenant_users');
+        $builder->where('id', $user_id);
+        $user = $builder->get()->getRow();
+
+        if (empty($user)) {
+            return redirect()->to('/tenants')->with('error', 'User not found');
+        }
+
+        $tenant_id = $user->tenant_id;
+
+        // Eliminar el usuario
+        if ($this->tenantsModel->deleteUser($user_id)) {
+            return redirect()->to("/tenants/users/{$tenant_id}")->with('success', 'User deleted successfully');
+        } else {
+            return redirect()->to("/tenants/users/{$tenant_id}")->with('error', 'Error deleting user');
+        }
+    }
+}

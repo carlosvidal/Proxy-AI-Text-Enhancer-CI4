@@ -19,7 +19,10 @@ class UserModel extends Model
         'password',
         'name',
         'role',
-        'active'
+        'active',
+        'last_login',
+        'created_at',
+        'updated_at'
     ];
 
     protected $useTimestamps = true;
@@ -66,5 +69,59 @@ class UserModel extends Model
         }
 
         return null;
+    }
+
+    /**
+     * Obtiene la lista de todos los administradores
+     * 
+     * @param bool $active Filtrar solo usuarios activos
+     * @return array Lista de administradores
+     */
+    public function getAdmins($active = true)
+    {
+        $builder = $this->builder();
+        $builder->where('role', 'admin');
+
+        if ($active) {
+            $builder->where('active', 1);
+        }
+
+        return $builder->get()->getResultArray();
+    }
+
+    /**
+     * Crea un nuevo usuario administrador
+     * 
+     * @param array $userData Datos del usuario
+     * @return int|false ID del nuevo usuario o false si falla
+     */
+    public function createAdmin($userData)
+    {
+        // Asegurar que el rol es admin
+        $userData['role'] = 'admin';
+
+        // Hashear contraseña
+        if (isset($userData['password'])) {
+            $userData['password'] = password_hash($userData['password'], PASSWORD_DEFAULT);
+        }
+
+        // Establecer timestamps
+        $userData['created_at'] = date('Y-m-d H:i:s');
+        $userData['updated_at'] = date('Y-m-d H:i:s');
+
+        return $this->insert($userData);
+    }
+
+    /**
+     * Actualiza el último login de un usuario
+     * 
+     * @param int $userId ID del usuario
+     * @return bool Éxito o fracaso
+     */
+    public function updateLastLogin($userId)
+    {
+        return $this->update($userId, [
+            'last_login' => date('Y-m-d H:i:s')
+        ]);
     }
 }

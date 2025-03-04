@@ -7,6 +7,12 @@ use App\Models\UserModel;
 
 class Auth extends Controller
 {
+    public function __construct()
+    {
+        // Cargar helpers necesarios
+        helper(['url', 'form']);
+    }
+
     public function login()
     {
         // Si ya está logueado, redirigir al dashboard
@@ -43,6 +49,10 @@ class Auth extends Controller
                     ];
 
                     session()->set($sessionData);
+
+                    // Actualizar último login
+                    $model->update($user['id'], ['last_login' => date('Y-m-d H:i:s')]);
+
                     return redirect()->to('usage');
                 } else {
                     return redirect()->back()
@@ -107,7 +117,8 @@ class Auth extends Controller
 
                 $userData = [
                     'name' => $this->request->getPost('name'),
-                    'email' => $this->request->getPost('email')
+                    'email' => $this->request->getPost('email'),
+                    'updated_at' => date('Y-m-d H:i:s')
                 ];
 
                 // Actualizar contraseña si se proporciona
