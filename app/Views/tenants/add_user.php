@@ -1,3 +1,7 @@
+<?= $this->extend('layouts/main') ?>
+
+<?= $this->section('content') ?>
+
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <a href="<?= site_url('tenants/users/' . $tenant['id']) ?>" class="btn btn-secondary btn-sm mb-2">
@@ -51,3 +55,5 @@
         </form>
     </div>
 </div>
+
+<?= $this->endSection() ?>

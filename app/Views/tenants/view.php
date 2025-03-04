@@ -1,3 +1,7 @@
+<?= $this->extend('layouts/main') ?>
+
+<?= $this->section('content') ?>
+
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <a href="<?= site_url('tenants') ?>" class="btn btn-secondary btn-sm mb-2">
@@ -125,3 +129,5 @@
         <p class="text-muted text-center">Usage statistics will be displayed here.</p>
     </div>
 </div>
+
+<?= $this->endSection() ?>
