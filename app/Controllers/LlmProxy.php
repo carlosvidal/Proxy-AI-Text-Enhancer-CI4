@@ -615,6 +615,15 @@ class LlmProxy extends Controller
      */
     public function options()
     {
+
+        file_put_contents(
+            '/var/www/llmproxy.mitienda.host/writable/logs/cors_debug.log',
+            date('Y-m-d H:i:s') . " - OPTIONS request received\n" .
+                "Origin: " . $this->request->getHeaderLine('Origin') . "\n" .
+                "Headers: " . json_encode($this->request->Message::headers()) . "\n\n",
+            FILE_APPEND
+        );
+
         // Obtener el origen de la solicitud
         $origin = $this->request->getHeaderLine('Origin');
         $allowed_origins_str = env('ALLOWED_ORIGINS', '');

@@ -86,6 +86,8 @@ $routes->get('tenants/edit/(:num)', 'Tenants::edit/$1');
 $routes->post('tenants/edit/(:num)', 'Tenants::edit/$1');
 $routes->get('tenants/delete/(:num)', 'Tenants::delete/$1');
 $routes->get('tenants/view/(:num)', 'Tenants::view/$1');
+
+// Tenant user management routes
 $routes->get('tenants/users/(:num)', 'Tenants::users/$1');
 $routes->get('tenants/add_user/(:num)', 'Tenants::add_user/$1');
 $routes->post('tenants/add_user/(:num)', 'Tenants::add_user/$1');
