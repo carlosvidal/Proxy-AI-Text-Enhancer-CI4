@@ -37,28 +37,36 @@ $routes->get('/', 'Home::index');
  * --------------------------------------------------------------------
  */
 
-// Endpoint principal para peticiones al proxy
+// Main endpoint for proxy requests
 $routes->post('api/llm-proxy', 'LlmProxy::index');
 $routes->options('api/llm-proxy', 'LlmProxy::options');
 
-// Endpoint para verificar cuota
+// JWT secured endpoint - requires valid token
+$routes->post('api/llm-proxy/secure', 'LlmProxy::index', ['filter' => 'jwt']);
+$routes->options('api/llm-proxy/secure', 'LlmProxy::options');
+
+// Quota check endpoint
 $routes->get('api/quota', 'LlmProxy::quota');
 $routes->options('api/quota', 'LlmProxy::options');
 
-// Endpoint de instalación (protegido, solo para administradores)
+// JWT secured quota endpoint
+$routes->get('api/quota/secure', 'LlmProxy::quota', ['filter' => 'jwt']);
+$routes->options('api/quota/secure', 'LlmProxy::options');
+
+// Installation endpoint (protected, admin only)
 $routes->get('api/llm-proxy/install', 'LlmProxy::install');
 
-// Endpoint de estado del proxy
+// Proxy status endpoint
 $routes->get('api/llm-proxy/status', 'LlmProxy::status');
 
-// Endpoint para probar conexión
+// Connection test endpoint
 $routes->get('api/llm-proxy/test-connection', 'LlmProxy::test_connection');
 
-// Rutas para test de CORS
+// CORS test routes
 $routes->get('test/cors', 'CorsTest::index');
 $routes->options('test/cors', 'CorsTest::options');
 
-// Rutas para el dashboard de uso
+// Usage dashboard routes
 $routes->get('usage', 'Usage::index');
 $routes->get('usage/logs', 'Usage::logs');
 $routes->get('usage/logs/(:num)', 'Usage::logs/$1');
@@ -66,7 +74,7 @@ $routes->get('usage/quotas', 'Usage::quotas');
 $routes->get('usage/providers', 'Usage::providers');
 $routes->get('usage/cache', 'Usage::cache');
 
-// Rutas para el dashboard de tenants
+// Tenants dashboard routes
 $routes->get('tenants', 'Tenants::index');
 $routes->get('tenants/create', 'Tenants::create');
 $routes->post('tenants/create', 'Tenants::create');
@@ -74,17 +82,31 @@ $routes->get('tenants/edit/(:num)', 'Tenants::edit/$1');
 $routes->post('tenants/edit/(:num)', 'Tenants::edit/$1');
 $routes->get('tenants/delete/(:num)', 'Tenants::delete/$1');
 
-// Rutas de migración para configuración de base de datos
+// Migration routes for database setup
 $routes->get('migrate', 'Migrate::index');
 $routes->get('migrate/version/(:num)', 'Migrate::version/$1');
 $routes->get('migrate/reset', 'Migrate::reset');
 $routes->get('migrate/status', 'Migrate::status');
 
+// Authentication routes
 $routes->get('auth/login', 'Auth::login');
 $routes->post('auth/login', 'Auth::login');
 $routes->get('auth/logout', 'Auth::logout');
 $routes->get('auth/profile', 'Auth::profile');
 $routes->post('auth/profile', 'Auth::updateProfile');
+
+// JWT API Authentication routes
+$routes->post('api/auth/login', 'Auth::apiLogin');
+$routes->post('api/auth/refresh', 'Auth::refreshToken');
+
+// API Token Management Routes
+$routes->get('api/tokens', 'ApiToken::index');
+$routes->get('api/tokens/create', 'ApiToken::create');
+$routes->post('api/tokens/store', 'ApiToken::store');
+$routes->get('api/tokens/revoke/(:num)', 'ApiToken::revoke/$1');
+
+// Test route for token validation
+$routes->get('api/validate-token', 'ApiToken::validateToken', ['filter' => 'jwt']);
 
 /*
  * --------------------------------------------------------------------

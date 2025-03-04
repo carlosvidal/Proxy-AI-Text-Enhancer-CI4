@@ -30,16 +30,16 @@ class LlmProxy extends Controller
      */
     public function __construct()
     {
-        // Cargar helpers necesarios
-        helper(['url', 'form', 'logger']);
+        // Load necessary helpers
+        helper(['url', 'form', 'logger', 'jwt']);
 
-        // Inicializar modelo de proxy
+        // Initialize proxy model
         $this->llm_proxy_model = new LlmProxyModel();
 
-        // Inicializar configuración del proxy
+        // Initialize proxy configuration
         $this->_initialize_config();
 
-        log_info('PROXY', 'Proxy inicializado', [
+        log_info('PROXY', 'Proxy initialized', [
             'ip' => service('request')->getIPAddress(),
             'method' => service('request')->getMethod(),
             'user_agent' => service('request')->getUserAgent()->getAgentString()
@@ -47,15 +47,15 @@ class LlmProxy extends Controller
     }
 
     /**
-     * Endpoint principal para peticiones al proxy
+     * Main endpoint for proxy requests
      */
     public function index()
     {
-        log_info('PROXY', 'Solicitud al endpoint principal recibida');
+        log_info('PROXY', 'Request received at main endpoint');
 
-        // Verificar que sea una petición POST
+        // Verify this is a POST request
         if (service('request')->getMethod() !== 'post') {
-            log_error('PROXY', 'Método no permitido', ['method' => service('request')->getMethod()]);
+            log_error('PROXY', 'Method not allowed', ['method' => service('request')->getMethod()]);
 
             return $this->response
                 ->setContentType('application/json')
@@ -63,15 +63,33 @@ class LlmProxy extends Controller
                 ->setJSON(['error' => ['message' => 'Method not allowed']]);
         }
 
-        // Obtener el cuerpo de la petición como JSON
+        // Get JWT data if available (when using JWT authentication)
+        $jwtData = null;
+        $token = get_jwt_from_header();
+        if ($token) {
+            $tokenData = validate_jwt($token);
+            if ($tokenData && isset($tokenData->data)) {
+                $jwtData = $tokenData->data;
+                log_info('PROXY', 'JWT authenticated user', [
+                    'username' => $jwtData->username ?? 'unknown',
+                    'id' => $jwtData->id ?? 'unknown'
+                ]);
+            } else {
+                log_warning('PROXY', 'Invalid JWT token provided');
+            }
+        } else {
+            log_info('PROXY', 'No JWT token found, continuing with standard authentication');
+        }
+
+        // Get request body as JSON
         $json_data = $this->request->getBody();
-        log_debug('PROXY', 'Datos recibidos (raw)', $json_data);
+        log_debug('PROXY', 'Received data (raw)', $json_data);
 
         $request_data = json_decode($json_data, TRUE);
 
-        // Verificar que los datos son válidos
+        // Verify data is valid
         if (!$request_data || !isset($request_data['provider']) || !isset($request_data['model'])) {
-            log_error('PROXY', 'Datos de solicitud inválidos', $request_data);
+            log_error('PROXY', 'Invalid request data', $request_data);
 
             return $this->response
                 ->setContentType('application/json')
@@ -79,26 +97,41 @@ class LlmProxy extends Controller
                 ->setJSON(['error' => ['message' => 'Invalid request data']]);
         }
 
-        log_info('PROXY', 'Solicitud válida recibida', [
+        log_info('PROXY', 'Valid request received', [
             'provider' => $request_data['provider'],
             'model' => $request_data['model'],
-            'stream' => isset($request_data['stream']) ? $request_data['stream'] : 'No especificado',
-            'has_image' => isset($request_data['hasImage']) ? $request_data['hasImage'] : 'No especificado'
+            'stream' => isset($request_data['stream']) ? $request_data['stream'] : 'Not specified',
+            'has_image' => isset($request_data['hasImage']) ? $request_data['hasImage'] : 'Not specified'
         ]);
 
-        // Extraer datos de la petición
+        // Extract request data
         $provider = $request_data['provider'];
         $model = $request_data['model'];
         $messages = isset($request_data['messages']) ? $request_data['messages'] : [];
         $temperature = isset($request_data['temperature']) ? $request_data['temperature'] : 0.7;
         $stream = isset($request_data['stream']) ? $request_data['stream'] : TRUE;
-        $tenant_id = isset($request_data['tenantId']) ? $request_data['tenantId'] : '';
-        $user_id = isset($request_data['userId']) ? $request_data['userId'] : '';
+
+        // Use JWT data for tenant/user if available, otherwise use from request
+        $tenant_id = '';
+        $user_id = '';
+
+        if ($jwtData && isset($jwtData->tenant_id) && isset($jwtData->user_id)) {
+            $tenant_id = $jwtData->tenant_id;
+            $user_id = $jwtData->user_id;
+            log_info('PROXY', 'Using JWT tenant/user data', [
+                'tenant_id' => $tenant_id,
+                'user_id' => $user_id
+            ]);
+        } else {
+            $tenant_id = isset($request_data['tenantId']) ? $request_data['tenantId'] : '';
+            $user_id = isset($request_data['userId']) ? $request_data['userId'] : '';
+        }
+
         $has_image = isset($request_data['hasImage']) ? $request_data['hasImage'] : FALSE;
 
-        // Verificación de API key
+        // API key verification
         if (!isset($this->api_keys[$provider]) || empty($this->api_keys[$provider])) {
-            log_error('PROXY', 'Proveedor inválido o no soportado', [
+            log_error('PROXY', 'Invalid or unsupported provider', [
                 'provider' => $provider,
                 'api_key_exists' => isset($this->api_keys[$provider]),
                 'api_key_empty' => isset($this->api_keys[$provider]) ? empty($this->api_keys[$provider]) : true
@@ -110,14 +143,14 @@ class LlmProxy extends Controller
                 ->setJSON(['error' => ['message' => 'Invalid or unsupported provider']]);
         }
 
-        log_info('PROXY', 'API key verificada para ' . $provider);
+        log_info('PROXY', 'API key verified for ' . $provider);
 
-        // Verificar cuota
+        // Check quota
         $quota = $this->llm_proxy_model->check_quota($tenant_id, $user_id);
-        log_info('PROXY', 'Verificación de cuota', $quota);
+        log_info('PROXY', 'Quota check', $quota);
 
         if ($quota && $quota['remaining'] <= 0) {
-            log_error('PROXY', 'Cuota excedida', [
+            log_error('PROXY', 'Quota exceeded', [
                 'tenant_id' => $tenant_id,
                 'user_id' => $user_id,
                 'quota' => $quota
@@ -129,20 +162,20 @@ class LlmProxy extends Controller
                 ->setJSON(['error' => ['message' => 'Quota exceeded']]);
         }
 
-        // Preparar payload según el proveedor
+        // Prepare payload based on provider
         $payload = $this->_prepare_payload($provider, $model, $messages, $temperature, $stream);
-        log_debug('PROXY', 'Payload preparado para ' . $provider, $payload);
+        log_debug('PROXY', 'Payload prepared for ' . $provider, $payload);
 
-        // Hacer la petición al proveedor LLM
+        // Make request to LLM provider
         try {
-            log_info('PROXY', 'Iniciando solicitud a API externa', [
+            log_info('PROXY', 'Starting external API request', [
                 'provider' => $provider,
                 'model' => $model
             ]);
 
             return $this->_make_request($provider, $payload, $stream, $tenant_id, $user_id, $model, $has_image);
         } catch (\Exception $e) {
-            log_error('PROXY', 'Error al procesar solicitud', [
+            log_error('PROXY', 'Error processing request', [
                 'message' => $e->getMessage(),
                 'code' => $e->getCode(),
                 'trace' => $e->getTraceAsString()

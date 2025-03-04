@@ -203,6 +203,11 @@
                             <i class="fas fa-building me-1"></i> Tenants
                         </a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link <?= strpos(uri_string(), 'api/tokens') === 0 ? 'active' : '' ?>" href="<?= site_url('api/tokens') ?>">
+                            <i class="fas fa-key me-1"></i> API Tokens
+                        </a>
+                    </li>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-user-circle me-1"></i>

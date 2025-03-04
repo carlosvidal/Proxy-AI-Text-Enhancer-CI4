@@ -9,13 +9,13 @@ class Auth extends Controller
 {
     public function __construct()
     {
-        // Cargar helpers necesarios
-        helper(['url', 'form']);
+        // Load necessary helpers
+        helper(['url', 'form', 'jwt']);
     }
 
     public function login()
     {
-        // Si ya está logueado, redirigir al dashboard
+        // If already logged in, redirect to dashboard
         if (session()->get('isLoggedIn')) {
             return redirect()->to('usage');
         }
@@ -38,7 +38,7 @@ class Auth extends Controller
                 );
 
                 if ($user) {
-                    // Establecer datos de sesión
+                    // Set session data
                     $sessionData = [
                         'id' => $user['id'],
                         'username' => $user['username'],
@@ -83,6 +83,133 @@ class Auth extends Controller
         return view('auth/login', $data);
     }
 
+    /**
+     * API Login endpoint - Returns JWT token
+     */
+    public function apiLogin()
+    {
+        // Get JSON data
+        $json = $this->request->getJSON();
+
+        if (!isset($json->username) || !isset($json->password)) {
+            return $this->response->setStatusCode(400)
+                ->setJSON([
+                    'error' => [
+                        'message' => 'Username and password are required'
+                    ]
+                ]);
+        }
+
+        $model = new UserModel();
+        $user = $model->checkCredentials(
+            $json->username,
+            $json->password
+        );
+
+        if (!$user) {
+            return $this->response->setStatusCode(401)
+                ->setJSON([
+                    'error' => [
+                        'message' => 'Invalid username or password'
+                    ]
+                ]);
+        }
+
+        // Generate JWT token
+        $payload = [
+            'id' => $user['id'],
+            'username' => $user['username'],
+            'email' => $user['email'],
+            'name' => $user['name'],
+            'role' => $user['role']
+        ];
+
+        $token = generate_jwt($payload);
+
+        // Generate refresh token with longer expiration
+        $refreshToken = generate_jwt([
+            'id' => $user['id'],
+            'type' => 'refresh'
+        ], 86400 * 30); // 30 days
+
+        // Update last login time
+        $model->updateLastLogin($user['id']);
+
+        return $this->response->setJSON([
+            'access_token' => $token,
+            'token_type' => 'bearer',
+            'expires_in' => 3600,
+            'refresh_token' => $refreshToken,
+            'user' => [
+                'id' => $user['id'],
+                'username' => $user['username'],
+                'name' => $user['name'],
+                'email' => $user['email'],
+                'role' => $user['role']
+            ]
+        ]);
+    }
+
+    /**
+     * Refresh JWT token
+     */
+    public function refreshToken()
+    {
+        // Get JSON data
+        $json = $this->request->getJSON();
+
+        if (!isset($json->refresh_token)) {
+            return $this->response->setStatusCode(400)
+                ->setJSON([
+                    'error' => [
+                        'message' => 'Refresh token is required'
+                    ]
+                ]);
+        }
+
+        // Validate refresh token
+        $tokenData = validate_jwt($json->refresh_token);
+
+        if (!$tokenData || !isset($tokenData->data->id) || !isset($tokenData->data->type) || $tokenData->data->type !== 'refresh') {
+            return $this->response->setStatusCode(401)
+                ->setJSON([
+                    'error' => [
+                        'message' => 'Invalid refresh token'
+                    ]
+                ]);
+        }
+
+        // Get user data
+        $model = new UserModel();
+        $user = $model->find($tokenData->data->id);
+
+        if (!$user) {
+            return $this->response->setStatusCode(401)
+                ->setJSON([
+                    'error' => [
+                        'message' => 'User not found'
+                    ]
+                ]);
+        }
+
+        // Generate new access token
+        $payload = [
+            'id' => $user['id'],
+            'username' => $user['username'],
+            'email' => $user['email'],
+            'name' => $user['name'],
+            'role' => $user['role']
+        ];
+
+        $token = generate_jwt($payload);
+
+        return $this->response->setJSON([
+            'access_token' => $token,
+            'token_type' => 'bearer',
+            'expires_in' => 3600
+        ]);
+    }
+
     public function logout()
     {
         session()->destroy();
@@ -91,7 +218,7 @@ class Auth extends Controller
 
     public function profile()
     {
-        // Verificar si está logueado
+        // Check if logged in
         if (!session()->get('isLoggedIn')) {
             return redirect()->to('auth/login');
         }
@@ -108,7 +235,7 @@ class Auth extends Controller
 
     public function updateProfile()
     {
-        // Verificar si está logueado
+        // Check if logged in
         if (!session()->get('isLoggedIn')) {
             return redirect()->to('auth/login');
         }
@@ -119,7 +246,7 @@ class Auth extends Controller
                 'email' => 'required|valid_email'
             ];
 
-            // Si se proporciona una nueva contraseña, validarla
+            // If a new password is provided, validate it
             if ($this->request->getPost('password')) {
                 $rules['password'] = 'required|min_length[8]';
                 $rules['password_confirm'] = 'matches[password]';
@@ -135,13 +262,13 @@ class Auth extends Controller
                     'updated_at' => date('Y-m-d H:i:s')
                 ];
 
-                // Actualizar contraseña si se proporciona
+                // Update password if provided
                 if ($this->request->getPost('password')) {
                     $userData['password'] = password_hash($this->request->getPost('password'), PASSWORD_DEFAULT);
                 }
 
                 if ($model->update($id, $userData)) {
-                    // Actualizar datos de sesión
+                    // Update session data
                     session()->set('name', $userData['name']);
                     session()->set('email', $userData['email']);
 

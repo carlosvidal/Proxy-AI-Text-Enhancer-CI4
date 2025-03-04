@@ -19,13 +19,14 @@ class Filters extends BaseConfig
      *                                                     or [filter_name => [classname1, classname2, ...]]
      */
     public array $aliases = [
-        'cors' => \App\Filters\CorsFilter::class, // <-- Agrega el alias 'cors'
+        'cors' => \App\Filters\CorsFilter::class, // CORS filter
         'csrf'          => CSRF::class,
         'toolbar'       => DebugToolbar::class,
         'honeypot'      => Honeypot::class,
         'invalidchars'  => InvalidChars::class,
         'secureheaders' => SecureHeaders::class,
         'auth' => \App\Filters\AuthFilter::class,
+        'jwt' => \App\Filters\JwtFilter::class, // Added JWT filter
     ];
 
     /**
@@ -39,7 +40,7 @@ class Filters extends BaseConfig
             // 'honeypot',
             // 'csrf',
             // 'invalidchars',
-            'cors',  // <-- Agrega 'cors' aquí
+            'cors',  // CORS filter
         ],
         'after' => [
             'toolbar',
@@ -79,6 +80,12 @@ class Filters extends BaseConfig
                 'tenants*',
                 'auth/profile',
                 'auth/updateProfile'
+            ]
+        ],
+        'jwt' => [
+            'before' => [
+                'api/llm-proxy/secure',  // Example of a secured endpoint
+                'api/quota/secure',      // Example of a secured quota endpoint
             ]
         ],
     ];
