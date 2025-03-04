@@ -89,6 +89,15 @@ $routes->get('tenants/view/(:num)', 'Tenants::view/$1');
 $routes->get('tenants/users/(:num)', 'Tenants::users/$1');
 $routes->get('tenants/add_user/(:num)', 'Tenants::add_user/$1');
 $routes->post('tenants/add_user/(:num)', 'Tenants::add_user/$1');
+$routes->get('tenants/remove_user/(:num)', 'Tenants::remove_user/$1');
+$routes->get('tenants/usage/(:num)', 'Tenants::usage/$1');
+$routes->get('tenants/logs/(:num)', 'Tenants::logs/$1');
+$routes->get('tenants/quotas/(:num)', 'Tenants::quotas/$1');
+$routes->get('tenants/cache/(:num)', 'Tenants::cache/$1');
+
+$routes->get('tenants/edit_user/(:num)', 'Tenants::edit_user/$1');
+$routes->post('tenants/edit_user/(:num)', 'Tenants::edit_user/$1');
+
 
 // Migration routes for database setup
 $routes->get('migrate', 'Migrate::index');
