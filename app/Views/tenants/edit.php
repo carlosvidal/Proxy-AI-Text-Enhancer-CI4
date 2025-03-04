@@ -17,6 +17,7 @@
         Edit Tenant
     </div>
     <div class="card-body">
+        <!-- EDIT TENANT -->
         <form action="<?= site_url('tenants/edit/' . $tenant['id']) ?>" method="post">
             <?= csrf_field() ?>
 

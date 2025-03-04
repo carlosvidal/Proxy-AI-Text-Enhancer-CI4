@@ -17,6 +17,7 @@
         Edit User
     </div>
     <div class="card-body">
+        <!-- EDIT USER FORM -->
         <form action="<?= site_url('tenants/edit_user/' . $user->id) ?>" method="post">
             <?= csrf_field() ?>
 
