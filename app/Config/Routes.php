@@ -41,6 +41,10 @@ $routes->get('/', 'Home::index');
 $routes->post('api/llm-proxy', 'LlmProxy::index');
 $routes->options('api/llm-proxy', 'LlmProxy::options');
 
+// Asegúrate de que tengas estas líneas:
+$routes->options('api/llm-proxy', 'LlmProxy::options');
+$routes->options('api/llm-proxy/(:any)', 'LlmProxy::options/$1');
+
 // JWT secured endpoint - requires valid token
 $routes->post('api/llm-proxy/secure', 'LlmProxy::index', ['filter' => 'jwt']);
 $routes->options('api/llm-proxy/secure', 'LlmProxy::options');

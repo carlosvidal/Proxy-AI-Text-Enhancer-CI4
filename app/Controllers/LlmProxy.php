@@ -615,15 +615,33 @@ class LlmProxy extends Controller
      */
     public function options()
     {
-        // Cabeceras CORS para preflight requests
-        header('Access-Control-Allow-Origin: *');
-        header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+        // Obtener el origen de la solicitud
+        $origin = $this->request->getHeaderLine('Origin');
+        $allowed_origins_str = env('ALLOWED_ORIGINS', '');
+
+        // Verificar si el wildcard está establecido o el origen está en la lista de permitidos
+        if ($allowed_origins_str === '*') {
+            header('Access-Control-Allow-Origin: *');
+        } elseif (!empty($origin)) {
+            $allowed_origins = array_map('trim', explode(',', $allowed_origins_str));
+            if (in_array($origin, $allowed_origins)) {
+                header("Access-Control-Allow-Origin: {$origin}");
+                header('Access-Control-Allow-Credentials: true');
+            }
+        }
+
+        // Configurar otros headers CORS
+        header('Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE');
         header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
         header('Access-Control-Max-Age: 3600');
+
+        // Configurar la respuesta OPTIONS
         header('Content-Type: text/plain');
         header('Content-Length: 0');
-        header('HTTP/1.1 200 OK');
-        return '';
+        header('HTTP/1.1 204 No Content');
+
+        // Importante: detener la ejecución para evitar que CodeIgniter siga procesando
+        exit();
     }
 
     /**
