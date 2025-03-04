@@ -10,7 +10,7 @@ class CorsFilter implements FilterInterface
 {
     public function before(RequestInterface $request, $arguments = null)
     {
-        $allowed_origins_str = env('ALLOWED_ORIGINS', 'http://127.0.0.1:5500,http://localhost:5500');
+        $allowed_origins_str = env('ALLOWED_ORIGINS', 'https://panel.mitienda.host,http://llmproxy2.test:8080,http://127.0.0.1:5500,http://localhost:5500');
         $allowed_origins = $allowed_origins_str === '*' ? '*' : explode(',', $allowed_origins_str);
 
         $origin = $request->getHeaderLine('Origin');
