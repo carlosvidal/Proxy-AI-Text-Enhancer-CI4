@@ -11,38 +11,49 @@ class CorsFilter implements FilterInterface
     public function before(RequestInterface $request, $arguments = null)
     {
         // Get allowed origins from environment
-        $allowed_origins_str = env('ALLOWED_ORIGINS', '');
+        $allowed_origins_str = env('ALLOWED_ORIGINS', '*');
 
-        // Check if wildcard is set
-        if ($allowed_origins_str === '*') {
-            $allowed_origins = '*';
-        } else {
-            // Parse comma-separated list
-            $allowed_origins = array_map('trim', explode(',', $allowed_origins_str));
-        }
+        // Log CORS configuration for debugging
+        log_message('debug', 'CORS configuration: ALLOWED_ORIGINS=' . $allowed_origins_str);
 
+        // Set appropriate CORS headers
         $origin = $request->getHeaderLine('Origin');
 
-        // Set appropriate CORS headers based on origin
+        // Log the requesting origin
+        log_message('debug', 'Request origin: ' . ($origin ?: 'none'));
+
+        // If we have a requesting origin and it's not empty
         if (!empty($origin)) {
-            if ($allowed_origins === '*') {
+            // Check if wildcard is set or if the origin is in the allowed list
+            if ($allowed_origins_str === '*') {
                 header('Access-Control-Allow-Origin: *');
-            } elseif (in_array($origin, $allowed_origins)) {
-                header("Access-Control-Allow-Origin: {$origin}");
-                header('Access-Control-Allow-Credentials: true');
+                log_message('debug', 'CORS header set: Access-Control-Allow-Origin: *');
+            } else {
+                // Parse comma-separated list
+                $allowed_origins = array_map('trim', explode(',', $allowed_origins_str));
+
+                log_message('debug', 'CORS allowed origins: ' . implode(', ', $allowed_origins));
+
+                if (in_array($origin, $allowed_origins)) {
+                    header("Access-Control-Allow-Origin: {$origin}");
+                    header('Access-Control-Allow-Credentials: true');
+                    log_message('debug', 'CORS header set: Access-Control-Allow-Origin: ' . $origin);
+                } else {
+                    log_message('debug', 'Origin not allowed: ' . $origin);
+                }
             }
 
             header('Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE');
             header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
-            header('Access-Control-Max-Age: 86400');
+            header('Access-Control-Max-Age: 86400'); // 24 hours cache
         }
 
         // Handle preflight OPTIONS requests
         if ($request->getMethod() === 'options') {
+            log_message('debug', 'Handling OPTIONS preflight request');
             header('Content-Length: 0');
             header('Content-Type: text/plain');
-            header('HTTP/1.1 204 No Content');
-            exit;
+            exit(0); // Stop further processing
         }
 
         return $request;
@@ -50,7 +61,7 @@ class CorsFilter implements FilterInterface
 
     public function after(RequestInterface $request, ResponseInterface $response, $arguments = null)
     {
-        // We'll skip adding headers here as they should be set in the before method
+        // Do nothing
         return $response;
     }
 }

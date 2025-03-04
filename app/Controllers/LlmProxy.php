@@ -615,6 +615,10 @@ class LlmProxy extends Controller
      */
     public function options()
     {
+        // Los encabezados CORS ya están configurados en el CorsFilter
+        // Solo devolvemos una respuesta vacía
+        return $this->response->setStatusCode(204);
+    }
 
         file_put_contents(
             '/var/www/llmproxy.mitienda.host/writable/logs/cors_debug.log',
