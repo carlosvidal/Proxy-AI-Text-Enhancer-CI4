@@ -38,12 +38,15 @@ class Tenants extends Controller
             return redirect()->to('/tenants')->with('error', 'Tenant not found');
         }
 
-        // Obtener usuarios del tenant
-        $data['users'] = $this->tenantsModel->getUsers($tenant_id);
+        // Get users for this tenant using the tenant_id string
+        $data['users'] = $this->tenantsModel->getUsers($data['tenant']['tenant_id']);
+
+        // Get buttons for this tenant
+        $buttonsModel = new \App\Models\ButtonsModel();
+        $data['buttons'] = $buttonsModel->getButtonsByTenant($data['tenant']['tenant_id']);
 
         return view('tenants/view', $data);
     }
-
     /**
      * Crear un nuevo tenant
      */

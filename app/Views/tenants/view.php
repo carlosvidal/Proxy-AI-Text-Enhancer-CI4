@@ -117,6 +117,63 @@
     </div>
 </div>
 
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="fas fa-puzzle-piece me-1"></i>
+                    Buttons
+                </div>
+                <a href="<?= site_url('buttons/' . $tenant['id']) ?>" class="btn btn-sm btn-primary">
+                    <i class="fas fa-external-link-alt me-1"></i>Manage Buttons
+                </a>
+            </div>
+            <div class="card-body">
+                <?php if (empty($buttons)): ?>
+                    <p class="text-muted text-center">No buttons configured for this tenant.</p>
+                    <div class="text-center mt-3">
+                        <a href="<?= site_url('buttons/create/' . $tenant['id']) ?>" class="btn btn-primary">
+                            <i class="fas fa-plus-circle me-1"></i>Create First Button
+                        </a>
+                    </div>
+                <?php else: ?>
+                    <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Domain</th>
+                                    <th>Provider</th>
+                                    <th>Model</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($buttons as $button): ?>
+                                    <tr>
+                                        <td><?= esc($button['name']) ?></td>
+                                        <td><?= esc($button['domain']) ?></td>
+                                        <td><span class="badge badge-provider"><?= esc($button['provider']) ?></span></td>
+                                        <td><span class="badge badge-model"><?= esc($button['model']) ?></span></td>
+                                        <td>
+                                            <?php if ($button['active']): ?>
+                                                <span class="badge bg-success">Active</span>
+                                            <?php else: ?>
+                                                <span class="badge bg-danger">Inactive</span>
+                                            <?php endif; ?>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="card mb-4">
     <div class="card-header">
         <i class="fas fa-chart-line me-1"></i>
