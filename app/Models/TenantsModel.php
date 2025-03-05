@@ -38,10 +38,21 @@ class TenantsModel extends Model
      */
     public function getUsers($tenant_id)
     {
+        log_message('debug', "TenantsModel::getUsers - Buscando usuarios para tenant_id: {$tenant_id}");
+
         $db = db_connect();
         $builder = $db->table('tenant_users');
         $builder->where('tenant_id', $tenant_id);
-        return $builder->get()->getResult();
+
+        $result = $builder->get()->getResult();
+
+        log_message('debug', "TenantsModel::getUsers - Encontrados " . count($result) . " usuarios");
+
+        // Para depuración, imprimir la consulta SQL
+        $lastQuery = $db->getLastQuery();
+        log_message('debug', "TenantsModel::getUsers - SQL: " . (string)$lastQuery);
+
+        return $result;
     }
 
     /**
@@ -52,9 +63,29 @@ class TenantsModel extends Model
      */
     public function addUser($userData)
     {
-        $db = db_connect();
-        $builder = $db->table('tenant_users');
-        return $builder->insert($userData);
+        log_message('debug', "TenantsModel::addUser - Datos recibidos: " . json_encode($userData));
+
+        // Verificar que los campos requeridos estén presentes
+        if (!isset($userData['tenant_id']) || !isset($userData['user_id'])) {
+            log_message('error', "TenantsModel::addUser - Faltan campos requeridos: tenant_id o user_id");
+            return false;
+        }
+
+        try {
+            $db = db_connect();
+            $result = $db->table('tenant_users')->insert($userData);
+
+            if ($result) {
+                log_message('debug', "TenantsModel::addUser - Usuario insertado correctamente");
+                return true;
+            } else {
+                log_message('error', "TenantsModel::addUser - Error al insertar: " . json_encode($db->error()));
+                return false;
+            }
+        } catch (\Exception $e) {
+            log_message('error', "TenantsModel::addUser - Excepción: " . $e->getMessage());
+            return false;
+        }
     }
 
     /**

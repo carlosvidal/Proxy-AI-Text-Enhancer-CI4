@@ -98,4 +98,35 @@ class ButtonsModel extends Model
 
         return $builder->countAllResults() > 0;
     }
+
+    /**
+     * Generate a unique button_id
+     * 
+     * @return string Unique button_id
+     */
+    public function generateButtonId()
+    {
+        // Generate a random button_id
+        $button_id = bin2hex(random_bytes(8)); // 16 character hex string
+
+        // Check if it's unique
+        while ($this->where('button_id', $button_id)->countAllResults() > 0) {
+            $button_id = bin2hex(random_bytes(8));
+        }
+
+        return $button_id;
+    }
+
+    /**
+     * Get a button by its button_id
+     * 
+     * @param string $button_id Button ID to find
+     * @return array|null Button data or null if not found
+     */
+    public function getButtonByButtonId($button_id)
+    {
+        return $this->where('button_id', $button_id)
+            ->where('active', 1)
+            ->first();
+    }
 }

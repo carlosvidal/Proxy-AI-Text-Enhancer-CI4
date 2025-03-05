@@ -148,14 +148,39 @@ class Tenants extends Controller
      */
     public function users($tenant_id)
     {
+        log_message('debug', "TenantsController::users - ID del tenant: {$tenant_id}");
+
         $data['title'] = 'Tenant Users';
         $data['tenant'] = $this->tenantsModel->find($tenant_id);
+
+        log_message('debug', "TenantsController::users - Datos del tenant: " . json_encode($data['tenant']));
 
         if (empty($data['tenant'])) {
             return redirect()->to('/tenants')->with('error', 'Tenant not found');
         }
 
-        $data['users'] = $this->tenantsModel->getUsers($tenant_id);
+        // Usar el tenant_id del tenant, no el ID numérico
+        $tenant_id_str = $data['tenant']['tenant_id'];
+        log_message('debug', "TenantsController::users - Buscando usuarios con tenant_id: {$tenant_id_str}");
+
+        $data['users'] = $this->tenantsModel->getUsers($tenant_id_str);
+        log_message('debug', "TenantsController::users - Usuarios encontrados: " . count($data['users']));
+
+        // Para depuración, imprimir los usuarios encontrados
+        if (count($data['users']) > 0) {
+            log_message('debug', "TenantsController::users - Primer usuario: " . json_encode($data['users'][0]));
+        } else {
+            // Verificar directamente en la base de datos como último recurso
+            $db = db_connect();
+            $query = $db->query("SELECT * FROM tenant_users WHERE tenant_id = ?", [$tenant_id_str]);
+            $direct_results = $query->getResultArray();
+
+            log_message('debug', "TenantsController::users - Consulta directa SQL encontró " . count($direct_results) . " usuarios");
+            if (count($direct_results) > 0) {
+                log_message('debug', "TenantsController::users - Hay un problema con la función getUsers.");
+                $data['users'] = $direct_results; // Asignar los resultados directos como fallback
+            }
+        }
 
         return view('tenants/users', $data);
     }
@@ -172,35 +197,6 @@ class Tenants extends Controller
             return redirect()->to('/tenants')->with('error', 'Tenant not found');
         }
 
-        if ($this->validate($rules)) {
-            $userData = [
-                'tenant_id' => $tenant_id,
-                'user_id' => $this->request->getPost('user_id'),
-                'email' => $this->request->getPost('email'),
-                'name' => $this->request->getPost('name'),
-                'quota' => $this->request->getPost('quota'),
-                'active' => 1,
-                'created_at' => date('Y-m-d H:i:s')
-            ];
-
-            if ($this->tenantsModel->addUser($userData)) {
-                // Crear también en user_quotas
-                $db = db_connect();
-                $db->table('user_quotas')->insert([
-                    'tenant_id' => $tenant_id,
-                    'user_id' => $this->request->getPost('user_id'),
-                    'total_quota' => $this->request->getPost('quota'),
-                    'reset_period' => 'monthly',
-                    'created_at' => date('Y-m-d H:i:s'),
-                    'updated_at' => date('Y-m-d H:i:s')
-                ]);
-
-                return redirect()->to("/tenants/users/$tenant_id")->with('success', 'User added successfully');
-            } else {
-                return redirect()->back()->with('error', 'Error adding user')->withInput();
-            }
-        }
-
         if ($this->request->getMethod() === 'post') {
             $rules = [
                 'user_id' => 'required|min_length[3]|max_length[100]',
@@ -210,9 +206,26 @@ class Tenants extends Controller
             ];
 
             if ($this->validate($rules)) {
+                $tenant_id_str = $data['tenant']['tenant_id'];
+                $user_id = $this->request->getPost('user_id');
+
+                // Verificar si el usuario ya existe para este tenant
+                $db = db_connect();
+                $existing = $db->table('tenant_users')
+                    ->where('tenant_id', $tenant_id_str)
+                    ->where('user_id', $user_id)
+                    ->get()
+                    ->getRow();
+
+                if ($existing) {
+                    return redirect()->back()
+                        ->with('error', 'A user with this ID already exists for this tenant')
+                        ->withInput();
+                }
+
                 $userData = [
-                    'tenant_id' => $tenant_id,
-                    'user_id' => $this->request->getPost('user_id'),
+                    'tenant_id' => $tenant_id_str,
+                    'user_id' => $user_id,
                     'email' => $this->request->getPost('email'),
                     'name' => $this->request->getPost('name'),
                     'quota' => $this->request->getPost('quota'),
@@ -221,6 +234,16 @@ class Tenants extends Controller
                 ];
 
                 if ($this->tenantsModel->addUser($userData)) {
+                    // Crear también en user_quotas
+                    $db->table('user_quotas')->insert([
+                        'tenant_id' => $tenant_id_str,
+                        'user_id' => $user_id,
+                        'total_quota' => $this->request->getPost('quota'),
+                        'reset_period' => 'monthly',
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s')
+                    ]);
+
                     return redirect()->to("/tenants/users/$tenant_id")->with('success', 'User added successfully');
                 } else {
                     return redirect()->back()->with('error', 'Error adding user')->withInput();
