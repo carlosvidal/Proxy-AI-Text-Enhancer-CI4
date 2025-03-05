@@ -249,15 +249,27 @@ class LlmProxy extends Controller
             curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($payload));
             curl_setopt($curl, CURLOPT_TIMEOUT, 120); // 2 minutos de timeout
 
-            // Para streaming
+            // Para streaming también necesitamos actualizar el manejo
+            // Busca la sección donde se maneja el streaming y modifica:
+
             if ($stream) {
                 // Registrar el inicio de streaming
                 log_info('API_REQUEST', 'Iniciando streaming real con ' . $provider);
 
                 // Configuración especial para streaming
-                curl_setopt($curl, CURLOPT_WRITEFUNCTION, function ($curl, $data) use ($tenant_id, $user_id, $provider, $model, $has_image) {
+                $token_count = 0; // Variable para rastrear tokens en streaming
+
+                curl_setopt($curl, CURLOPT_WRITEFUNCTION, function ($curl, $data) use (&$token_count, $tenant_id, $user_id, $provider, $model, $has_image) {
+                    // El resto del código actual para _handle_stream_chunk
+
+                    // Intentar contar tokens aquí (esto es aproximado para streaming)
+                    // Aproximadamente 4 caracteres = 1 token para inglés
+                    // Esto es sólo una aproximación mientras llega el final del stream
+                    $token_count += ceil(mb_strlen($data) / 4);
+
                     return $this->_handle_stream_chunk($data, $tenant_id, $user_id, $provider, $model, $has_image);
                 });
+
                 curl_setopt($curl, CURLOPT_VERBOSE, true);
                 $verbose = fopen('php://temp', 'w+');
                 curl_setopt($curl, CURLOPT_STDERR, $verbose);
@@ -297,13 +309,16 @@ class LlmProxy extends Controller
                 // Cerrar la conexión cURL
                 curl_close($curl);
 
-                // Registrar el uso
-                $this->llm_proxy_model->record_usage($tenant_id, $user_id, $provider, $model, $has_image);
-
-                log_info('API_REQUEST', 'Streaming finalizado', [
+                // Registrar el uso con los tokens contados (aproximados para streaming)
+                // Al menos tendremos una aproximación mejor que un número fijo
+                $estimated_tokens = max($token_count, 50); // Mínimo 50 tokens para evitar valores demasiado bajos
+                log_info('API_REQUEST', 'Streaming finalizado, tokens estimados', [
                     'provider' => $provider,
-                    'model' => $model
+                    'model' => $model,
+                    'estimated_tokens' => $estimated_tokens
                 ]);
+
+                $this->llm_proxy_model->record_usage($tenant_id, $user_id, $provider, $model, $has_image, $estimated_tokens);
 
                 exit; // Terminar la ejecución después del streaming
             }
@@ -349,13 +364,46 @@ class LlmProxy extends Controller
 
                 // Extraer el contenido de la respuesta según el proveedor
                 $content = '';
+
+                // Extraer información de uso de tokens
+                $prompt_tokens = 0;
+                $completion_tokens = 0;
+                $total_tokens = 0;
+
                 switch ($provider) {
                     case 'openai':
                         $content = $response_data['choices'][0]['message']['content'];
+
+                        // Extraer tokens de OpenAI
+                        if (isset($response_data['usage'])) {
+                            $prompt_tokens = $response_data['usage']['prompt_tokens'] ?? 0;
+                            $completion_tokens = $response_data['usage']['completion_tokens'] ?? 0;
+                            $total_tokens = $response_data['usage']['total_tokens'] ?? 0;
+                        }
                         break;
+
                     case 'anthropic':
                         $content = $response_data['content'][0]['text'];
+
+                        // Extraer tokens de Anthropic
+                        if (isset($response_data['usage'])) {
+                            $prompt_tokens = $response_data['usage']['input_tokens'] ?? 0;
+                            $completion_tokens = $response_data['usage']['output_tokens'] ?? 0;
+                            $total_tokens = $prompt_tokens + $completion_tokens;
+                        }
                         break;
+
+                    case 'mistral':
+                        $content = $response_data['choices'][0]['message']['content'];
+
+                        // Extraer tokens de Mistral
+                        if (isset($response_data['usage'])) {
+                            $prompt_tokens = $response_data['usage']['prompt_tokens'] ?? 0;
+                            $completion_tokens = $response_data['usage']['completion_tokens'] ?? 0;
+                            $total_tokens = $response_data['usage']['total_tokens'] ?? 0;
+                        }
+                        break;
+
                     // Otros proveedores...
                     default:
                         if (isset($response_data['choices'][0]['message']['content'])) {
@@ -368,8 +416,19 @@ class LlmProxy extends Controller
                         }
                 }
 
-                // Registrar el uso
-                $this->llm_proxy_model->record_usage($tenant_id, $user_id, $provider, $model, $has_image);
+                // Registrar el uso con los tokens reales
+                if ($total_tokens > 0) {
+                    log_info('API_REQUEST', 'Tokens registrados', [
+                        'prompt_tokens' => $prompt_tokens,
+                        'completion_tokens' => $completion_tokens,
+                        'total_tokens' => $total_tokens
+                    ]);
+
+                    $this->llm_proxy_model->record_usage($tenant_id, $user_id, $provider, $model, $has_image, $total_tokens);
+                } else {
+                    // Si no se pudo obtener información de tokens, usar estimación como respaldo
+                    $this->llm_proxy_model->record_usage($tenant_id, $user_id, $provider, $model, $has_image);
+                }
 
                 // Estructurar la respuesta similar a OpenAI para consistencia
                 $responseData = [
@@ -387,10 +446,10 @@ class LlmProxy extends Controller
                             'finish_reason' => 'stop'
                         ]
                     ],
-                    'usage' => isset($response_data['usage']) ? $response_data['usage'] : [
-                        'prompt_tokens' => 0,
-                        'completion_tokens' => 0,
-                        'total_tokens' => 0
+                    'usage' => [
+                        'prompt_tokens' => $prompt_tokens,
+                        'completion_tokens' => $completion_tokens,
+                        'total_tokens' => $total_tokens
                     ]
                 ];
 

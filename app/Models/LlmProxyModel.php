@@ -137,13 +137,14 @@ class LlmProxyModel extends Model
      * @param string $provider Proveedor LLM
      * @param string $model Modelo utilizado
      * @param bool $has_image Si la petición incluía imágenes
+     * @param int|null $token_count Cantidad real de tokens usados (si está disponible)
      * @return bool Éxito o fracaso
      */
-    public function record_usage($tenant_id, $user_id, $provider, $model, $has_image)
+    public function record_usage($tenant_id, $user_id, $provider, $model, $has_image, $token_count = null)
     {
         // Si no hay tenant o usuario, no registramos
         if (empty($tenant_id) || empty($user_id)) {
-            $this->_log_usage($tenant_id, $user_id, $provider, $model, $has_image);
+            $this->_log_usage($tenant_id, $user_id, $provider, $model, $has_image, $token_count);
             return FALSE;
         }
 
@@ -154,25 +155,43 @@ class LlmProxyModel extends Model
         $provider = $db->escapeString($provider);
         $model = $db->escapeString($model);
 
-        // Estimar tokens usados (esto es una aproximación)
-        $base_tokens = 500; // Valor base
-        $token_multiplier = $has_image ? 2 : 1; // Las imágenes consumen más tokens
+        // Si tenemos conteo de tokens real, usamos ese valor
+        $tokens = $token_count;
 
-        // Diferentes modelos tienen diferentes costos
-        switch ($model) {
-            case 'gpt-4-turbo':
-            case 'claude-3-opus-20240229':
-                $model_multiplier = 2.0;
-                break;
-            case 'gpt-3.5-turbo':
-            case 'mistral-medium-latest':
-                $model_multiplier = 0.5;
-                break;
-            default:
-                $model_multiplier = 1.0;
+        // Si no tenemos conteo real, estimamos (mantenemos la lógica anterior como respaldo)
+        if ($tokens === null) {
+            // Estimar tokens usados (esto es una aproximación)
+            $base_tokens = 500; // Valor base
+            $token_multiplier = $has_image ? 2 : 1; // Las imágenes consumen más tokens
+
+            // Diferentes modelos tienen diferentes costos
+            switch ($model) {
+                case 'gpt-4-turbo':
+                case 'claude-3-opus-20240229':
+                    $model_multiplier = 2.0;
+                    break;
+                case 'gpt-3.5-turbo':
+                case 'mistral-medium-latest':
+                    $model_multiplier = 0.5;
+                    break;
+                default:
+                    $model_multiplier = 1.0;
+            }
+
+            $tokens = $base_tokens * $token_multiplier * $model_multiplier;
+
+            log_info('USAGE', 'Usando estimación de tokens', [
+                'estimated_tokens' => $tokens,
+                'provider' => $provider,
+                'model' => $model
+            ]);
+        } else {
+            log_info('USAGE', 'Usando conteo real de tokens', [
+                'actual_tokens' => $tokens,
+                'provider' => $provider,
+                'model' => $model
+            ]);
         }
-
-        $estimated_tokens = $base_tokens * $token_multiplier * $model_multiplier;
 
         // Verificar si la tabla existe antes de hacer consultas
         $tables = $db->listTables();
@@ -184,14 +203,14 @@ class LlmProxyModel extends Model
                 'provider' => $provider,
                 'model' => $model,
                 'has_image' => $has_image ? 1 : 0,
-                'tokens' => $estimated_tokens,
+                'tokens' => $tokens,
                 'usage_date' => date('Y-m-d H:i:s')
             ];
 
             return $db->table('usage_logs')->insert($data);
         } else {
             // Si no hay tabla de uso, solo registrar en log
-            $this->_log_usage($tenant_id, $user_id, $provider, $model, $has_image);
+            $this->_log_usage($tenant_id, $user_id, $provider, $model, $has_image, $tokens);
             return FALSE;
         }
     }
@@ -199,16 +218,17 @@ class LlmProxyModel extends Model
     /**
      * Registra el uso en un archivo de log
      */
-    private function _log_usage($tenant_id, $user_id, $provider, $model, $has_image)
+    private function _log_usage($tenant_id, $user_id, $provider, $model, $has_image, $tokens = null)
     {
         $log_message = sprintf(
-            "[%s] Usage: Tenant=%s, User=%s, Provider=%s, Model=%s, HasImage=%s",
+            "[%s] Usage: Tenant=%s, User=%s, Provider=%s, Model=%s, HasImage=%s, Tokens=%s",
             date('Y-m-d H:i:s'),
             $tenant_id,
             $user_id,
             $provider,
             $model,
-            $has_image ? 'true' : 'false'
+            $has_image ? 'true' : 'false',
+            $tokens !== null ? $tokens : 'unknown'
         );
 
         log_message('info', $log_message);

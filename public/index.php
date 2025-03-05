@@ -1,24 +1,5 @@
 <?php
 
-// // CORS Headers - Configuración directa
-// $origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
-// #$allowed_origins = ['https://panel.mitienda.host', 'http://localhost:5500'];
-// $allowed_origins = ['*'];
-
-if (in_array($origin, $allowed_origins)) {
-    header("Access-Control-Allow-Origin: " . $origin);
-    header("Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE");
-    header("Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With");
-    header("Access-Control-Allow-Credentials: true");
-    header("Access-Control-Max-Age: 86400"); // 24 horas
-
-    // Responder inmediatamente a las solicitudes preflight OPTIONS
-    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-        http_response_code(204);
-        exit;
-    }
-}
-
 // Check PHP version.
 $minPhpVersion = '7.4'; // If you update this, don't forget to update `spark`.
 if (version_compare(PHP_VERSION, $minPhpVersion, '<')) {
