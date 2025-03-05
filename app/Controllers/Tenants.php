@@ -63,7 +63,7 @@ class Tenants extends Controller
                 $tenant_id = $this->tenantsModel->generateTenantId($this->request->getPost('name'));
 
                 $tenantData = [
-                    'tenant_id' => $tenant_id, // Add the tenant_id
+                    'tenant_id' => $tenant_id,
                     'name' => $this->request->getPost('name'),
                     'email' => $this->request->getPost('email'),
                     'quota' => $this->request->getPost('quota'),
@@ -72,7 +72,7 @@ class Tenants extends Controller
                 ];
 
                 if ($this->tenantsModel->insert($tenantData)) {
-                    return redirect()->to('/tenants')->with('success', 'Tenant created successfully');
+                    return redirect()->to('/tenants')->with('success', 'Tenant created successfully with ID: ' . $tenant_id);
                 } else {
                     return redirect()->back()->with('error', 'Error creating tenant')->withInput();
                 }

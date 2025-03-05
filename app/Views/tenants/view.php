@@ -109,8 +109,14 @@
                         </table>
                     </div>
                     <div class="text-end mt-3">
-                        <a href="<?= site_url('tenants/users/' . $tenant['id']) ?>" class="btn btn-primary btn-sm">
-                            <i class="fas fa-users me-1"></i>Manage All Users
+                        <a href="<?= site_url('tenants/edit/' . $tenant['id']) ?>" class="btn btn-warning text-white">
+                            <i class="fas fa-edit me-1"></i>Edit
+                        </a>
+                        <a href="<?= site_url('tenants/users/' . $tenant['id']) ?>" class="btn btn-primary">
+                            <i class="fas fa-users me-1"></i>Manage Users
+                        </a>
+                        <a href="<?= site_url('buttons/' . $tenant['id']) ?>" class="btn btn-info text-white">
+                            <i class="fas fa-puzzle-piece me-1"></i>Manage Buttons
                         </a>
                     </div>
                 <?php endif; ?>

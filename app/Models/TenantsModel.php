@@ -106,17 +106,62 @@ class TenantsModel extends Model
     /**
      * Genera un tenant_id único para un nuevo tenant
      * 
-     * @return string Tenant ID único
+     * @param string $name Nombre del tenant para base del ID
+     * @return string Tenant ID único de 8 caracteres
      */
     public function generateTenantId($name)
     {
-        // Create a base tenant_id from the name
+        // Create a clean base from the name (lowercase, only alphanumeric)
         $base = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $name));
-        $base = substr($base, 0, 10); // Limit length
 
-        // Add a random string to ensure uniqueness
-        $random = substr(md5(uniqid(mt_rand(), true)), 0, 6);
+        // Take first 4 characters or pad if shorter
+        $base = substr($base . 'xxxx', 0, 4);
 
-        return $base . $random;
+        // Generate a random hex string for the second half
+        $random = bin2hex(random_bytes(2)); // 4 hex characters
+
+        // Combine for a unique 8-character tenant_id
+        $tenant_id = $base . $random;
+
+        // Check if it already exists, if so, generate a new one
+        while ($this->isTenantIdTaken($tenant_id)) {
+            $random = bin2hex(random_bytes(2));
+            $tenant_id = $base . $random;
+        }
+
+        return $tenant_id;
+    }
+
+    /**
+     * Check if a tenant_id is already in use
+     * 
+     * @param string $tenant_id Tenant ID to check
+     * @return bool True if taken, false otherwise
+     */
+    public function isTenantIdTaken($tenant_id)
+    {
+        return $this->where('tenant_id', $tenant_id)->countAllResults() > 0;
+    }
+
+    /**
+     * Find a tenant by tenant_id
+     * 
+     * @param string $tenant_id Tenant ID to find
+     * @return array|null Tenant data or null if not found
+     */
+    public function findByTenantId($tenant_id)
+    {
+        return $this->where('tenant_id', $tenant_id)->first();
+    }
+
+    /**
+     * Find tenant by ID and return with tenant_id
+     * 
+     * @param int $id Tenant primary key ID
+     * @return array|null Tenant data with tenant_id or null if not found
+     */
+    public function findWithTenantId($id)
+    {
+        return $this->find($id);
     }
 }

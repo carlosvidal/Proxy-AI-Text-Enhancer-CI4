@@ -87,30 +87,16 @@ class LlmProxy extends Controller
 
         $request_data = json_decode($json_data, TRUE);
 
-        // Verify data is valid
-        if (!$request_data || !isset($request_data['provider']) || !isset($request_data['model'])) {
-            log_error('PROXY', 'Invalid request data', $request_data);
-
+        // Verify data is valid (basic validation)
+        if (!$request_data) {
+            log_error('PROXY', 'Invalid request data - failed to parse JSON');
             return $this->response
                 ->setContentType('application/json')
                 ->setStatusCode(400)
-                ->setJSON(['error' => ['message' => 'Invalid request data']]);
+                ->setJSON(['error' => ['message' => 'Invalid request data - failed to parse JSON']]);
         }
 
-        log_info('PROXY', 'Valid request received', [
-            'provider' => $request_data['provider'],
-            'model' => $request_data['model'],
-            'stream' => isset($request_data['stream']) ? $request_data['stream'] : 'Not specified',
-            'has_image' => isset($request_data['hasImage']) ? $request_data['hasImage'] : 'Not specified'
-        ]);
-
-        // Extract request data
-        $provider = $request_data['provider'];
-        $model = $request_data['model'];
-        $messages = isset($request_data['messages']) ? $request_data['messages'] : [];
-        $temperature = isset($request_data['temperature']) ? $request_data['temperature'] : 0.7;
-        $stream = isset($request_data['stream']) ? $request_data['stream'] : TRUE;
-
+        // Extract tenant and user information
         // Use JWT data for tenant/user if available, otherwise use from request
         $tenant_id = '';
         $user_id = '';
@@ -127,7 +113,180 @@ class LlmProxy extends Controller
             $user_id = isset($request_data['userId']) ? $request_data['userId'] : '';
         }
 
+        // Get button_id if provided
+        $button_id = isset($request_data['buttonId']) ? $request_data['buttonId'] : '';
+
+        // Get origin domain
+        $origin_domain = $this->_extract_domain_from_headers();
+
+        // Get domain from request if provided
+        $domain = isset($request_data['domain']) ? $request_data['domain'] : $origin_domain;
+
+        // Log the button and domain information
+        log_info('PROXY', 'Button and domain information', [
+            'button_id' => $button_id,
+            'domain' => $domain,
+            'origin_domain' => $origin_domain
+        ]);
+
         $has_image = isset($request_data['hasImage']) ? $request_data['hasImage'] : FALSE;
+
+        // If we don't have tenant_id or user_id, can't proceed
+        if (empty($tenant_id)) {
+            log_error('PROXY', 'Missing tenant ID');
+            return $this->response
+                ->setContentType('application/json')
+                ->setStatusCode(400)
+                ->setJSON(['error' => ['message' => 'Missing tenant ID']]);
+        }
+
+        if (empty($user_id)) {
+            log_error('PROXY', 'Missing user ID');
+            return $this->response
+                ->setContentType('application/json')
+                ->setStatusCode(400)
+                ->setJSON(['error' => ['message' => 'Missing user ID']]);
+        }
+
+        // Look up button configuration - prioritize button_id if provided
+        $button = null;
+        $buttonsModel = new \App\Models\ButtonsModel();
+
+        if (!empty($button_id)) {
+            // Look up by button_id
+            $button = $buttonsModel->getButtonByButtonId($button_id);
+
+            if ($button) {
+                log_info('PROXY', 'Found button configuration by ID', [
+                    'button_id' => $button_id,
+                    'provider' => $button['provider'],
+                    'model' => $button['model']
+                ]);
+
+                // Verify domain matches if we have an origin
+                if (!empty($origin_domain) && $button['domain'] !== $origin_domain) {
+                    log_warning('PROXY', 'Domain mismatch for button', [
+                        'button_domain' => $button['domain'],
+                        'origin_domain' => $origin_domain
+                    ]);
+
+                    // Return error if domains don't match
+                    return $this->response
+                        ->setContentType('application/json')
+                        ->setStatusCode(400)
+                        ->setJSON(['error' => ['message' => 'Domain mismatch for the provided button ID']]);
+                }
+            } else {
+                log_error('PROXY', 'Button not found with ID', [
+                    'button_id' => $button_id
+                ]);
+
+                return $this->response
+                    ->setContentType('application/json')
+                    ->setStatusCode(400)
+                    ->setJSON(['error' => ['message' => 'Button not found with the provided ID']]);
+            }
+        }
+        // If no button_id provided but we have domain, try to find by domain
+        else if (!empty($domain)) {
+            $button = $buttonsModel->getButtonByDomain($domain, $tenant_id);
+
+            if ($button) {
+                log_info('PROXY', 'Found button configuration by domain', [
+                    'domain' => $domain,
+                    'provider' => $button['provider'],
+                    'model' => $button['model']
+                ]);
+            } else {
+                log_warning('PROXY', 'Button configuration not found for domain', [
+                    'domain' => $domain,
+                    'tenant_id' => $tenant_id
+                ]);
+
+                // Fall back to request data
+                if (!isset($request_data['provider']) || !isset($request_data['model'])) {
+                    log_error('PROXY', 'Missing provider or model and no button found', $request_data);
+                    return $this->response
+                        ->setContentType('application/json')
+                        ->setStatusCode(400)
+                        ->setJSON(['error' => ['message' => 'No button found for this domain and no provider/model specified in request']]);
+                }
+            }
+        }
+
+        // Use provider/model from button, request, or default values
+        $provider = '';
+        $model = '';
+
+        if ($button) {
+            // Use button configuration
+            $provider = $button['provider'];
+            $model = $button['model'];
+
+            // If button has a system prompt and there are messages, inject it
+            if (!empty($button['system_prompt']) && isset($request_data['messages']) && is_array($request_data['messages'])) {
+                // Check if there's already a system message
+                $has_system = false;
+                foreach ($request_data['messages'] as $msg) {
+                    if (isset($msg['role']) && $msg['role'] === 'system') {
+                        $has_system = true;
+                        break;
+                    }
+                }
+
+                // If no system message exists, add it as the first message
+                if (!$has_system) {
+                    array_unshift($request_data['messages'], [
+                        'role' => 'system',
+                        'content' => $button['system_prompt']
+                    ]);
+                }
+            }
+
+            // If button has its own API key, use it instead
+            if (!empty($button['api_key'])) {
+                $this->api_keys[$provider] = $button['api_key'];
+                log_info('PROXY', 'Using button-specific API key');
+            }
+        } else {
+            // Fall back to request data
+            $provider = isset($request_data['provider']) ? $request_data['provider'] : '';
+            $model = isset($request_data['model']) ? $request_data['model'] : '';
+        }
+
+        // If still no provider/model, can't proceed
+        if (empty($provider)) {
+            log_error('PROXY', 'Missing provider');
+            return $this->response
+                ->setContentType('application/json')
+                ->setStatusCode(400)
+                ->setJSON(['error' => ['message' => 'Missing provider. Provide a button ID, domain or specify provider directly.']]);
+        }
+
+        if (empty($model)) {
+            log_error('PROXY', 'Missing model');
+            return $this->response
+                ->setContentType('application/json')
+                ->setStatusCode(400)
+                ->setJSON(['error' => ['message' => 'Missing model. Provide a button ID, domain or specify model directly.']]);
+        }
+
+        // Get remaining request parameters
+        $messages = isset($request_data['messages']) ? $request_data['messages'] : [];
+        $temperature = isset($request_data['temperature']) ? $request_data['temperature'] : 0.7;
+        $stream = isset($request_data['stream']) ? $request_data['stream'] : TRUE;
+
+        log_info('PROXY', 'Processing request with parameters', [
+            'provider' => $provider,
+            'model' => $model,
+            'tenant_id' => $tenant_id,
+            'user_id' => $user_id,
+            'domain' => $domain,
+            'stream' => $stream ? 'true' : 'false'
+        ]);
+
+        // Auto-create user if it doesn't exist
+        $this->_ensure_user_exists($tenant_id, $user_id);
 
         // API key verification
         if (!isset($this->api_keys[$provider]) || empty($this->api_keys[$provider])) {
@@ -186,6 +345,129 @@ class LlmProxy extends Controller
                 ->setStatusCode(500)
                 ->setJSON(['error' => ['message' => 'Internal server error: ' . $e->getMessage()]]);
         }
+    }
+
+    /**
+     * Ensures a user exists for a tenant, creating them if needed
+     * 
+     * @param string $tenant_id The tenant ID
+     * @param string $user_id The user ID
+     * @return bool True if user exists or was created, false on error
+     */
+    private function _ensure_user_exists($tenant_id, $user_id)
+    {
+        $db = db_connect();
+
+        // Check if tenant exists
+        $tenantsModel = new \App\Models\TenantsModel();
+        $tenant = $tenantsModel->where('tenant_id', $tenant_id)->first();
+
+        if (!$tenant) {
+            log_error('PROXY', 'Tenant does not exist', [
+                'tenant_id' => $tenant_id
+            ]);
+            return false;
+        }
+
+        // Check if user exists
+        $builder = $db->table('tenant_users');
+        $builder->where('tenant_id', $tenant_id);
+        $builder->where('user_id', $user_id);
+        $existingUser = $builder->get()->getRow();
+
+        if (!$existingUser) {
+            log_info('PROXY', 'Auto-creating user', [
+                'tenant_id' => $tenant_id,
+                'user_id' => $user_id
+            ]);
+
+            // Create the user in tenant_users
+            $userData = [
+                'tenant_id' => $tenant_id,
+                'user_id' => $user_id,
+                'name' => 'Auto-created User',
+                'email' => $user_id . '@auto.created',
+                'quota' => $tenant['quota'], // Use tenant's default quota
+                'active' => 1,
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s')
+            ];
+
+            $result = $db->table('tenant_users')->insert($userData);
+
+            if (!$result) {
+                log_error('PROXY', 'Failed to auto-create user', [
+                    'tenant_id' => $tenant_id,
+                    'user_id' => $user_id
+                ]);
+                return false;
+            }
+
+            // Also create in user_quotas
+            $quotaData = [
+                'tenant_id' => $tenant_id,
+                'user_id' => $user_id,
+                'total_quota' => $tenant['quota'], // Use tenant's default quota
+                'reset_period' => 'monthly',
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s')
+            ];
+
+            $db->table('user_quotas')->insert($quotaData);
+
+            log_info('PROXY', 'User auto-created successfully', [
+                'tenant_id' => $tenant_id,
+                'user_id' => $user_id,
+                'quota' => $tenant['quota']
+            ]);
+        }
+
+        return true;
+    }
+
+    /**
+     * Extrae el dominio del encabezado Origin o Referer
+     * 
+     * @return string Dominio extraído o cadena vacía si no se encuentra
+     */
+    private function _extract_domain_from_headers()
+    {
+        // Intentar obtener del encabezado Origin primero
+        $origin = $this->request->getHeaderLine('Origin');
+
+        if (!empty($origin)) {
+            // Parsear la URL para obtener solo el dominio
+            $parsedUrl = parse_url($origin);
+
+            if (isset($parsedUrl['host'])) {
+                log_info('PROXY', 'Extracted domain from Origin header', [
+                    'origin' => $origin,
+                    'domain' => $parsedUrl['host']
+                ]);
+
+                return $parsedUrl['host'];
+            }
+        }
+
+        // Si no hay Origin, intentar con Referer
+        $referer = $this->request->getHeaderLine('Referer');
+
+        if (!empty($referer)) {
+            // Parsear la URL para obtener solo el dominio
+            $parsedUrl = parse_url($referer);
+
+            if (isset($parsedUrl['host'])) {
+                log_info('PROXY', 'Extracted domain from Referer header', [
+                    'referer' => $referer,
+                    'domain' => $parsedUrl['host']
+                ]);
+
+                return $parsedUrl['host'];
+            }
+        }
+
+        log_warning('PROXY', 'No domain found in request headers');
+        return '';
     }
 
     /**

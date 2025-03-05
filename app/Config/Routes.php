@@ -100,6 +100,15 @@ $routes->get('tenants/cache/(:num)', 'Tenants::cache/$1');
 $routes->get('tenants/edit_user/(:num)', 'Tenants::edit_user/$1');
 $routes->post('tenants/edit_user/(:num)', 'Tenants::edit_user/$1');
 
+// Button routes
+$routes->get('buttons/(:num)', 'Buttons::index/$1');
+$routes->get('buttons/create/(:num)', 'Buttons::create/$1');
+$routes->post('buttons/create/(:num)', 'Buttons::create/$1');
+$routes->get('buttons/edit/(:num)', 'Buttons::edit/$1');
+$routes->post('buttons/edit/(:num)', 'Buttons::edit/$1');
+$routes->get('buttons/delete/(:num)', 'Buttons::delete/$1');
+$routes->get('buttons/view/(:num)', 'Buttons::view/$1');
+
 // Gestión de cuotas
 $routes->get('users/usage/(:segment)/(:segment)', 'Users::viewUsage/$1/$2');
 $routes->post('users/reset-usage/(:segment)/(:segment)', 'Users::resetUsage/$1/$2');
