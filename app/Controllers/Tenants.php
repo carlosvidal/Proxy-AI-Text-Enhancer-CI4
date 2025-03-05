@@ -274,7 +274,15 @@ class Tenants extends Controller
         }
 
         $data['user'] = $user;
-        $data['tenant'] = $this->tenantsModel->find($user->tenant_id);
+
+        // Buscar el tenant usando el tenant_id string
+        $tenant = $this->tenantsModel->where('tenant_id', $user->tenant_id)->first();
+
+        if (empty($tenant)) {
+            return redirect()->to('/tenants')->with('error', 'Tenant not found');
+        }
+
+        $data['tenant'] = $tenant;
 
         if ($this->request->getMethod() === 'post') {
             $rules = [
@@ -295,9 +303,7 @@ class Tenants extends Controller
 
                 // Actualizar en tenant_users
                 if ($this->tenantsModel->updateUser($user_id, $userData)) {
-                    // Aquí está el cambio: sincronizar con user_quotas
-
-                    // Primero verificar si existe un registro en user_quotas
+                    // Sincronizar con user_quotas
                     $builder = $db->table('user_quotas');
                     $builder->where('tenant_id', $user->tenant_id);
                     $builder->where('user_id', $user->user_id);
@@ -336,7 +342,7 @@ class Tenants extends Controller
                         ]);
                     }
 
-                    return redirect()->to("/tenants/users/{$user->tenant_id}")->with('success', 'User updated successfully');
+                    return redirect()->to("/tenants/users/{$tenant['id']}")->with('success', 'User updated successfully');
                 } else {
                     return redirect()->back()->with('error', 'Error updating user')->withInput();
                 }

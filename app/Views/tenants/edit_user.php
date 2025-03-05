@@ -14,7 +14,7 @@
 <div class="card">
     <div class="card-header">
         <i class="fas fa-user-edit me-1"></i>
-        Edit User ****
+        Edit User <?= esc($user->name) ?>
     </div>
     <div class="card-body">
         <!-- EDIT USER FORM 2 -->

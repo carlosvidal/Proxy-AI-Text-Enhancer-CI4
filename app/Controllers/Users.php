@@ -18,7 +18,7 @@ class Users extends Controller
 
         $db = db_connect();
 
-        // Obtener información del usuario
+        // Obtener información del usuario - buscamos por user_id en lugar de id
         $user_query = $db->table('tenant_users')
             ->where('tenant_id', $tenant_id)
             ->where('user_id', $user_id)
@@ -31,6 +31,14 @@ class Users extends Controller
 
         $data['user'] = $user_query->getRowArray();
         $data['tenant_id'] = $tenant_id;
+
+        // Obtener información del tenant para la navegación
+        $tenant = $db->table('tenants')
+            ->where('tenant_id', $tenant_id)
+            ->get()
+            ->getRowArray();
+
+        $data['tenant'] = $tenant;
 
         // Obtener cuota actual
         $quota_query = $db->table('user_quotas')
@@ -59,7 +67,7 @@ class Users extends Controller
 
         $data['usage_logs'] = $usage_query->getResultArray();
 
-        // Calcular totales
+        // Calcular totales - incluso si no hay registros, iniciamos con 0
         $data['total_used'] = 0;
         foreach ($data['usage_logs'] as $log) {
             $data['total_used'] += $log['tokens'];
@@ -70,7 +78,7 @@ class Users extends Controller
             ? min(100, ($data['total_used'] / $data['quota']['total_quota']) * 100)
             : 0;
 
-        // Agrupar por fecha para gráfico
+        // Agrupar por fecha para gráfico - incluso si no hay datos
         $usage_by_date = [];
         foreach ($data['usage_logs'] as $log) {
             $date = date('Y-m-d', strtotime($log['usage_date']));
@@ -80,7 +88,7 @@ class Users extends Controller
             $usage_by_date[$date] += $log['tokens'];
         }
 
-        // Últimos 14 días para el gráfico
+        // Últimos 14 días para el gráfico (siempre)
         $data['chart_labels'] = [];
         $data['chart_data'] = [];
 

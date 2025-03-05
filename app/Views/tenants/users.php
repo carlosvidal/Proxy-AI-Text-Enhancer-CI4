@@ -51,7 +51,8 @@
                             </td>
                             <td><?= date('Y-m-d', strtotime($user->created_at)) ?></td>
                             <td>
-                                <a href="<?= site_url('users/usage/' . $tenant['id'] . '/' . $user->user_id) ?>" class="btn btn-sm btn-info text-white" title="Ver Uso">
+                                <!-- Utilizando user_id en lugar de id para la vista de uso -->
+                                <a href="<?= site_url('users/usage/' . $tenant['tenant_id'] . '/' . $user->user_id) ?>" class="btn btn-sm btn-info text-white" title="Ver Uso">
                                     <i class="fas fa-chart-bar"></i>
                                 </a>
                                 <a href="<?= site_url('tenants/edit_user/' . $user->id) ?>" class="btn btn-sm btn-warning text-white" title="Edit User">
