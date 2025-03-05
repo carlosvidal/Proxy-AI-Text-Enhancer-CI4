@@ -172,6 +172,35 @@ class Tenants extends Controller
             return redirect()->to('/tenants')->with('error', 'Tenant not found');
         }
 
+        if ($this->validate($rules)) {
+            $userData = [
+                'tenant_id' => $tenant_id,
+                'user_id' => $this->request->getPost('user_id'),
+                'email' => $this->request->getPost('email'),
+                'name' => $this->request->getPost('name'),
+                'quota' => $this->request->getPost('quota'),
+                'active' => 1,
+                'created_at' => date('Y-m-d H:i:s')
+            ];
+
+            if ($this->tenantsModel->addUser($userData)) {
+                // Crear también en user_quotas
+                $db = db_connect();
+                $db->table('user_quotas')->insert([
+                    'tenant_id' => $tenant_id,
+                    'user_id' => $this->request->getPost('user_id'),
+                    'total_quota' => $this->request->getPost('quota'),
+                    'reset_period' => 'monthly',
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s')
+                ]);
+
+                return redirect()->to("/tenants/users/$tenant_id")->with('success', 'User added successfully');
+            } else {
+                return redirect()->back()->with('error', 'Error adding user')->withInput();
+            }
+        }
+
         if ($this->request->getMethod() === 'post') {
             $rules = [
                 'user_id' => 'required|min_length[3]|max_length[100]',
@@ -232,6 +261,7 @@ class Tenants extends Controller
             ];
 
             if ($this->validate($rules)) {
+                $old_user_data = (array)$user;
                 $userData = [
                     'email' => $this->request->getPost('email'),
                     'name' => $this->request->getPost('name'),
@@ -240,7 +270,49 @@ class Tenants extends Controller
                     'updated_at' => date('Y-m-d H:i:s')
                 ];
 
+                // Actualizar en tenant_users
                 if ($this->tenantsModel->updateUser($user_id, $userData)) {
+                    // Aquí está el cambio: sincronizar con user_quotas
+
+                    // Primero verificar si existe un registro en user_quotas
+                    $builder = $db->table('user_quotas');
+                    $builder->where('tenant_id', $user->tenant_id);
+                    $builder->where('user_id', $user->user_id);
+                    $quota_record = $builder->get()->getRow();
+
+                    if ($quota_record) {
+                        // Si existe, actualizar
+                        $db->table('user_quotas')
+                            ->where('tenant_id', $user->tenant_id)
+                            ->where('user_id', $user->user_id)
+                            ->update([
+                                'total_quota' => $this->request->getPost('quota'),
+                                'updated_at' => date('Y-m-d H:i:s')
+                            ]);
+
+                        log_info('QUOTAS', 'Actualizada cuota en user_quotas para sincronizar', [
+                            'tenant_id' => $user->tenant_id,
+                            'user_id' => $user->user_id,
+                            'new_quota' => $this->request->getPost('quota')
+                        ]);
+                    } else {
+                        // Si no existe, crear
+                        $db->table('user_quotas')->insert([
+                            'tenant_id' => $user->tenant_id,
+                            'user_id' => $user->user_id,
+                            'total_quota' => $this->request->getPost('quota'),
+                            'reset_period' => 'monthly',
+                            'created_at' => date('Y-m-d H:i:s'),
+                            'updated_at' => date('Y-m-d H:i:s')
+                        ]);
+
+                        log_info('QUOTAS', 'Creada cuota en user_quotas', [
+                            'tenant_id' => $user->tenant_id,
+                            'user_id' => $user->user_id,
+                            'quota' => $this->request->getPost('quota')
+                        ]);
+                    }
+
                     return redirect()->to("/tenants/users/{$user->tenant_id}")->with('success', 'User updated successfully');
                 } else {
                     return redirect()->back()->with('error', 'Error updating user')->withInput();

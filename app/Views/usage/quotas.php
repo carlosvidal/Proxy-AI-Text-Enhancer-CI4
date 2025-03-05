@@ -21,6 +21,7 @@
                         <th>Remaining</th>
                         <th>Reset Period</th>
                         <th>Usage</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -45,6 +46,11 @@
                                         <?= round($percentage) ?>%
                                     </div>
                                 </div>
+                            </td>
+                            <td>
+                                <a href="<?= site_url('users/usage/' . $quota->tenant_id . '/' . $quota->user_id) ?>" class="btn btn-sm btn-info text-white">
+                                    <i class="fas fa-chart-bar me-1"></i>Detalles
+                                </a>
                             </td>
                         </tr>
                     <?php endforeach; ?>

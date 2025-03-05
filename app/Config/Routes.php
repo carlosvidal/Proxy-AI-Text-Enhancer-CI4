@@ -100,6 +100,10 @@ $routes->get('tenants/cache/(:num)', 'Tenants::cache/$1');
 $routes->get('tenants/edit_user/(:num)', 'Tenants::edit_user/$1');
 $routes->post('tenants/edit_user/(:num)', 'Tenants::edit_user/$1');
 
+// Gestión de cuotas
+$routes->get('users/usage/(:segment)/(:segment)', 'Users::viewUsage/$1/$2');
+$routes->post('users/reset-usage/(:segment)/(:segment)', 'Users::resetUsage/$1/$2');
+
 
 // Migration routes for database setup
 $routes->get('migrate', 'Migrate::index');

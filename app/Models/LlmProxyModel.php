@@ -39,52 +39,72 @@ class LlmProxyModel extends Model
         $tenant_id = $db->escapeString($tenant_id);
         $user_id = $db->escapeString($user_id);
 
-        // Cargar configuración 
-        $default_quota = env('DEFAULT_QUOTA', 100);
-
         // Verificar si la tabla existe antes de hacer consultas
         $tables = $db->listTables();
-        if (in_array('user_quotas', $tables)) {
-            log_debug('QUOTA', 'Tabla user_quotas existe');
+        if (in_array('user_quotas', $tables) && in_array('tenant_users', $tables)) {
+            log_debug('QUOTA', 'Tablas user_quotas y tenant_users existen');
 
-            // Consulta para verificar si existe el usuario
+            // Primero verificar si hay una cuota definida en tenant_users
+            $builder = $db->table('tenant_users');
+            $builder->where('tenant_id', $tenant_id);
+            $builder->where('user_id', $user_id);
+            $query = $builder->get();
+
+            $tenant_quota = 0;
+            if ($query->getNumRows() > 0) {
+                $row = $query->getRowArray();
+                $tenant_quota = $row['quota'] ?? 0;
+                log_debug('QUOTA', 'Cuota encontrada en tenant_users', ['quota' => $tenant_quota]);
+            }
+
+            // Ahora verificar si existe el usuario en user_quotas
             $builder = $db->table('user_quotas');
             $builder->where('tenant_id', $tenant_id);
             $builder->where('user_id', $user_id);
             $query = $builder->get();
 
-            log_debug('QUOTA', 'Consulta SQL ejecutada', [
-                'last_query' => $db->getLastQuery(),
-                'num_rows' => $query->getNumRows()
-            ]);
-
             if ($query->getNumRows() == 0) {
-                log_info('QUOTA', 'Usuario no encontrado, creando registro con cuota por defecto');
+                log_info('QUOTA', 'Usuario no encontrado en user_quotas, creando registro');
 
-                // Si no existe, crear registro con cuota por defecto
+                // Si no existe, crear registro con cuota del tenant
                 $data = [
                     'tenant_id' => $tenant_id,
                     'user_id' => $user_id,
-                    'total_quota' => $default_quota,
+                    'total_quota' => $tenant_quota > 0 ? $tenant_quota : env('DEFAULT_QUOTA', 100000),
                     'created_at' => date('Y-m-d H:i:s')
                 ];
 
                 $insert_result = $db->table('user_quotas')->insert($data);
                 log_debug('QUOTA', 'Resultado de inserción', [
                     'success' => $insert_result,
-                    'last_query' => $db->getLastQuery()
+                    'data' => $data
                 ]);
 
-                $total_quota = $default_quota;
+                $total_quota = $data['total_quota'];
                 $used_quota = 0;
             } else {
-                log_info('QUOTA', 'Usuario encontrado, obteniendo cuota');
+                log_info('QUOTA', 'Usuario encontrado en user_quotas');
 
                 // Si existe, obtener los valores
                 $row = $query->getRowArray();
                 $total_quota = $row['total_quota'];
 
-                // Obtener uso en el período actual (30 días)
+                // Si la cuota en user_quotas no coincide con tenant_users, actualizar
+                if ($tenant_quota > 0 && $total_quota != $tenant_quota) {
+                    log_info('QUOTA', 'Sincronizando cuota con tenant_users', [
+                        'old_quota' => $total_quota,
+                        'new_quota' => $tenant_quota
+                    ]);
+
+                    $db->table('user_quotas')
+                        ->where('tenant_id', $tenant_id)
+                        ->where('user_id', $user_id)
+                        ->update(['total_quota' => $tenant_quota]);
+
+                    $total_quota = $tenant_quota;
+                }
+
+                // Obtener uso en el período actual
                 $thirty_days_ago = date('Y-m-d H:i:s', strtotime('-30 days'));
 
                 $builder = $db->table('usage_logs');
@@ -94,16 +114,8 @@ class LlmProxyModel extends Model
                 $builder->where('usage_date >=', $thirty_days_ago);
                 $usage_query = $builder->get();
 
-                log_debug('QUOTA', 'Consulta de uso ejecutada', [
-                    'last_query' => $db->getLastQuery()
-                ]);
-
                 $usage_row = $usage_query->getRow();
                 $used_quota = $usage_row->used_tokens ?: 0;
-
-                log_debug('QUOTA', 'Uso obtenido', [
-                    'used_tokens' => $used_quota
-                ]);
             }
 
             $result = [
@@ -115,13 +127,13 @@ class LlmProxyModel extends Model
             log_info('QUOTA', 'Resultado de cuota', $result);
             return $result;
         } else {
-            // Si no hay tabla de cuotas, devolver valores por defecto
-            log_info('QUOTA', 'Tabla user_quotas no existe. Usando valores por defecto.');
+            // Si no hay tablas, devolver valores por defecto
+            log_info('QUOTA', 'Tablas no existen. Usando valores por defecto.');
 
             $result = [
-                'total' => $default_quota,
+                'total' => env('DEFAULT_QUOTA', 100000),
                 'used' => 0,
-                'remaining' => $default_quota
+                'remaining' => env('DEFAULT_QUOTA', 100000)
             ];
 
             log_info('QUOTA', 'Cuota por defecto', $result);
