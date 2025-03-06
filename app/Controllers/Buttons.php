@@ -13,7 +13,7 @@ class Buttons extends Controller
 
     public function __construct()
     {
-        helper(['url', 'form', 'logger']);
+        helper(['url', 'form', 'logger', 'api_key']);
         $this->buttonsModel = new ButtonsModel();
         $this->tenantsModel = new TenantsModel();
     }
@@ -65,12 +65,10 @@ class Buttons extends Controller
                         ->withInput();
                 }
 
-                // Generate API key if enabled
-                $api_key = $this->request->getPost('generate_api_key') ?
-                    $this->buttonsModel->generateApiKey() :
-                    $this->request->getPost('api_key');
+                // Get API key if provided
+                $api_key = $this->request->getPost('api_key');
 
-                // Generar un button_id único
+                // Generate a unique button_id
                 $button_id = $this->buttonsModel->generateButtonId();
 
                 $buttonData = [
@@ -178,12 +176,18 @@ class Buttons extends Controller
                         ->withInput();
                 }
 
-                // Generate new API key if requested
+                // Handle API key updates
                 $api_key = $data['button']['api_key'];
-                if ($this->request->getPost('generate_new_key')) {
-                    $api_key = $this->buttonsModel->generateApiKey();
-                } elseif ($this->request->getPost('api_key') !== '********') {
-                    $api_key = $this->request->getPost('api_key');
+                $new_api_key = $this->request->getPost('api_key');
+
+                // If a new API key is provided
+                if (!empty($new_api_key)) {
+                    // Check for "delete" keyword to remove the API key
+                    if (strtolower($new_api_key) === 'delete') {
+                        $api_key = null;
+                    } else {
+                        $api_key = $new_api_key;
+                    }
                 }
 
                 $buttonData = [

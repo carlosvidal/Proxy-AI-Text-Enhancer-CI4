@@ -43,6 +43,57 @@ class ButtonsModel extends Model
     protected $skipValidation     = false;
 
     /**
+     * Override the insert method to encrypt API keys
+     */
+    public function insert($data = null, bool $returnID = true)
+    {
+        // Check if data contains an API key
+        if (isset($data['api_key']) && !empty($data['api_key'])) {
+            helper('api_key');
+            $data['api_key'] = encrypt_api_key($data['api_key']);
+        }
+
+        return parent::insert($data, $returnID);
+    }
+
+    /**
+     * Override the update method to handle API key encryption
+     */
+    public function update($id = null, $data = null): bool
+    {
+        // Check if data contains an API key and it's not empty
+        if (isset($data['api_key']) && !empty($data['api_key'])) {
+            // If it's the special string "delete", set it to null instead
+            if ($data['api_key'] === 'delete') {
+                $data['api_key'] = null;
+            } else {
+                // Otherwise, encrypt the new API key
+                helper('api_key');
+                $data['api_key'] = encrypt_api_key($data['api_key']);
+            }
+        } elseif (isset($data['api_key']) && empty($data['api_key'])) {
+            // If an empty API key is provided, don't update it
+            // This allows keeping the existing key
+            unset($data['api_key']);
+        }
+
+        return parent::update($id, $data);
+    }
+
+    /**
+     * Override the find method to handle API key decryption
+     */
+    public function find($id = null)
+    {
+        $result = parent::find($id);
+
+        // If the API key exists, don't decrypt it in the basic find
+        // We'll only decrypt when actually using it
+
+        return $result;
+    }
+
+    /**
      * Get all buttons for a specific tenant
      * 
      * @param string $tenant_id Tenant ID
@@ -63,20 +114,18 @@ class ButtonsModel extends Model
      */
     public function getButtonByDomain($domain, $tenant_id)
     {
-        return $this->where('domain', $domain)
+        $button = $this->where('domain', $domain)
             ->where('tenant_id', $tenant_id)
             ->where('active', 1)
             ->first();
-    }
 
-    /**
-     * Generate a unique API key for a button
-     * 
-     * @return string Generated API key
-     */
-    public function generateApiKey()
-    {
-        return bin2hex(random_bytes(16)); // 32 character hex string
+        // If a button was found and it has an API key, decrypt it for use
+        if ($button && !empty($button['api_key'])) {
+            helper('api_key');
+            $button['api_key'] = decrypt_api_key($button['api_key']);
+        }
+
+        return $button;
     }
 
     /**
@@ -125,8 +174,16 @@ class ButtonsModel extends Model
      */
     public function getButtonByButtonId($button_id)
     {
-        return $this->where('button_id', $button_id)
+        $button = $this->where('button_id', $button_id)
             ->where('active', 1)
             ->first();
+
+        // If a button was found and it has an API key, decrypt it for use
+        if ($button && !empty($button['api_key'])) {
+            helper('api_key');
+            $button['api_key'] = decrypt_api_key($button['api_key']);
+        }
+
+        return $button;
     }
 }

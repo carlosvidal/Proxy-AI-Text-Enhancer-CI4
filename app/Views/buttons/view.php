@@ -74,20 +74,12 @@
                         <th>API Key:</th>
                         <td>
                             <?php if ($button['api_key']): ?>
-                                <div class="api-key-display">
-                                    ••••••••••••<?= substr($button['api_key'], -4) ?>
-                                    <button class="btn btn-sm btn-outline-secondary ms-2" id="showApiKey">
-                                        <i class="fas fa-eye"></i>
-                                    </button>
-                                </div>
-                                <div class="api-key-full d-none">
-                                    <code><?= esc($button['api_key']) ?></code>
-                                    <button class="btn btn-sm btn-outline-primary ms-2" onclick="copyToClipboard('<?= esc($button['api_key']) ?>')">
-                                        <i class="fas fa-copy"></i>
-                                    </button>
+                                <div class="api-key-status">
+                                    <span class="badge bg-success">Custom API Key Set</span>
+                                    <span class="text-muted ms-2">••••••<?= substr($button['api_key'], -4) ?></span>
                                 </div>
                             <?php else: ?>
-                                <span class="text-muted">Using global API key</span>
+                                <span class="badge bg-secondary">Using Global API Key</span>
                             <?php endif; ?>
                         </td>
                     </tr>
@@ -126,79 +118,100 @@
             <pre class="bg-light p-3 rounded"><code>POST <?= base_url('api/llm-proxy') ?></code></pre>
         </div>
 
+
         <div class="mb-4">
             <h5>Request Body</h5>
-            <pre class="bg-light p-3 rounded"><code>{
-  "tenantId": "<?= esc($tenant['tenant_id']) ?>",
-  "domain": "<?= esc($button['domain']) ?>",
-  "userId": "[USER_ID]",
-  "messages": [
-    { "role": "user", "content": "Your message here" }
-  ],
-  "stream": true  // Optional, set to false for non-streaming responses
-}</code></pre>
+            <p>You can easily integrate this button using your own Web Component:</p>
+            <pre class="bg-light p-3 rounded">
+<code>{
+    "tenantId": "<?= esc($tenant['tenant_id']) ?>",
+    "buttonId": "<?= esc($button['button_id']) ?>",
+    "userId": "[USER_ID]",
+    "messages": [
+        { "role": "user", "content": "Your message here" }
+    ],
+    "stream": true  // Optional, set to false for non-streaming responses
+}</code>
+        </pre>
         </div>
-
-        <div class="alert alert-info">
-            <i class="fas fa-info-circle me-2"></i>
-            <strong>Note:</strong> Replace <code>[USER_ID]</code> with the actual user's identifier. If the user doesn't exist yet, they will be automatically created.
+        <div class="row">
+            <div class="col-12 col-md-8 mb-4">
+                <h5>Web Component Integration</h5>
+                <p>You can easily integrate this button in your website using our Web Component:</p>
+                <pre class="bg-light p-3 rounded"><code>&lt;ai-text-enhancer  
+    id="<?= esc($button['button_id']) ?>" 
+    editor-id="[TARGET-INPUT]" 
+    language="es"
+    tenant-id="<?= esc($tenant['tenant_id']) ?>"
+    user-id="[USER_ID]"
+    proxy-endpoint="<?= base_url('api/llm-proxy') ?>"&gt;
+&lt;/ai-text-enhancer&gt;
+&lt;script type="module"&gt;
+import "https://cdn.jsdelivr.net/gh/carlosvidal/AI-Text-Enhancer/dist/ai-text-enhancer.umd.js?purge" 
+&lt;/script&gt;</code></pre>
+            </div>
+            <div class="col-12 col-md-4">
+                <strong>Preview</strong>
+                <textarea id="target-wysiswyg" class="form-control" rows="5" placeholder="Type your message here..."></textarea>
+                <ai-text-enhancer
+                    id="59200d9fa9791103"
+                    editor-id="target-wysiswyg"
+                    language="es"
+                    tenant-id="miti8f58"
+                    user-id="[USER_ID]"
+                    proxy-endpoint="http://llmproxy2.test:8080/api/llm-proxy">
+                </ai-text-enhancer>
+                <script type="module">
+                    import "https://cdn.jsdelivr.net/gh/carlosvidal/AI-Text-Enhancer/dist/ai-text-enhancer.umd.js?purge"
+                </script>
+            </div>
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Important:</strong> Replace <code>[USER_ID]</code> with your actual user identifier. If the user doesn't exist yet, they will be automatically created.
+            </div>
         </div>
     </div>
-</div>
 
-<style>
-    .system-prompt {
-        background-color: #f8f9fa;
-        padding: 1rem;
-        border-radius: 0.25rem;
-        border: 1px solid #dee2e6;
-        white-space: pre-wrap;
-        font-family: monospace;
-        font-size: 0.9rem;
-        color: #495057;
-    }
-</style>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const showApiKeyBtn = document.getElementById('showApiKey');
-        if (showApiKeyBtn) {
-            showApiKeyBtn.addEventListener('click', function() {
-                const displayDiv = document.querySelector('.api-key-display');
-                const fullDiv = document.querySelector('.api-key-full');
-
-                displayDiv.classList.add('d-none');
-                fullDiv.classList.remove('d-none');
-            });
+    <style>
+        .system-prompt {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            border-radius: 0.25rem;
+            border: 1px solid #dee2e6;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 0.9rem;
+            color: #495057;
         }
-    });
+    </style>
 
-    function copyToClipboard(text) {
-        // Create a temporary textarea
-        const textarea = document.createElement('textarea');
-        textarea.value = text;
-        document.body.appendChild(textarea);
+    <script>
+        function copyToClipboard(text) {
+            // Create a temporary textarea
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
 
-        // Select and copy
-        textarea.select();
-        document.execCommand('copy');
+            // Select and copy
+            textarea.select();
+            document.execCommand('copy');
 
-        // Remove the textarea
-        document.body.removeChild(textarea);
+            // Remove the textarea
+            document.body.removeChild(textarea);
 
-        // Show a notification
-        const notification = document.createElement('div');
-        notification.className = 'position-fixed top-50 start-50 translate-middle p-3 bg-dark text-white rounded';
-        notification.style.zIndex = 9999;
-        notification.innerHTML = '<i class="fas fa-check-circle me-2"></i>Copied to clipboard!';
+            // Show a notification
+            const notification = document.createElement('div');
+            notification.className = 'position-fixed top-50 start-50 translate-middle p-3 bg-dark text-white rounded';
+            notification.style.zIndex = 9999;
+            notification.innerHTML = '<i class="fas fa-check-circle me-2"></i>Copied to clipboard!';
 
-        document.body.appendChild(notification);
+            document.body.appendChild(notification);
 
-        // Remove notification after 2 seconds
-        setTimeout(() => {
-            document.body.removeChild(notification);
-        }, 2000);
-    }
-</script>
+            // Remove notification after 2 seconds
+            setTimeout(() => {
+                document.body.removeChild(notification);
+            }, 2000);
+        }
+    </script>
 
-<?= $this->endSection() ?>
+    <?= $this->endSection() ?>

@@ -66,15 +66,12 @@
 
                 <div class="col-md-6">
                     <div class="mb-3">
-                        <label for="api_key" class="form-label">API Key (Optional)</label>
-                        <div class="input-group">
-                            <input type="text" class="form-control" id="api_key" name="api_key" value="<?= set_value('api_key') ?>">
-                            <div class="input-group-text">
-                                <input class="form-check-input mt-0 me-2" type="checkbox" id="generate_api_key" name="generate_api_key" value="1" <?= set_checkbox('generate_api_key', '1') ?>>
-                                <label class="form-check-label" for="generate_api_key">Generate Key</label>
-                            </div>
+                        <label for="api_key" class="form-label">Provider API Key</label>
+                        <input type="password" class="form-control" id="api_key" name="api_key" value="<?= set_value('api_key') ?>">
+                        <div class="form-text">
+                            Enter the API key obtained from the LLM provider. Leave blank to use the global API key.
+                            <strong>Note:</strong> This key will be securely stored and never displayed in full again.
                         </div>
-                        <div class="form-text">Leave blank to use the global API key for this provider</div>
                     </div>
 
                     <div class="mb-3">
@@ -142,17 +139,6 @@
 
         // Add event listener to provider select
         providerSelect.addEventListener('change', filterModels);
-
-        // API Key generation toggle
-        const generateKeyCheckbox = document.getElementById('generate_api_key');
-        const apiKeyInput = document.getElementById('api_key');
-
-        generateKeyCheckbox.addEventListener('change', function() {
-            apiKeyInput.disabled = this.checked;
-            if (this.checked) {
-                apiKeyInput.value = '';
-            }
-        });
     });
 </script>
 

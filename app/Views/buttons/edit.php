@@ -74,15 +74,19 @@
 
                 <div class="col-md-6">
                     <div class="mb-3">
-                        <label for="api_key" class="form-label">API Key</label>
+                        <label for="api_key" class="form-label">Provider API Key</label>
                         <div class="input-group">
-                            <input type="text" class="form-control" id="api_key" name="api_key" value="<?= $button['api_key'] ? '********' : '' ?>" <?= $button['api_key'] ? 'placeholder="Leave unchanged to keep current key"' : '' ?>>
-                            <div class="input-group-text">
-                                <input class="form-check-input mt-0 me-2" type="checkbox" id="generate_new_key" name="generate_new_key" value="1">
-                                <label class="form-check-label" for="generate_new_key">Generate New</label>
-                            </div>
+                            <input type="password" class="form-control" id="api_key" name="api_key" placeholder="Enter new API key or leave blank to keep current" />
+                            <?php if (!empty($button['api_key'])): ?>
+                                <span class="input-group-text bg-light">
+                                    <small>Current: ••••••<?= substr($button['api_key'], -4) ?></small>
+                                </span>
+                            <?php endif; ?>
                         </div>
-                        <div class="form-text">Leave blank to use the global API key for this provider</div>
+                        <div class="form-text">
+                            Leave blank to keep the current API key. Enter a new key only if you want to replace it.
+                            Enter "delete" to remove the current API key and use the global key instead.
+                        </div>
                     </div>
 
                     <div class="mb-3">
@@ -142,17 +146,6 @@
 
         // Add event listener to provider select
         providerSelect.addEventListener('change', filterModels);
-
-        // API Key generation toggle
-        const generateKeyCheckbox = document.getElementById('generate_new_key');
-        const apiKeyInput = document.getElementById('api_key');
-
-        generateKeyCheckbox.addEventListener('change', function() {
-            apiKeyInput.disabled = this.checked;
-            if (this.checked) {
-                apiKeyInput.value = '';
-            }
-        });
     });
 </script>
 

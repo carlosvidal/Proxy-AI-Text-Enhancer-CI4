@@ -31,7 +31,7 @@ class LlmProxy extends Controller
     public function __construct()
     {
         // Load necessary helpers
-        helper(['url', 'form', 'logger', 'jwt']);
+        helper(['url', 'form', 'logger', 'jwt', 'api_key']);
 
         // Initialize proxy model
         $this->llm_proxy_model = new LlmProxyModel();
@@ -509,6 +509,42 @@ class LlmProxy extends Controller
             $headers = [
                 "Content-Type: application/json"
             ];
+
+            // Si el botón tiene un API key personalizado, usarlo (ya desencriptado por el modelo)
+            // De lo contrario, usar el API key global
+            $api_key = isset($button) && !empty($button['api_key'])
+                ? $button['api_key']
+                : $this->api_keys[$provider];
+
+            // Agrega registros para depuración cuando uses un API key personalizado
+            if (isset($button) && !empty($button['api_key'])) {
+                log_info('PROXY', 'Usando API key personalizado del botón', [
+                    'button_id' => $button['button_id'],
+                    'provider' => $provider
+                ]);
+            }
+
+            // Si un botón no tiene API key, asegúrese de que se use el global
+            if (isset($button) && empty($button['api_key'])) {
+                log_info('PROXY', 'Botón sin API key propio, usando global', [
+                    'button_id' => $button['button_id'],
+                    'provider' => $provider,
+                    'global_key_available' => !empty($this->api_keys[$provider])
+                ]);
+
+                // Verificar si hay un API key global disponible
+                if (empty($this->api_keys[$provider])) {
+                    log_error('PROXY', 'No hay API key disponible para este proveedor', [
+                        'provider' => $provider
+                    ]);
+
+                    return $this->response
+                        ->setContentType('application/json')
+                        ->setStatusCode(500)
+                        ->setJSON(['error' => ['message' => 'API key not configured for this provider']]);
+                }
+            }
+
 
             switch ($provider) {
                 case 'openai':
