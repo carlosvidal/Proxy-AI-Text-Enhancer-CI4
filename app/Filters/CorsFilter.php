@@ -10,6 +10,7 @@ class CorsFilter implements FilterInterface
 {
     public function before(RequestInterface $request, $arguments = null)
     {
+        helper('logger');
         // Get allowed origins from environment
         $allowed_origins_str = env('ALLOWED_ORIGINS', '*');
 
