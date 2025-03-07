@@ -28,19 +28,19 @@ class CorsFilter implements FilterInterface
             // Check if wildcard is set or if the origin is in the allowed list
             if ($allowed_origins_str === '*') {
                 header('Access-Control-Allow-Origin: *');
-                log_debug('CORS header set: Access-Control-Allow-Origin: *');
+                log_debug('CORS header set: Access-Control-Allow-Origin: *', []);
             } else {
                 // Parse comma-separated list
                 $allowed_origins = array_map('trim', explode(',', $allowed_origins_str));
 
-                log_debug('CORS allowed origins: ' . implode(', ', $allowed_origins));
+                log_debug('CORS allowed origins: ' . implode(', ', $allowed_origins), []);
 
                 if (in_array($origin, $allowed_origins)) {
                     header("Access-Control-Allow-Origin: {$origin}");
                     header('Access-Control-Allow-Credentials: true');
-                    log_debug('CORS header set: Access-Control-Allow-Origin: ' . $origin);
+                    log_debug('CORS header set: Access-Control-Allow-Origin: ' . $origin, []);
                 } else {
-                    log_debug('Origin not allowed: ' . $origin);
+                    log_debug('Origin not allowed: ' . $origin, []);
                 }
 
                 header('Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE');
