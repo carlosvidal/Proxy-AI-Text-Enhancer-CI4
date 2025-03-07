@@ -34,15 +34,15 @@ Options -Indexes
 	RewriteRule ^([\s\S]*)$ index.php/$1 [L,NC,QSA]
 </IfModule>
 
-<IfModule mod_headers.c>
-    Header always set Access-Control-Allow-Origin "*"
-    Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS, HEAD"
-    Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin"
+# <IfModule mod_headers.c>
+#     Header always set Access-Control-Allow-Origin "*"
+#     Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS, HEAD"
+#     Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With, Accept, Origin"
 
-	# Manejo especial para preflight requests
-    RewriteCond %{REQUEST_METHOD} OPTIONS
-    RewriteRule ^(.*)$ $1 [R=200,NC,NE,L]
-</IfModule>
+# 	# Manejo especial para preflight requests
+#     RewriteCond %{REQUEST_METHOD} OPTIONS
+#     RewriteRule ^(.*)$ $1 [R=200,NC,NE,L]
+# </IfModule>
 
 <IfModule !mod_rewrite.c>
 	# If we don't have mod_rewrite installed, all 404's
