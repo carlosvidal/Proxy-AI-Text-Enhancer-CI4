@@ -1004,15 +1004,22 @@ class LlmProxy extends Controller
         // Obtener el origen de la solicitud
         $origin = $this->request->getHeaderLine('Origin');
         $allowed_origins_str = env('ALLOWED_ORIGINS', '*');
+        $allowed_origins = array_map('trim', explode(',', $allowed_origins_str));
 
         if ($allowed_origins_str === '*') {
             header('Access-Control-Allow-Origin: *');
-        } elseif (!empty($origin)) {
-            $allowed_origins = array_map('trim', explode(',', $allowed_origins_str));
-            if (in_array($origin, $allowed_origins)) {
-                header("Access-Control-Allow-Origin: {$origin}");
-                header('Access-Control-Allow-Credentials: true');
-            }
+        } elseif (!empty($origin) && in_array($origin, $allowed_origins)) {
+            header("Access-Control-Allow-Origin: {$origin}");
+            header('Access-Control-Allow-Credentials: true');
+        }
+
+        // **Asegurar que solo un valor se envía**
+        header_remove("Access-Control-Allow-Origin");
+
+        if (!empty($origin) && in_array($origin, $allowed_origins)) {
+            header("Access-Control-Allow-Origin: {$origin}");
+        } else {
+            header("Access-Control-Allow-Origin: https://panel.mitienda.host"); // Default
         }
 
         // Configurar otros headers CORS
@@ -1020,8 +1027,10 @@ class LlmProxy extends Controller
         header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin');
         header('Access-Control-Max-Age: 3600');
 
-        // Configurar la respuesta OPTIONS
+        // Respuesta para preflight request
         http_response_code(204);
+        header('Content-Length: 0');
+        header('Connection: close');
         exit();
     }
 
