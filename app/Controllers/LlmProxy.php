@@ -1017,8 +1017,7 @@ class LlmProxy extends Controller
 
         // Configurar otros headers CORS
         header('Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE');
-        // header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin');
-        header('Access-Control-Allow-Headers: content-type, authorization, x-requested-with, accept, origin');
+        header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin');
         header('Access-Control-Max-Age: 3600');
 
         // Configurar la respuesta OPTIONS
