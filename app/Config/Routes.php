@@ -36,9 +36,7 @@ $routes->get('/', 'Home::index');
  * Authentication Routes (no auth required)
  * --------------------------------------------------------------------
  */
-$routes->get('auth/login', 'Auth::login');
-$routes->post('auth/login', 'Auth::attemptLogin');
-$routes->post('auth/attemptLogin', 'Auth::attemptLogin'); // Added for preview support
+$routes->match(['get', 'post'], 'auth/login', 'Auth::login');
 $routes->get('auth/logout', 'Auth::logout');
 
 /*

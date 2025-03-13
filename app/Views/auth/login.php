@@ -1,7 +1,6 @@
 <?php
 $currentUrl = current_url();
 $hasIndexPhp = strpos($currentUrl, 'index.php') !== false;
-$formAction = $hasIndexPhp ? site_url('index.php/auth/attemptLogin') : site_url('auth/attemptLogin');
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -77,7 +76,7 @@ $formAction = $hasIndexPhp ? site_url('index.php/auth/attemptLogin') : site_url(
                 </div>
             <?php endif; ?>
 
-            <form action="<?= $formAction ?>" method="post">
+            <form action="<?= site_url('auth/login') ?>" method="post">
                 <?= csrf_field() ?>
 
                 <div class="mb-3">
@@ -100,13 +99,6 @@ $formAction = $hasIndexPhp ? site_url('index.php/auth/attemptLogin') : site_url(
                     <button type="submit" class="btn btn-primary">Sign In</button>
                 </div>
             </form>
-
-            <!-- Debug Info -->
-            <div class="mt-4 text-muted small">
-                <p>Current URL: <?= current_url() ?></p>
-                <p>Base URL: <?= base_url() ?></p>
-                <p>Form Action: <?= $formAction ?></p>
-            </div>
         </div>
     </div>
 
