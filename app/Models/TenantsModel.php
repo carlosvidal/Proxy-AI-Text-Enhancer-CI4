@@ -6,29 +6,41 @@ use CodeIgniter\Model;
 
 class TenantsModel extends Model
 {
-    protected $table      = 'tenants';
-    protected $primaryKey = 'id';
-
-    protected $useAutoIncrement = true;
-    protected $returnType     = 'array';
+    protected $table = 'tenants';
+    protected $primaryKey = 'tenant_id';
+    protected $useAutoIncrement = false;
+    protected $returnType = 'array';
     protected $useSoftDeletes = false;
+    protected $allowedFields = ['tenant_id', 'name', 'email', 'quota', 'active', 'api_key', 'plan_code', 'subscription_status', 'trial_ends_at', 'subscription_ends_at', 'created_at', 'updated_at'];
+    protected $useTimestamps = true;
+    protected $createdField = 'created_at';
+    protected $updatedField = 'updated_at';
 
-    protected $allowedFields = [
-        'tenant_id',  // Added tenant_id to allowedFields
-        'name',
-        'email',
-        'quota',
-        'active',
-        'api_key',
-        'created_at',
-        'updated_at'
+    protected $validationRules = [
+        'tenant_id' => 'required|min_length[3]|max_length[255]|is_unique[tenants.tenant_id,tenant_id,{tenant_id}]',
+        'name' => 'required|min_length[3]|max_length[255]',
+        'email' => 'required|valid_email'
     ];
 
-    protected $useTimestamps = false;
+    protected $validationMessages = [
+        'tenant_id' => [
+            'required' => 'El tenant_id es requerido',
+            'min_length' => 'El tenant_id debe tener al menos 3 caracteres',
+            'max_length' => 'El tenant_id no puede tener más de 255 caracteres',
+            'is_unique' => 'Ya existe un tenant con este tenant_id'
+        ],
+        'name' => [
+            'required' => 'El nombre es requerido',
+            'min_length' => 'El nombre debe tener al menos 3 caracteres',
+            'max_length' => 'El nombre no puede tener más de 255 caracteres'
+        ],
+        'email' => [
+            'required' => 'El email es requerido',
+            'valid_email' => 'El email debe ser válido'
+        ]
+    ];
 
-    protected $validationRules    = [];
-    protected $validationMessages = [];
-    protected $skipValidation     = false;
+    protected $skipValidation = false;
 
     /**
      * Obtiene todos los usuarios asociados a un tenant
@@ -194,5 +206,66 @@ class TenantsModel extends Model
     public function findWithTenantId($id)
     {
         return $this->find($id);
+    }
+
+    /**
+     * Get tenant by user ID
+     * 
+     * @param int $userId User ID to find tenant for
+     * @return array|null Tenant data if found, null otherwise
+     */
+    public function getTenantByUserId(int $userId): ?array
+    {
+        $builder = $this->db->table('tenant_users');
+        $builder->select('tenants.*')
+            ->join('tenants', 'tenants.tenant_id = tenant_users.tenant_id')
+            ->where('tenant_users.user_id', $userId)
+            ->where('tenant_users.active', 1)
+            ->where('tenants.active', 1);
+
+        $result = $builder->get()->getRowArray();
+        return $result ?: null;
+    }
+
+    /**
+     * Get all active tenants
+     */
+    public function getActiveTenants()
+    {
+        return $this->where('active', 1)
+            ->findAll();
+    }
+
+    /**
+     * Get tenant with usage statistics
+     */
+    public function getTenantWithStats($tenant_id)
+    {
+        $tenant = $this->where('tenant_id', $tenant_id)
+            ->where('active', 1)
+            ->first();
+
+        if (!$tenant) {
+            return null;
+        }
+
+        // Get usage statistics
+        $db = \Config\Database::connect();
+        $builder = $db->table('usage_logs');
+        
+        // Total requests
+        $tenant['total_requests'] = $builder->where('tenant_id', $tenant_id)->countAllResults();
+        
+        // Total tokens
+        $builder->select('SUM(tokens) as total_tokens');
+        $result = $builder->where('tenant_id', $tenant_id)->get()->getRow();
+        $tenant['total_tokens'] = $result ? $result->total_tokens : 0;
+        
+        // Total cost
+        $builder->select('SUM(cost) as total_cost');
+        $result = $builder->where('tenant_id', $tenant_id)->get()->getRow();
+        $tenant['total_cost'] = $result ? $result->total_cost : 0;
+
+        return $tenant;
     }
 }

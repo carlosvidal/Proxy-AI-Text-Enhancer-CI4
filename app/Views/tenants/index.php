@@ -4,7 +4,7 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2>Tenant List</h2>
-    <a href="<?= site_url('tenants/create') ?>" class="btn btn-primary">
+    <a href="<?= site_url('admin/tenants/create') ?>" class="btn btn-primary">
         <i class="fas fa-plus me-2"></i>Create Tenant
     </a>
 </div>
@@ -21,11 +21,13 @@
             <table class="table table-striped">
                 <thead>
                     <tr>
-                        <th>ID</th>
                         <th>Name</th>
+                        <th>Tenant ID</th>
                         <th>Email</th>
-                        <th>Quota</th>
+                        <th>API Users</th>
                         <th>Status</th>
+                        <th>Subscription</th>
+                        <th>Usage</th>
                         <th>Created</th>
                         <th>Actions</th>
                     </tr>
@@ -33,10 +35,16 @@
                 <tbody>
                     <?php foreach ($tenants as $tenant): ?>
                         <tr>
-                            <td><?= $tenant['id'] ?></td>
-                            <td><?= esc($tenant['name']) ?></td>
+                            <td>
+                                <a href="<?= site_url('admin/tenants/view/' . $tenant['id']) ?>" class="text-decoration-none">
+                                    <?= esc($tenant['name']) ?>
+                                </a>
+                            </td>
+                            <td><code><?= esc($tenant['tenant_id']) ?></code></td>
                             <td><?= esc($tenant['email']) ?></td>
-                            <td><?= number_format($tenant['quota']) ?></td>
+                            <td>
+                                <span class="badge bg-primary"><?= $tenant['api_users'] ?> users</span>
+                            </td>
                             <td>
                                 <?php if ($tenant['active']): ?>
                                     <span class="badge bg-success">Active</span>
@@ -44,20 +52,50 @@
                                     <span class="badge bg-danger">Inactive</span>
                                 <?php endif; ?>
                             </td>
+                            <td>
+                                <?php
+                                $status = strtolower($tenant['subscription_status'] ?? 'trial');
+                                if ($status === 'trial') {
+                                    $statusClass = 'bg-info';
+                                } elseif ($status === 'active') {
+                                    $statusClass = 'bg-success';
+                                } elseif ($status === 'expired') {
+                                    $statusClass = 'bg-danger';
+                                } else {
+                                    $statusClass = 'bg-secondary';
+                                }
+                                ?>
+                                <span class="badge <?= $statusClass ?>">
+                                    <?= esc(ucfirst($tenant['subscription_status'] ?? 'Trial')) ?>
+                                </span>
+                            </td>
+                            <td>
+                                <small class="d-block text-muted">
+                                    <?= number_format($tenant['total_requests']) ?> requests
+                                </small>
+                                <small class="d-block text-muted">
+                                    <?= number_format($tenant['total_tokens']) ?> tokens
+                                </small>
+                            </td>
                             <td><?= date('Y-m-d', strtotime($tenant['created_at'])) ?></td>
                             <td>
-                                <a href="<?= site_url('tenants/view/' . $tenant['id']) ?>" class="btn btn-sm btn-info text-white" title="View">
-                                    <i class="fas fa-eye"></i>
-                                </a>
-                                <a href="<?= site_url('tenants/edit/' . $tenant['id']) ?>" class="btn btn-sm btn-warning text-white" title="Edit">
-                                    <i class="fas fa-edit"></i>
-                                </a>
-                                <a href="<?= site_url('tenants/users/' . $tenant['id']) ?>" class="btn btn-sm btn-primary" title="Manage Users">
-                                    <i class="fas fa-users"></i>
-                                </a>
-                                <a href="<?= site_url('tenants/delete/' . $tenant['id']) ?>" class="btn btn-sm btn-danger" title="Delete" onclick="return confirm('Are you sure you want to delete this tenant?')">
-                                    <i class="fas fa-trash"></i>
-                                </a>
+                                <div class="btn-group">
+                                    <a href="<?= site_url('admin/tenants/view/' . $tenant['id']) ?>" class="btn btn-sm btn-outline-secondary" title="View">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="<?= site_url('admin/tenants/edit/' . $tenant['id']) ?>" class="btn btn-sm btn-outline-primary" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="<?= site_url('admin/tenants/users/' . $tenant['id']) ?>" class="btn btn-sm btn-outline-info" title="Manage API Users">
+                                        <i class="fas fa-users"></i>
+                                    </a>
+                                    <a href="<?= site_url('admin/tenants/delete/' . $tenant['id']) ?>" 
+                                       class="btn btn-sm btn-outline-danger" 
+                                       onclick="return confirm('Are you sure you want to delete this tenant?')"
+                                       title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </a>
+                                </div>
                             </td>
                         </tr>
                     <?php endforeach; ?>

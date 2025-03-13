@@ -6,41 +6,85 @@ use CodeIgniter\Model;
 
 class ButtonsModel extends Model
 {
-    protected $table      = 'buttons';
+    protected $table = 'buttons';
     protected $primaryKey = 'id';
-
     protected $useAutoIncrement = true;
-    protected $returnType     = 'array';
+    protected $returnType = 'array';
     protected $useSoftDeletes = false;
-
     protected $allowedFields = [
         'tenant_id',
-        'button_id',
         'name',
-        'domain',
+        'description',
+        'type',
+        'prompt',
+        'system_prompt',
+        'temperature',
+        'max_tokens',
         'provider',
         'model',
         'api_key',
-        'system_prompt',
         'active',
         'created_at',
         'updated_at'
     ];
-
     protected $useTimestamps = true;
-    protected $createdField  = 'created_at';
-    protected $updatedField  = 'updated_at';
+    protected $createdField = 'created_at';
+    protected $updatedField = 'updated_at';
 
-    protected $validationRules    = [
-        'tenant_id'     => 'required',
-        'name'          => 'required|min_length[3]|max_length[255]',
-        'domain'        => 'required|min_length[3]|max_length[255]',
-        'provider'      => 'required',
-        'model'         => 'required',
+    protected $validationRules = [
+        'tenant_id' => 'required',
+        'name' => 'required|min_length[3]|max_length[255]',
+        'description' => 'permit_empty|max_length[1000]',
+        'type' => 'required|in_list[standard,custom]',
+        'prompt' => 'required',
+        'system_prompt' => 'permit_empty',
+        'temperature' => 'required|decimal|greater_than_equal_to[0]|less_than_equal_to[2]',
+        'max_tokens' => 'required|integer|greater_than[0]|less_than_equal_to[4096]',
+        'provider' => 'required|in_list[openai,anthropic,cohere]',
+        'model' => 'required'
     ];
 
-    protected $validationMessages = [];
-    protected $skipValidation     = false;
+    protected $validationMessages = [
+        'tenant_id' => [
+            'required' => 'Tenant ID is required'
+        ],
+        'name' => [
+            'required' => 'Button name is required',
+            'min_length' => 'Button name must be at least 3 characters',
+            'max_length' => 'Button name cannot exceed 255 characters'
+        ],
+        'description' => [
+            'max_length' => 'Description cannot exceed 1000 characters'
+        ],
+        'type' => [
+            'required' => 'Button type is required',
+            'in_list' => 'Invalid button type'
+        ],
+        'prompt' => [
+            'required' => 'Main prompt is required'
+        ],
+        'temperature' => [
+            'required' => 'Temperature is required',
+            'decimal' => 'Temperature must be a decimal number',
+            'greater_than_equal_to' => 'Temperature must be at least 0',
+            'less_than_equal_to' => 'Temperature cannot exceed 2'
+        ],
+        'max_tokens' => [
+            'required' => 'Max tokens is required',
+            'integer' => 'Max tokens must be a whole number',
+            'greater_than' => 'Max tokens must be greater than 0',
+            'less_than_equal_to' => 'Max tokens cannot exceed 4096'
+        ],
+        'provider' => [
+            'required' => 'Provider is required',
+            'in_list' => 'Invalid provider selected'
+        ],
+        'model' => [
+            'required' => 'Model is required'
+        ]
+    ];
+
+    protected $skipValidation = false;
 
     /**
      * Override the insert method to encrypt API keys
@@ -81,107 +125,65 @@ class ButtonsModel extends Model
     }
 
     /**
-     * Override the find method to handle API key decryption
+     * Get all buttons for a tenant with usage statistics
      */
-    public function find($id = null)
+    public function getButtonsWithStatsByTenant($tenant_id)
     {
-        $result = parent::find($id);
+        $db = \Config\Database::connect();
+        $buttons = $this->where('tenant_id', $tenant_id)->findAll();
 
-        // If the API key exists, don't decrypt it in the basic find
-        // We'll only decrypt when actually using it
+        foreach ($buttons as &$button) {
+            // Get usage statistics
+            $stats = $db->query("
+                SELECT 
+                    COUNT(DISTINCT id) as total_requests,
+                    COUNT(DISTINCT user_id) as unique_users,
+                    COALESCE(SUM(tokens_used), 0) as total_tokens,
+                    COALESCE(AVG(tokens_used), 0) as avg_tokens_per_request,
+                    COALESCE(MAX(tokens_used), 0) as max_tokens,
+                    MAX(created_at) as last_used
+                FROM usage_logs 
+                WHERE tenant_id = ? AND button_id = ?
+            ", [$tenant_id, $button['id']])->getRowArray();
 
-        return $result;
-    }
-
-    /**
-     * Get all buttons for a specific tenant
-     * 
-     * @param string $tenant_id Tenant ID
-     * @return array Array of buttons
-     */
-    public function getButtonsByTenant($tenant_id)
-    {
-        return $this->where('tenant_id', $tenant_id)
-            ->findAll();
-    }
-
-    /**
-     * Get a button by domain and tenant_id
-     * 
-     * @param string $domain Domain to match
-     * @param string $tenant_id Tenant ID
-     * @return array|null Button data or null if not found
-     */
-    public function getButtonByDomain($domain, $tenant_id)
-    {
-        $button = $this->where('domain', $domain)
-            ->where('tenant_id', $tenant_id)
-            ->where('active', 1)
-            ->first();
-
-        // If a button was found and it has an API key, decrypt it for use
-        if ($button && !empty($button['api_key'])) {
-            helper('api_key');
-            $button['api_key'] = decrypt_api_key($button['api_key']);
+            $button['usage'] = $stats;
         }
 
-        return $button;
+        return $buttons;
     }
 
     /**
-     * Check if a button with the same domain and tenant exists
-     * 
-     * @param string $domain Domain to check
-     * @param string $tenant_id Tenant ID
-     * @param int|null $button_id Button ID to exclude from check (for updates)
-     * @return bool True if exists, false otherwise
+     * Get a button by ID with usage statistics
      */
-    public function domainExists($domain, $tenant_id, $button_id = null)
+    public function getButtonWithStats($id, $tenant_id)
     {
-        $builder = $this->where('domain', $domain)
-            ->where('tenant_id', $tenant_id);
+        $button = $this->where('id', $id)
+                      ->where('tenant_id', $tenant_id)
+                      ->first();
 
-        if ($button_id !== null) {
-            $builder->where('id !=', $button_id);
-        }
+        if ($button) {
+            $db = \Config\Database::connect();
+            
+            // Get usage statistics
+            $stats = $db->query("
+                SELECT 
+                    COUNT(DISTINCT id) as total_requests,
+                    COUNT(DISTINCT user_id) as unique_users,
+                    COALESCE(SUM(tokens_used), 0) as total_tokens,
+                    COALESCE(AVG(tokens_used), 0) as avg_tokens_per_request,
+                    COALESCE(MAX(tokens_used), 0) as max_tokens,
+                    MAX(created_at) as last_used
+                FROM usage_logs 
+                WHERE tenant_id = ? AND button_id = ?
+            ", [$tenant_id, $button['id']])->getRowArray();
 
-        return $builder->countAllResults() > 0;
-    }
+            $button['usage'] = $stats;
 
-    /**
-     * Generate a unique button_id
-     * 
-     * @return string Unique button_id
-     */
-    public function generateButtonId()
-    {
-        // Generate a random button_id
-        $button_id = bin2hex(random_bytes(8)); // 16 character hex string
-
-        // Check if it's unique
-        while ($this->where('button_id', $button_id)->countAllResults() > 0) {
-            $button_id = bin2hex(random_bytes(8));
-        }
-
-        return $button_id;
-    }
-
-    /**
-     * Get a button by its button_id
-     * 
-     * @param string $button_id Button ID to find
-     * @return array|null Button data or null if not found
-     */
-    public function getButtonByButtonId($button_id)
-    {
-        $button = $this->where('button_id', $button_id)
-            ->where('active', 1)
-            ->first();
-
-        // If a button was found and it has an API key, decrypt it for use
-        if ($button && !empty($button['api_key'])) {
-            helper('api_key');
-            $button['api_key'] = decrypt_api_key($button['api_key']);
+            // If button has an API key, decrypt it
+            if (!empty($button['api_key'])) {
+                helper('api_key');
+                $button['api_key'] = decrypt_api_key($button['api_key']);
+            }
         }
 
         return $button;

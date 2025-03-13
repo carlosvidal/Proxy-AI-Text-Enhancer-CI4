@@ -31,7 +31,7 @@ class Database extends Config
         'hostname' => '',
         'username' => '',
         'password' => '',
-        'database' => WRITEPATH . 'database/database.sqlite',  // Usa WRITEPATH que ya es una constante definida
+        'database' => WRITEPATH . 'database.sqlite',  // Updated path to match your setup
         'DBDriver' => 'SQLite3',
         'DBPrefix' => '',
         'pConnect' => false,
@@ -44,6 +44,9 @@ class Database extends Config
         'strictOn' => false,
         'failover' => [],
         'port'     => 3306,
+        'foreignKeys' => true,
+        'busyTimeout' => 5000,  // Add timeout for busy database
+        'flags' => SQLITE3_OPEN_READWRITE | SQLITE3_OPEN_CREATE, // Ensure we can write
     ];
 
     /**

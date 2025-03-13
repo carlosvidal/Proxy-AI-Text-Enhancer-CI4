@@ -4,12 +4,9 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <a href="<?= site_url('tenants/view/' . $tenant['id']) ?>" class="btn btn-secondary btn-sm mb-2">
-            <i class="fas fa-arrow-left me-1"></i>Back to Tenant
-        </a>
         <h2>Buttons for <?= esc($tenant['name']) ?></h2>
     </div>
-    <a href="<?= site_url('buttons/create/' . $tenant['id']) ?>" class="btn btn-primary">
+    <a href="<?= site_url('buttons/create') ?>" class="btn btn-primary">
         <i class="fas fa-plus me-1"></i>Create Button
     </a>
 </div>
@@ -33,6 +30,7 @@
                             <th>Provider</th>
                             <th>Model</th>
                             <th>Status</th>
+                            <th>Created</th>
                             <th>Actions</th>
                         </tr>
                     </thead>

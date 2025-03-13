@@ -10,20 +10,39 @@ class AuthFilter implements FilterInterface
 {
     public function before(RequestInterface $request, $arguments = null)
     {
-        // Si el usuario no está logueado, redirigir al login
-        if (!session()->get('isLoggedIn')) {
-            return redirect()->to('auth/login');
+        // Don't check auth for login-related routes
+        $uri = $request->uri->getPath();
+        if (in_array($uri, ['auth/login', 'auth/attemptLogin'])) {
+            return;
         }
 
-        // Si se requiere un rol específico y el usuario no lo tiene
-        if (!empty($arguments) && !in_array(session()->get('role'), $arguments)) {
-            return redirect()->to('usage')
-                ->with('error', 'You do not have permission to access that page');
+        // If not logged in, redirect to login
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
+        }
+
+        // Check role-based access
+        if (!empty($arguments)) {
+            $role = session()->get('role');
+            if (!in_array($role, $arguments)) {
+                // If superadmin, redirect to admin dashboard
+                if ($role === 'superadmin') {
+                    return redirect()->to('/admin/dashboard');
+                }
+                // If tenant, redirect to buttons page
+                if ($role === 'tenant') {
+                    return redirect()->to('/buttons');
+                }
+                // If no valid role, logout
+                session()->destroy();
+                return redirect()->to('/auth/login')
+                    ->with('error', 'Invalid role. Please login again.');
+            }
         }
     }
 
     public function after(RequestInterface $request, ResponseInterface $response, $arguments = null)
     {
-        // No hacer nada después
+        // Do nothing after
     }
 }

@@ -10,62 +10,59 @@ class CreateButtonsTable extends Migration
     {
         $this->forge->addField([
             'id' => [
-                'type' => 'INTEGER',
+                'type' => 'INT',
                 'constraint' => 11,
                 'unsigned' => true,
-                'auto_increment' => true,
+                'auto_increment' => true
             ],
             'tenant_id' => [
                 'type' => 'VARCHAR',
+                'constraint' => 50
+            ],
+            'button_id' => [
+                'type' => 'VARCHAR',
                 'constraint' => 50,
-                'null' => false,
+                'unique' => true
             ],
             'name' => [
                 'type' => 'VARCHAR',
-                'constraint' => 255,
-                'null' => false,
+                'constraint' => 255
             ],
             'domain' => [
                 'type' => 'VARCHAR',
-                'constraint' => 255,
-                'null' => false,
+                'constraint' => 255
             ],
             'provider' => [
                 'type' => 'VARCHAR',
-                'constraint' => 50,
-                'null' => false,
+                'constraint' => 50
             ],
             'model' => [
                 'type' => 'VARCHAR',
-                'constraint' => 50,
-                'null' => false,
+                'constraint' => 50
             ],
             'api_key' => [
-                'type' => 'VARCHAR',
-                'constraint' => 255,
-                'null' => true,
+                'type' => 'TEXT',
+                'null' => true
             ],
             'system_prompt' => [
                 'type' => 'TEXT',
-                'null' => true,
+                'null' => true
             ],
             'active' => [
-                'type' => 'TINYINT',
-                'constraint' => 1,
-                'default' => 1,
+                'type' => 'BOOLEAN',
+                'default' => 1
             ],
             'created_at' => [
-                'type' => 'DATETIME',
-                'null' => true,
+                'type' => 'DATETIME'
             ],
             'updated_at' => [
-                'type' => 'DATETIME',
-                'null' => true,
-            ],
+                'type' => 'DATETIME'
+            ]
         ]);
 
-        $this->forge->addKey('id', true);
-        $this->forge->addKey(['tenant_id', 'domain']);
+        $this->forge->addPrimaryKey('id');
+        $this->forge->addKey('tenant_id'); // Index for faster lookups
+        $this->forge->addUniqueKey('button_id'); // Ensure button_id is unique
         $this->forge->createTable('buttons');
     }
 

@@ -19,18 +19,35 @@ class Buttons extends Controller
     }
 
     /**
-     * List all buttons for a tenant
+     * List all buttons for the current tenant
      */
-    public function index($tenant_id)
+    public function index()
     {
-        $data['title'] = 'Buttons Management';
-        $data['tenant'] = $this->tenantsModel->find($tenant_id);
-
-        if (empty($data['tenant'])) {
-            return redirect()->to('/tenants')->with('error', 'Tenant not found');
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
         }
 
-        $data['buttons'] = $this->buttonsModel->getButtonsByTenant($data['tenant']['tenant_id']);
+        $tenant_id = session()->get('tenant_id');
+        if (!$tenant_id) {
+            return redirect()->to('/auth/login')
+                ->with('error', 'No tenant found');
+        }
+
+        // Get tenant information
+        $tenant = $this->tenantsModel->where('tenant_id', $tenant_id)
+            ->where('active', 1)
+            ->first();
+
+        if (!$tenant) {
+            return redirect()->to('/auth/login')
+                ->with('error', 'Tenant not found');
+        }
+        
+        $data = [
+            'title' => 'Buttons Management',
+            'tenant' => $tenant,
+            'buttons' => $this->buttonsModel->getButtonsWithStatsByTenant($tenant_id)
+        ];
 
         return view('buttons/index', $data);
     }
@@ -38,14 +55,32 @@ class Buttons extends Controller
     /**
      * Create a new button
      */
-    public function create($tenant_id)
+    public function create()
     {
-        $data['title'] = 'Create Button';
-        $data['tenant'] = $this->tenantsModel->find($tenant_id);
-
-        if (empty($data['tenant'])) {
-            return redirect()->to('/tenants')->with('error', 'Tenant not found');
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
         }
+
+        $tenant_id = session()->get('tenant_id');
+        if (!$tenant_id) {
+            return redirect()->to('/auth/login')
+                ->with('error', 'No tenant found');
+        }
+
+        // Get tenant information
+        $tenant = $this->tenantsModel->where('tenant_id', $tenant_id)
+            ->where('active', 1)
+            ->first();
+
+        if (!$tenant) {
+            return redirect()->to('/auth/login')
+                ->with('error', 'Tenant not found');
+        }
+
+        $data = [
+            'title' => 'Create Button',
+            'tenant' => $tenant
+        ];
 
         if ($this->request->getMethod() === 'post') {
             $rules = [
@@ -59,7 +94,7 @@ class Buttons extends Controller
                 $domain = $this->request->getPost('domain');
 
                 // Check if domain already exists for this tenant
-                if ($this->buttonsModel->domainExists($domain, $data['tenant']['tenant_id'])) {
+                if ($this->buttonsModel->domainExists($domain, $tenant_id)) {
                     return redirect()->back()
                         ->with('error', 'A button with this domain already exists for this tenant')
                         ->withInput();
@@ -72,7 +107,7 @@ class Buttons extends Controller
                 $button_id = $this->buttonsModel->generateButtonId();
 
                 $buttonData = [
-                    'tenant_id' => $data['tenant']['tenant_id'],
+                    'tenant_id' => $tenant_id,
                     'button_id' => $button_id,
                     'name' => $this->request->getPost('name'),
                     'domain' => $domain,
@@ -85,7 +120,7 @@ class Buttons extends Controller
                 ];
 
                 if ($this->buttonsModel->insert($buttonData)) {
-                    return redirect()->to('/buttons/' . $tenant_id)
+                    return redirect()->to('/buttons')
                         ->with('success', 'Button created successfully');
                 } else {
                     return redirect()->back()
@@ -143,19 +178,38 @@ class Buttons extends Controller
     /**
      * Edit an existing button
      */
-    public function edit($button_id)
+    public function edit($id)
     {
-        $data['title'] = 'Edit Button';
-        $data['button'] = $this->buttonsModel->find($button_id);
-
-        if (empty($data['button'])) {
-            return redirect()->to('/tenants')->with('error', 'Button not found');
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
         }
 
-        $data['tenant'] = $this->tenantsModel->where('tenant_id', $data['button']['tenant_id'])->first();
+        $tenant_id = session()->get('tenant_id');
+        if (!$tenant_id) {
+            return redirect()->to('/auth/login')
+                ->with('error', 'No tenant found');
+        }
 
-        if (empty($data['tenant'])) {
-            return redirect()->to('/tenants')->with('error', 'Tenant not found');
+        // Get tenant information
+        $tenant = $this->tenantsModel->where('tenant_id', $tenant_id)
+            ->where('active', 1)
+            ->first();
+
+        if (!$tenant) {
+            return redirect()->to('/auth/login')
+                ->with('error', 'Tenant not found');
+        }
+
+        $data = [
+            'title' => 'Edit Button',
+            'tenant' => $tenant,
+            'button' => $this->buttonsModel->where('tenant_id', $tenant_id)
+                ->find($id)
+        ];
+
+        if (empty($data['button'])) {
+            return redirect()->to('/buttons')
+                ->with('error', 'Button not found');
         }
 
         if ($this->request->getMethod() === 'post') {
@@ -170,24 +224,10 @@ class Buttons extends Controller
                 $domain = $this->request->getPost('domain');
 
                 // Check if domain already exists for this tenant (excluding this button)
-                if ($this->buttonsModel->domainExists($domain, $data['button']['tenant_id'], $button_id)) {
+                if ($this->buttonsModel->domainExists($domain, $tenant_id, $id)) {
                     return redirect()->back()
                         ->with('error', 'A button with this domain already exists for this tenant')
                         ->withInput();
-                }
-
-                // Handle API key updates
-                $api_key = $data['button']['api_key'];
-                $new_api_key = $this->request->getPost('api_key');
-
-                // If a new API key is provided
-                if (!empty($new_api_key)) {
-                    // Check for "delete" keyword to remove the API key
-                    if (strtolower($new_api_key) === 'delete') {
-                        $api_key = null;
-                    } else {
-                        $api_key = $new_api_key;
-                    }
                 }
 
                 $buttonData = [
@@ -195,14 +235,22 @@ class Buttons extends Controller
                     'domain' => $domain,
                     'provider' => $this->request->getPost('provider'),
                     'model' => $this->request->getPost('model'),
-                    'api_key' => $api_key,
                     'system_prompt' => $this->request->getPost('system_prompt'),
-                    'active' => $this->request->getPost('active'),
                     'updated_at' => date('Y-m-d H:i:s')
                 ];
 
-                if ($this->buttonsModel->update($button_id, $buttonData)) {
-                    return redirect()->to('/buttons/' . $data['tenant']['id'])
+                // Handle API key updates
+                $api_key = $this->request->getPost('api_key');
+                if (!empty($api_key)) {
+                    if (strtolower($api_key) === 'delete') {
+                        $buttonData['api_key'] = null;
+                    } else {
+                        $buttonData['api_key'] = $api_key;
+                    }
+                }
+
+                if ($this->buttonsModel->update($id, $buttonData)) {
+                    return redirect()->to('/buttons')
                         ->with('success', 'Button updated successfully');
                 } else {
                     return redirect()->back()
@@ -260,27 +308,44 @@ class Buttons extends Controller
     /**
      * Delete a button
      */
-    public function delete($button_id)
+    public function delete($id)
     {
-        $button = $this->buttonsModel->find($button_id);
-
-        if (empty($button)) {
-            return redirect()->to('/tenants')->with('error', 'Button not found');
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
         }
 
-        $tenant = $this->tenantsModel->where('tenant_id', $button['tenant_id'])->first();
-
-        if (empty($tenant)) {
-            return redirect()->to('/tenants')->with('error', 'Tenant not found');
+        $tenant_id = session()->get('tenant_id');
+        if (!$tenant_id) {
+            return redirect()->to('/auth/login')
+                ->with('error', 'No tenant found');
         }
 
-        if ($this->buttonsModel->delete($button_id)) {
-            return redirect()->to('/buttons/' . $tenant['id'])
+        // Get tenant information
+        $tenant = $this->tenantsModel->where('tenant_id', $tenant_id)
+            ->where('active', 1)
+            ->first();
+
+        if (!$tenant) {
+            return redirect()->to('/auth/login')
+                ->with('error', 'Tenant not found');
+        }
+
+        // Check if button exists and belongs to this tenant
+        $button = $this->buttonsModel->where('tenant_id', $tenant_id)
+            ->find($id);
+
+        if (!$button) {
+            return redirect()->to('/buttons')
+                ->with('error', 'Button not found');
+        }
+
+        if ($this->buttonsModel->delete($id)) {
+            return redirect()->to('/buttons')
                 ->with('success', 'Button deleted successfully');
-        } else {
-            return redirect()->to('/buttons/' . $tenant['id'])
-                ->with('error', 'Error deleting button');
         }
+
+        return redirect()->to('/buttons')
+            ->with('error', 'Error deleting button');
     }
 
     /**
@@ -288,17 +353,16 @@ class Buttons extends Controller
      */
     public function view($button_id)
     {
-        $data['title'] = 'Button Details';
-        $data['button'] = $this->buttonsModel->find($button_id);
-
-        if (empty($data['button'])) {
-            return redirect()->to('/tenants')->with('error', 'Button not found');
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
         }
 
-        $data['tenant'] = $this->tenantsModel->where('tenant_id', $data['button']['tenant_id'])->first();
+        $tenant_id = session()->get('tenant_id');
+        $data['title'] = 'Button Details';
+        $data['button'] = $this->buttonsModel->where('tenant_id', $tenant_id)->find($button_id);
 
-        if (empty($data['tenant'])) {
-            return redirect()->to('/tenants')->with('error', 'Tenant not found');
+        if (empty($data['button'])) {
+            return redirect()->to('/buttons')->with('error', 'Button not found');
         }
 
         return view('buttons/view', $data);

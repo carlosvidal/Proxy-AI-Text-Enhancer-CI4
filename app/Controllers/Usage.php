@@ -3,336 +3,221 @@
 namespace App\Controllers;
 
 use CodeIgniter\Controller;
-use App\Models\LlmProxyModel;
+use App\Models\UsageLogsModel;
+use App\Models\TenantUsersModel;
 
+/**
+ * Usage Controller
+ * 
+ * Handles all usage statistics and monitoring for tenants.
+ * This serves as the main dashboard for tenant users, showing:
+ * - Overall token usage
+ * - API user consumption
+ * - Button usage statistics
+ * - Detailed logs
+ */
 class Usage extends Controller
 {
-    protected $llm_proxy_model;
+    protected $usageLogsModel;
+    protected $tenantUsersModel;
 
     public function __construct()
     {
-        helper(['url', 'form', 'logger']);
-        $this->llm_proxy_model = new LlmProxyModel();
+        helper(['url', 'form']);
+        $this->usageLogsModel = new UsageLogsModel();
+        $this->tenantUsersModel = new TenantUsersModel();
     }
 
     /**
-     * Página principal de estadísticas
+     * Main dashboard showing usage statistics
      */
     public function index()
     {
-        $data['title'] = 'LLM Proxy Usage Statistics';
-        $db = db_connect();
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
+        }
 
-        // Comprobar si las tablas existen
-        $tables = $db->listTables();
-        $data['tables_exist'] = [
-            'user_quotas' => in_array('user_quotas', $tables),
-            'usage_logs' => in_array('usage_logs', $tables),
-            'llm_cache' => in_array('llm_cache', $tables)
+        $tenant_id = session()->get('tenant_id');
+        $data['title'] = 'Usage Dashboard';
+        
+        // Get usage statistics for the current tenant
+        $db = db_connect();
+        
+        // Get total tokens used
+        $query = $db->query("
+            SELECT SUM(tokens) as total_tokens, COUNT(*) as total_requests
+            FROM usage_logs 
+            WHERE tenant_id = ?
+            AND created_at >= date('now', '-30 days')",
+            [$tenant_id]
+        );
+        $result = $query->getRow();
+        
+        $data['stats'] = [
+            'total_tokens' => $result->total_tokens ?? 0,
+            'total_requests' => $result->total_requests ?? 0
         ];
 
-        // Obtener estadísticas generales
-        $data['stats'] = $this->_get_general_stats();
+        // Get daily usage for the last 30 days
+        $query = $db->query("
+            SELECT date(created_at) as usage_date, 
+                   SUM(tokens) as daily_tokens,
+                   COUNT(*) as daily_requests
+            FROM usage_logs 
+            WHERE tenant_id = ?
+            AND created_at >= date('now', '-30 days')
+            GROUP BY date(created_at)
+            ORDER BY usage_date DESC",
+            [$tenant_id]
+        );
+        $data['daily_stats'] = $query->getResult();
 
-        // Obtener datos para gráficos
-        $data['charts_data'] = $this->_get_charts_data();
+        // Get button usage statistics
+        $query = $db->query("
+            SELECT b.name as button_name,
+                   COUNT(*) as use_count,
+                   SUM(u.tokens) as total_tokens
+            FROM usage_logs u
+            JOIN buttons b ON u.button_id = b.id
+            WHERE u.tenant_id = ?
+            AND u.created_at >= date('now', '-30 days')
+            GROUP BY b.id, b.name
+            ORDER BY use_count DESC",
+            [$tenant_id]
+        );
+        $data['button_stats'] = $query->getResult();
 
-        // Mostrar vista
+        // Get API user statistics
+        $query = $db->query("
+            SELECT tu.user_id,
+                   tu.name,
+                   tu.quota,
+                   COUNT(ul.id) as request_count,
+                   COALESCE(SUM(ul.tokens), 0) as total_tokens
+            FROM tenant_users tu
+            LEFT JOIN usage_logs ul ON tu.user_id = ul.api_user_id 
+                AND ul.created_at >= date('now', '-30 days')
+            WHERE tu.tenant_id = ?
+            GROUP BY tu.user_id, tu.name, tu.quota
+            ORDER BY total_tokens DESC",
+            [$tenant_id]
+        );
+        $data['api_stats'] = $query->getResult();
+
         return view('usage/index', $data);
     }
 
     /**
-     * Ver registros de uso detallados
+     * View detailed usage logs
      */
-    public function logs($page = 0)
+    public function logs()
     {
-        $data['title'] = 'LLM Proxy Usage Logs';
-        $db = db_connect();
-
-        // Comprobar si la tabla existe
-        $tables = $db->listTables();
-        if (!in_array('usage_logs', $tables)) {
-            $data['error'] = 'The usage_logs table does not exist. Please run migrations first.';
-            return view('usage/error', $data);
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
         }
 
-        // Configuración de paginación
-        $per_page = 20;
-        $offset = $page * $per_page;
+        $tenant_id = session()->get('tenant_id');
+        $data['title'] = 'Usage Logs';
 
-        // Obtener total de registros
-        $builder = $db->table('usage_logs');
-        $total_rows = $builder->countAllResults();
-        $data['total_pages'] = ceil($total_rows / $per_page);
-        $data['current_page'] = $page;
+        // Get the latest 100 usage logs for the tenant
+        $db = db_connect();
+        $query = $db->query("
+            SELECT ul.*,
+                   b.name as button_name,
+                   tu.name as api_user_name
+            FROM usage_logs ul
+            LEFT JOIN buttons b ON ul.button_id = b.id
+            LEFT JOIN tenant_users tu ON ul.api_user_id = tu.user_id
+            WHERE ul.tenant_id = ?
+            ORDER BY ul.created_at DESC
+            LIMIT 100",
+            [$tenant_id]
+        );
+        
+        $data['logs'] = $query->getResult();
 
-        // Obtener registros para esta página
-        $builder = $db->table('usage_logs');
-        $builder->orderBy('usage_date', 'DESC');
-        $builder->limit($per_page, $offset);
-        $data['logs'] = $builder->get()->getResult();
-
-        // Mostrar vista
         return view('usage/logs', $data);
     }
 
     /**
-     * Ver cuotas de usuarios
+     * View API user statistics
      */
-    public function quotas()
+    public function api()
     {
-        $data['title'] = 'LLM Proxy User Quotas';
-        $db = db_connect();
-
-        // Comprobar si las tablas existen
-        $tables = $db->listTables();
-        if (!in_array('user_quotas', $tables) || !in_array('usage_logs', $tables)) {
-            $data['error'] = 'The user_quotas or usage_logs table does not exist. Please run migrations first.';
-            return view('usage/error', $data);
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
         }
 
-        // Obtener registros de cuotas con uso actual
+        $tenant_id = session()->get('tenant_id');
+        $data['title'] = 'API Usage';
+
+        // Get all API users with their usage statistics
+        $db = db_connect();
         $query = $db->query("
-            SELECT 
-                q.tenant_id,
-                q.user_id,
-                q.total_quota,
-                q.reset_period,
-                COALESCE(SUM(u.tokens), 0) as used_tokens,
-                q.total_quota - COALESCE(SUM(u.tokens), 0) as remaining_quota
-            FROM 
-                user_quotas q
-            LEFT JOIN 
-                usage_logs u ON q.tenant_id = u.tenant_id AND q.user_id = u.user_id AND 
-                u.usage_date >= datetime('now', '-30 days')
-            GROUP BY 
-                q.tenant_id, q.user_id
-            ORDER BY
-                q.tenant_id, q.user_id
-        ");
+            SELECT tu.user_id,
+                   tu.name,
+                   tu.email,
+                   tu.quota,
+                   tu.active,
+                   COUNT(ul.id) as request_count,
+                   COALESCE(SUM(ul.tokens), 0) as total_tokens,
+                   MAX(ul.created_at) as last_used
+            FROM tenant_users tu
+            LEFT JOIN usage_logs ul ON tu.user_id = ul.api_user_id
+            WHERE tu.tenant_id = ?
+            GROUP BY tu.user_id, tu.name, tu.email, tu.quota, tu.active
+            ORDER BY total_tokens DESC",
+            [$tenant_id]
+        );
+        
+        $data['api_users'] = $query->getResult();
 
-        $data['quotas'] = $query->getResult();
-
-        // Mostrar vista
-        return view('usage/quotas', $data);
+        return view('usage/api', $data);
     }
 
     /**
-     * Estadísticas por proveedor LLM
+     * View usage statistics for a specific API user
+     * 
+     * @param string $user_id The API user's identifier
      */
-    public function providers()
+    public function userStats($user_id)
     {
-        $data['title'] = 'LLM Proxy Provider Statistics';
-        $db = db_connect();
-
-        // Comprobar si la tabla existe
-        $tables = $db->listTables();
-        if (!in_array('usage_logs', $tables)) {
-            $data['error'] = 'The usage_logs table does not exist. Please run migrations first.';
-            return view('usage/error', $data);
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
         }
 
-        // Obtener estadísticas por proveedor
+        $tenant_id = session()->get('tenant_id');
+        
+        // Get API user information
+        $user = $this->tenantUsersModel->where('tenant_id', $tenant_id)
+            ->where('user_id', $user_id)
+            ->first();
+            
+        if (!$user) {
+            return redirect()->to('/usage/api')
+                ->with('error', 'API user not found');
+        }
+
+        $data['title'] = 'API User Usage: ' . $user->name;
+        $data['user'] = $user;
+
+        // Get daily usage for this API user
+        $db = db_connect();
         $query = $db->query("
-            SELECT 
-                provider,
-                COUNT(*) as request_count,
-                SUM(tokens) as total_tokens,
-                COUNT(DISTINCT tenant_id) as tenant_count,
-                COUNT(DISTINCT user_id) as user_count,
-                SUM(CASE WHEN has_image = 1 THEN 1 ELSE 0 END) as image_requests
-            FROM 
-                usage_logs
-            GROUP BY 
-                provider
-            ORDER BY 
-                request_count DESC
-        ");
+            SELECT date(created_at) as usage_date,
+                   COUNT(*) as request_count,
+                   SUM(tokens) as total_tokens
+            FROM usage_logs
+            WHERE tenant_id = ?
+            AND api_user_id = ?
+            AND created_at >= date('now', '-30 days')
+            GROUP BY date(created_at)
+            ORDER BY usage_date DESC",
+            [$tenant_id, $user_id]
+        );
+        
+        $data['daily_stats'] = $query->getResult();
 
-        $data['provider_stats'] = $query->getResult();
-
-        // Obtener estadísticas por modelo
-        $query = $db->query("
-            SELECT 
-                provider,
-                model,
-                COUNT(*) as request_count,
-                SUM(tokens) as total_tokens
-            FROM 
-                usage_logs
-            GROUP BY 
-                provider, model
-            ORDER BY 
-                provider, request_count DESC
-        ");
-
-        $data['model_stats'] = $query->getResult();
-
-        // Mostrar vista
-        return view('usage/providers', $data);
-    }
-
-    /**
-     * Estadísticas de caché
-     */
-    public function cache()
-    {
-        $data['title'] = 'LLM Proxy Cache Statistics';
-        $db = db_connect();
-
-        // Comprobar si la tabla existe
-        $tables = $db->listTables();
-        if (!in_array('llm_cache', $tables)) {
-            $data['error'] = 'The llm_cache table does not exist. Please run migrations first.';
-            return view('usage/error', $data);
-        }
-
-        // Obtener estadísticas de caché
-        $builder = $db->table('llm_cache');
-        $data['cache_size'] = $builder->countAllResults();
-
-        // Obtener estadísticas por proveedor
-        $query = $db->query("
-            SELECT 
-                provider,
-                COUNT(*) as entry_count,
-                AVG(LENGTH(response)) as avg_response_size
-            FROM 
-                llm_cache
-            GROUP BY 
-                provider
-            ORDER BY 
-                entry_count DESC
-        ");
-
-        $data['provider_stats'] = $query->getResult();
-
-        // Obtener entradas más recientes
-        $builder = $db->table('llm_cache');
-        $builder->orderBy('created_at', 'DESC');
-        $builder->limit(10);
-        $data['recent_entries'] = $builder->get()->getResult();
-
-        // Mostrar vista
-        return view('usage/cache', $data);
-    }
-
-    /**
-     * Obtiene estadísticas generales para el dashboard
-     */
-    private function _get_general_stats()
-    {
-        $stats = [];
-        $db = db_connect();
-        $tables = $db->listTables();
-
-        if (in_array('usage_logs', $tables)) {
-            // Total de peticiones
-            $builder = $db->table('usage_logs');
-            $stats['total_requests'] = $builder->countAllResults();
-
-            // Peticiones en las últimas 24 horas
-            $builder = $db->table('usage_logs');
-            $builder->where('usage_date >=', date('Y-m-d H:i:s', strtotime('-24 hours')));
-            $stats['recent_requests'] = $builder->countAllResults();
-
-            // Tokens totales consumidos
-            $query = $db->query("SELECT SUM(tokens) as total FROM usage_logs");
-            $stats['total_tokens'] = isset($query->getRow()->total) ? $query->getRow()->total : '0';
-
-            // Número de tenants y usuarios únicos
-            $query = $db->query("SELECT COUNT(DISTINCT tenant_id) as tenants, COUNT(DISTINCT user_id) as users FROM usage_logs");
-            $row = $query->getRow();
-            $stats['unique_tenants'] = isset($row->tenants) ? $row->tenants : 0;
-            $stats['unique_users'] = isset($row->users) ? $row->users : 0;
-
-            // Peticiones con imágenes
-            $builder = $db->table('usage_logs');
-            $builder->where('has_image', 1);
-            $stats['image_requests'] = $builder->countAllResults();
-        } else {
-            // Valores por defecto si no existe la tabla
-            $stats = [
-                'total_requests' => 0,
-                'recent_requests' => 0,
-                'total_tokens' => 0,
-                'unique_tenants' => 0,
-                'unique_users' => 0,
-                'image_requests' => 0
-            ];
-        }
-
-        return $stats;
-    }
-
-    /**
-     * Obtiene datos para los gráficos del dashboard
-     */
-    private function _get_charts_data()
-    {
-        $charts_data = [];
-        $db = db_connect();
-        $tables = $db->listTables();
-
-        if (in_array('usage_logs', $tables)) {
-            // Uso por día (últimos 30 días)
-            $query = $db->query("
-                SELECT 
-                    date(usage_date) as date,
-                    COUNT(*) as requests,
-                    SUM(tokens) as tokens
-                FROM 
-                    usage_logs
-                WHERE 
-                    usage_date >= datetime('now', '-30 days')
-                GROUP BY 
-                    date(usage_date)
-                ORDER BY 
-                    date ASC
-            ");
-
-            $charts_data['usage_by_date'] = $query->getResult();
-
-            // Uso por proveedor
-            $query = $db->query("
-                SELECT 
-                    provider,
-                    COUNT(*) as count
-                FROM 
-                    usage_logs
-                GROUP BY 
-                    provider
-                ORDER BY 
-                    count DESC
-            ");
-
-            $charts_data['usage_by_provider'] = $query->getResult();
-
-            // Uso por modelo
-            $query = $db->query("
-                SELECT 
-                    model,
-                    COUNT(*) as count
-                FROM 
-                    usage_logs
-                GROUP BY 
-                    model
-                ORDER BY 
-                    count DESC
-                LIMIT 
-                    5
-            ");
-
-            $charts_data['usage_by_model'] = $query->getResult();
-        } else {
-            // Valores por defecto si no existe la tabla
-            $charts_data = [
-                'usage_by_date' => [],
-                'usage_by_provider' => [],
-                'usage_by_model' => []
-            ];
-        }
-
-        return $charts_data;
+        return view('usage/user', $data);
     }
 }

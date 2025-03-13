@@ -19,10 +19,11 @@ class Filters extends BaseConfig
      *                                                     or [filter_name => [classname1, classname2, ...]]
      */
     public array $aliases = [
+        'csrf'     => \CodeIgniter\Filters\CSRF::class,
+        'toolbar'  => \CodeIgniter\Filters\DebugToolbar::class,
+        'honeypot' => \CodeIgniter\Filters\Honeypot::class,
+        'role'     => \App\Filters\RoleFilter::class,
         'cors' => \App\Filters\CorsFilter::class, // CORS filter
-        'csrf'          => CSRF::class,
-        'toolbar'       => DebugToolbar::class,
-        'honeypot'      => Honeypot::class,
         'invalidchars'  => InvalidChars::class,
         'secureheaders' => SecureHeaders::class,
         'auth' => \App\Filters\AuthFilter::class,
@@ -37,10 +38,9 @@ class Filters extends BaseConfig
      */
     public array $globals = [
         'before' => [
-            // 'honeypot',
             // 'csrf',
-            // 'invalidchars',
-            'cors',  // CORS filter
+            'honeypot',
+            'invalidchars',
         ],
         'after' => [
             'toolbar',

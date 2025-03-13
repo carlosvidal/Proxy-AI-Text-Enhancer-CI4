@@ -4,7 +4,7 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <a href="<?= site_url('buttons/' . $tenant['id']) ?>" class="btn btn-secondary btn-sm mb-2">
+        <a href="<?= site_url('buttons') ?>" class="btn btn-secondary btn-sm mb-2">
             <i class="fas fa-arrow-left me-1"></i>Back to Buttons
         </a>
         <h2>Create New Button for <?= esc($tenant['name']) ?></h2>
@@ -17,7 +17,7 @@
         Create New Button
     </div>
     <div class="card-body">
-        <form action="<?= site_url('buttons/create/' . $tenant['id']) ?>" method="post">
+        <form action="<?= site_url('buttons/create') ?>" method="post">
             <?= csrf_field() ?>
 
             <?php if (isset($validation)): ?>
@@ -83,7 +83,7 @@
             </div>
 
             <div class="d-flex justify-content-between mt-4">
-                <a href="<?= site_url('buttons/' . $tenant['id']) ?>" class="btn btn-secondary">Cancel</a>
+                <a href="<?= site_url('buttons') ?>" class="btn btn-secondary">Cancel</a>
                 <button type="submit" class="btn btn-primary">Create Button</button>
             </div>
         </form>
