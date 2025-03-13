@@ -21,6 +21,12 @@ class Auth extends Controller
         $this->tenantUsersModel = new TenantUsersModel();
     }
 
+    protected function getRedirectPrefix()
+    {
+        $currentUrl = current_url();
+        return strpos($currentUrl, 'index.php') !== false ? 'index.php/' : '';
+    }
+
     public function login()
     {
         // Debug logging
@@ -33,10 +39,11 @@ class Auth extends Controller
             log_message('debug', 'User already logged in');
             log_message('debug', 'Role: ' . session()->get('role'));
             
+            $prefix = $this->getRedirectPrefix();
             if (session()->get('role') === 'superadmin') {
-                return redirect()->to('/admin/dashboard');
+                return redirect()->to(base_url($prefix . 'admin/dashboard'));
             }
-            return redirect()->to('/buttons');
+            return redirect()->to(base_url($prefix . 'buttons'));
         }
 
         // Debug session data
@@ -188,13 +195,16 @@ class Auth extends Controller
         log_message('debug', 'Session data after login: ' . json_encode(session()->get()));
         log_message('debug', 'Session ID: ' . session_id());
 
+        // Get redirect prefix based on current URL
+        $prefix = $this->getRedirectPrefix();
+
         // Redirect based on role
         if ($user['role'] === 'superadmin') {
-            return redirect()->to('/admin/dashboard');
+            return redirect()->to(base_url($prefix . 'admin/dashboard'));
         }
 
         // For tenant users, redirect to buttons page
-        return redirect()->to('/buttons');
+        return redirect()->to(base_url($prefix . 'buttons'));
     }
 
     public function logout()
@@ -206,7 +216,8 @@ class Auth extends Controller
         
         log_message('debug', 'Session after destroy: ' . json_encode(session()->get()));
         
-        return redirect()->to('/auth/login')
+        $prefix = $this->getRedirectPrefix();
+        return redirect()->to(base_url($prefix . 'auth/login'))
             ->with('message', 'Has cerrado sesión correctamente');
     }
 
