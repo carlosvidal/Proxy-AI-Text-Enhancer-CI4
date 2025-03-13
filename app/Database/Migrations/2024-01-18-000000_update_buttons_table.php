@@ -12,14 +12,14 @@ class UpdateButtonsTable2024 extends Migration
     public function up()
     {
         $db = \Config\Database::connect();
-        
+
         // Check if button_id exists but is empty
         $buttons = $db->table('buttons')->get()->getResultArray();
         foreach ($buttons as $button) {
             if (empty($button['button_id'])) {
                 // Create a button_id from the name (lowercase, replace spaces with hyphens)
                 $buttonId = strtolower(preg_replace('/[^a-zA-Z0-9]+/', '-', trim($button['name'])));
-                
+
                 // Ensure uniqueness by adding a number if needed
                 $baseButtonId = $buttonId;
                 $counter = 1;
@@ -27,11 +27,11 @@ class UpdateButtonsTable2024 extends Migration
                     $buttonId = $baseButtonId . '-' . $counter;
                     $counter++;
                 }
-                
+
                 // Update the button with the new button_id
                 $db->table('buttons')
-                   ->where('id', $button['id'])
-                   ->update(['button_id' => $buttonId]);
+                    ->where('id', $button['id'])
+                    ->update(['button_id' => $buttonId]);
             }
         }
 
@@ -61,9 +61,17 @@ class UpdateButtonsTable2024 extends Migration
             ]);
 
             // Copy button IDs to usage_logs
-            $sql = "UPDATE usage_logs ul 
-                    JOIN buttons b ON ul.button_id = b.id 
-                    SET ul.button_id = b.button_id";
+            $sql = "UPDATE usage_logs 
+                    SET button_id = (
+                        SELECT button_id 
+                        FROM buttons 
+                        WHERE buttons.id = usage_logs.button_id
+                    )
+                    WHERE EXISTS (
+                        SELECT 1 
+                        FROM buttons 
+                        WHERE buttons.id = usage_logs.button_id
+                    )";
             $db->query($sql);
         }
 
