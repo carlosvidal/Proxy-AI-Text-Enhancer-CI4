@@ -4,6 +4,7 @@ namespace App\Database\Migrations;
 
 use CodeIgniter\Database\Migration;
 
+// Create tenants table
 class CreateTenantsTable extends Migration
 {
     public function up()

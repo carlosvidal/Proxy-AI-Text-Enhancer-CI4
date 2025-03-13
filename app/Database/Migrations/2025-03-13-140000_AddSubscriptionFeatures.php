@@ -4,6 +4,8 @@ namespace App\Database\Migrations;
 
 use CodeIgniter\Database\Migration;
 
+// Add subscription features to tenants table
+
 class AddSubscriptionFeatures extends Migration
 {
     public function up()

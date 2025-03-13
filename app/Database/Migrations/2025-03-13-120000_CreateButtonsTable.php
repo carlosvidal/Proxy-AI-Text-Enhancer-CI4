@@ -4,6 +4,8 @@ namespace App\Database\Migrations;
 
 use CodeIgniter\Database\Migration;
 
+// Create buttons table
+
 class CreateButtonsTable extends Migration
 {
     public function up()

@@ -4,6 +4,8 @@ namespace App\Database\Migrations;
 
 use CodeIgniter\Database\Migration;
 
+// Create usage logs table
+
 class CreateUsageLogs extends Migration
 {
     public function up()

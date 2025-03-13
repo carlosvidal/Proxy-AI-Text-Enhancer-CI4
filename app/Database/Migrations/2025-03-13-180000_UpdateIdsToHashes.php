@@ -4,6 +4,8 @@ namespace App\Database\Migrations;
 
 use CodeIgniter\Database\Migration;
 
+// Update IDs to hash format
+
 class UpdateIdsToHashes extends Migration
 {
     public function up()
@@ -18,12 +20,12 @@ class UpdateIdsToHashes extends Migration
             if (!preg_match('/^ten-[0-9a-f]+-[0-9a-f]+$/', $tenant['tenant_id'])) {
                 $hashId = generate_hash_id('ten');
                 $oldId = $tenant['tenant_id'];
-                
+
                 // Update tenant
                 $db->table('tenants')
-                   ->where('tenant_id', $oldId)
-                   ->update(['tenant_id' => $hashId]);
-                
+                    ->where('tenant_id', $oldId)
+                    ->update(['tenant_id' => $hashId]);
+
                 // Update related records in other tables using SQLite compatible syntax
                 $tables = ['users', 'tenant_users', 'buttons', 'usage_logs'];
                 foreach ($tables as $table) {
@@ -40,12 +42,12 @@ class UpdateIdsToHashes extends Migration
             if (!preg_match('/^btn-[0-9a-f]+-[0-9a-f]+$/', $button['button_id'])) {
                 $hashId = generate_hash_id('btn');
                 $oldId = $button['button_id'];
-                
+
                 // Update button
                 $db->table('buttons')
-                   ->where('button_id', $oldId)
-                   ->update(['button_id' => $hashId]);
-                
+                    ->where('button_id', $oldId)
+                    ->update(['button_id' => $hashId]);
+
                 // Update related records using SQLite compatible syntax
                 $sql = "UPDATE usage_logs SET button_id = ? WHERE button_id = ?";
                 $db->query($sql, [$hashId, $oldId]);

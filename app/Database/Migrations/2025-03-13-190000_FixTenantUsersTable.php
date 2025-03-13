@@ -4,6 +4,8 @@ namespace App\Database\Migrations;
 
 use CodeIgniter\Database\Migration;
 
+// Fix tenant_users table
+
 class FixTenantUsersTable extends Migration
 {
     public function up()

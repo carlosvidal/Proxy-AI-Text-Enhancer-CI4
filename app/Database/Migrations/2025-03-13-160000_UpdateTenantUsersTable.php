@@ -4,6 +4,8 @@ namespace App\Database\Migrations;
 
 use CodeIgniter\Database\Migration;
 
+// Update tenant_users table
+
 class UpdateTenantUsersTable extends Migration
 {
     public function up()

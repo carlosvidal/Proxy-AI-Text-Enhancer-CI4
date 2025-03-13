@@ -4,12 +4,14 @@ namespace App\Database\Migrations;
 
 use CodeIgniter\Database\Migration;
 
+// Update buttons table
+
 class UpdateButtonsTable extends Migration
 {
     public function up()
     {
         $db = \Config\Database::connect();
-        
+
         // Check if button_id exists but is empty
         $buttons = $db->table('buttons')->get()->getResultArray();
         foreach ($buttons as $button) {
@@ -17,7 +19,7 @@ class UpdateButtonsTable extends Migration
                 // Generate a new button_id in the format btn-{timestamp}-{random}
                 helper('hash');
                 $buttonId = generate_hash_id('btn');
-                
+
                 // Update the button with the new button_id
                 $db->table('buttons')
                     ->where('id', $button['id'])
