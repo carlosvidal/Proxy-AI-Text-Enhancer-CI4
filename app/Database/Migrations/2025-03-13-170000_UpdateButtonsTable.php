@@ -12,6 +12,13 @@ class UpdateButtonsTable extends Migration
     {
         $db = \Config\Database::connect();
 
+        // First check if the buttons table exists
+        $prefix = $db->getPrefix();
+        $tables = $db->listTables();
+        if (!in_array($prefix . 'buttons', $tables)) {
+            return; // Skip this migration if the buttons table doesn't exist yet
+        }
+
         // Check if button_id exists but is empty
         $buttons = $db->table('buttons')->get()->getResultArray();
         foreach ($buttons as $button) {
@@ -41,30 +48,32 @@ class UpdateButtonsTable extends Migration
         $this->db->query('CREATE UNIQUE INDEX IF NOT EXISTS buttons_button_id_unique ON buttons(button_id)');
 
         // Update usage_logs table to use button_id if it doesn't already exist
-        $fields = $db->getFieldNames('usage_logs');
-        if (!in_array('button_id', $fields)) {
-            $this->forge->addColumn('usage_logs', [
-                'button_id' => [
-                    'type' => 'VARCHAR',
-                    'constraint' => 50,
-                    'null' => true,
-                    'after' => 'tenant_id'
-                ]
-            ]);
+        if (in_array($prefix . 'usage_logs', $tables)) {
+            $fields = $db->getFieldNames('usage_logs');
+            if (!in_array('button_id', $fields)) {
+                $this->forge->addColumn('usage_logs', [
+                    'button_id' => [
+                        'type' => 'VARCHAR',
+                        'constraint' => 50,
+                        'null' => true,
+                        'after' => 'tenant_id'
+                    ]
+                ]);
 
-            // Copy button IDs to usage_logs using SQLite compatible syntax
-            $sql = "UPDATE usage_logs 
-                    SET button_id = (
-                        SELECT button_id 
-                        FROM buttons 
-                        WHERE buttons.id = usage_logs.button_id
-                    )
-                    WHERE EXISTS (
-                        SELECT 1 
-                        FROM buttons 
-                        WHERE buttons.id = usage_logs.button_id
-                    )";
-            $db->query($sql);
+                // Copy button IDs to usage_logs using SQLite compatible syntax
+                $sql = "UPDATE usage_logs 
+                        SET button_id = (
+                            SELECT button_id 
+                            FROM buttons 
+                            WHERE buttons.id = usage_logs.button_id
+                        )
+                        WHERE EXISTS (
+                            SELECT 1 
+                            FROM buttons 
+                            WHERE buttons.id = usage_logs.button_id
+                        )";
+                $db->query($sql);
+            }
         }
     }
 

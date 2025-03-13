@@ -12,6 +12,13 @@ class UpdateIdsToHashes extends Migration
     {
         helper('hash');
         $db = \Config\Database::connect();
+        $prefix = $db->getPrefix();
+        $tables = $db->listTables();
+
+        // Only proceed if tenants table exists
+        if (!in_array($prefix . 'tenants', $tables)) {
+            return;
+        }
 
         // Update tenants with hash IDs (format: ten-{timestamp}-{random})
         $tenants = $db->table('tenants')->get()->getResultArray();
@@ -27,12 +34,19 @@ class UpdateIdsToHashes extends Migration
                     ->update(['tenant_id' => $hashId]);
 
                 // Update related records in other tables using SQLite compatible syntax
-                $tables = ['users', 'tenant_users', 'buttons', 'usage_logs'];
-                foreach ($tables as $table) {
-                    $sql = "UPDATE {$table} SET tenant_id = ? WHERE tenant_id = ?";
-                    $db->query($sql, [$hashId, $oldId]);
+                $relatedTables = ['users', 'tenant_users', 'buttons', 'usage_logs'];
+                foreach ($relatedTables as $table) {
+                    if (in_array($prefix . $table, $tables)) {
+                        $sql = "UPDATE {$table} SET tenant_id = ? WHERE tenant_id = ?";
+                        $db->query($sql, [$hashId, $oldId]);
+                    }
                 }
             }
+        }
+
+        // Only proceed with buttons if buttons table exists
+        if (!in_array($prefix . 'buttons', $tables)) {
+            return;
         }
 
         // Update buttons with hash IDs (format: btn-{timestamp}-{random})
@@ -49,8 +63,10 @@ class UpdateIdsToHashes extends Migration
                     ->update(['button_id' => $hashId]);
 
                 // Update related records using SQLite compatible syntax
-                $sql = "UPDATE usage_logs SET button_id = ? WHERE button_id = ?";
-                $db->query($sql, [$hashId, $oldId]);
+                if (in_array($prefix . 'usage_logs', $tables)) {
+                    $sql = "UPDATE usage_logs SET button_id = ? WHERE button_id = ?";
+                    $db->query($sql, [$hashId, $oldId]);
+                }
             }
         }
     }
