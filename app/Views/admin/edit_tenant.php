@@ -1,63 +1,59 @@
-<?= $this->extend('layouts/main') ?>
+<?= $this->extend('admin/layout') ?>
 
 <?= $this->section('content') ?>
+<div class="container-fluid px-4">
+    <h1 class="mt-4">Edit Tenant</h1>
+    
+    <?php if (session()->has('error')): ?>
+        <div class="alert alert-danger"><?= session('error') ?></div>
+    <?php endif; ?>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <a href="<?= site_url('admin/tenants') ?>" class="btn btn-secondary btn-sm mb-2">
-            <i class="fas fa-arrow-left me-1"></i>Back to Tenants
-        </a>
-        <h2>Edit Tenant</h2>
-    </div>
-</div>
+    <?php if (session()->has('success')): ?>
+        <div class="alert alert-success"><?= session('success') ?></div>
+    <?php endif; ?>
 
-<div class="card">
-    <div class="card-header">
-        <i class="fas fa-building me-1"></i>
-        Tenant Information
-    </div>
-    <div class="card-body">
-        <form action="<?= site_url('admin/tenants/edit/' . $tenant['tenant_id']) ?>" method="post">
-            <?= csrf_field() ?>
+    <div class="card mb-4">
+        <div class="card-body">
+            <form action="<?= site_url('admin/tenants/update/' . $tenant['tenant_id']) ?>" method="post">
+                <?= csrf_field() ?>
 
-            <div class="mb-3">
-                <label for="tenant_id" class="form-label">Tenant ID</label>
-                <input type="text" class="form-control" id="tenant_id" value="<?= esc($tenant['tenant_id']) ?>" readonly disabled>
-                <small class="text-muted">This identifier cannot be changed.</small>
-            </div>
-
-            <div class="mb-3">
-                <label for="name" class="form-label">Name</label>
-                <input type="text" class="form-control" id="name" name="name" value="<?= old('name', $tenant['name']) ?>" required>
-                <small class="text-muted">Display name for this tenant.</small>
-            </div>
-
-            <div class="mb-3">
-                <label for="email" class="form-label">Email</label>
-                <input type="email" class="form-control" id="email" name="email" value="<?= old('email', $tenant['email'] ?? '') ?>" required>
-                <small class="text-muted">Primary contact email for this tenant.</small>
-            </div>
-
-            <div class="mb-3">
-                <label for="subscription_status" class="form-label">Subscription Status</label>
-                <select class="form-select" id="subscription_status" name="subscription_status">
-                    <option value="trial" <?= old('subscription_status', $tenant['subscription_status'] ?? 'trial') === 'trial' ? 'selected' : '' ?>>Trial</option>
-                    <option value="active" <?= old('subscription_status', $tenant['subscription_status'] ?? 'trial') === 'active' ? 'selected' : '' ?>>Active</option>
-                    <option value="expired" <?= old('subscription_status', $tenant['subscription_status'] ?? 'trial') === 'expired' ? 'selected' : '' ?>>Expired</option>
-                </select>
-            </div>
-
-            <div class="mb-3">
-                <div class="form-check">
-                    <input type="checkbox" class="form-check-input" id="active" name="active" value="1" <?= old('active', $tenant['active']) === '1' ? 'checked' : '' ?>>
-                    <label class="form-check-label" for="active">Active</label>
+                <div class="mb-3">
+                    <label for="name" class="form-label">Name</label>
+                    <input type="text" class="form-control <?= session('errors.name') ? 'is-invalid' : '' ?>" id="name" name="name" value="<?= old('name', $tenant['name']) ?>" required>
+                    <?php if (session('errors.name')): ?>
+                        <div class="invalid-feedback"><?= session('errors.name') ?></div>
+                    <?php endif; ?>
                 </div>
-                <small class="text-muted">If unchecked, this tenant will not be able to access the system.</small>
-            </div>
 
-            <button type="submit" class="btn btn-primary">Update Tenant</button>
-        </form>
+                <div class="mb-3">
+                    <label for="domain" class="form-label">Domain</label>
+                    <input type="text" class="form-control <?= session('errors.domain') ? 'is-invalid' : '' ?>" id="domain" name="domain" value="<?= old('domain', $tenant['domain']) ?>" required>
+                    <?php if (session('errors.domain')): ?>
+                        <div class="invalid-feedback"><?= session('errors.domain') ?></div>
+                    <?php endif; ?>
+                    <div class="form-text">Domain where the tenant's buttons will be used (e.g., example.com)</div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="api_quota" class="form-label">API Quota</label>
+                    <input type="number" class="form-control <?= session('errors.api_quota') ? 'is-invalid' : '' ?>" id="api_quota" name="api_quota" value="<?= old('api_quota', $tenant['api_quota']) ?>" required>
+                    <?php if (session('errors.api_quota')): ?>
+                        <div class="invalid-feedback"><?= session('errors.api_quota') ?></div>
+                    <?php endif; ?>
+                    <div class="form-text">Monthly API request limit</div>
+                </div>
+
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="active" name="active" value="1" <?= old('active', $tenant['active']) ? 'checked' : '' ?>>
+                        <label class="form-check-label" for="active">Active</label>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary">Update Tenant</button>
+                <a href="<?= site_url('admin/tenants') ?>" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
     </div>
 </div>
-
 <?= $this->endSection() ?>

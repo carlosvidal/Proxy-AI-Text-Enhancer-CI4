@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,19 +12,22 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
+
     <style>
         body {
             min-height: 100vh;
             padding-top: 60px;
         }
+
         .navbar-brand i {
             margin-right: 0.5rem;
         }
+
         .btn-try-free {
             background-color: #3b82f6;
             border-color: #3b82f6;
         }
+
         .btn-try-free:hover {
             background-color: #2563eb;
             border-color: #2563eb;
@@ -41,7 +45,7 @@
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
-            
+
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     <?php if (session()->get('isLoggedIn')): ?>
@@ -81,8 +85,8 @@
             </div>
         </div>
     </nav>
-    
-    <div class="container mt-5 pt-4">
+
+    <div class="container pt-4">
         <?php if (session()->getFlashdata('success')): ?>
             <div class="alert alert-success">
                 <?= session()->getFlashdata('success') ?>

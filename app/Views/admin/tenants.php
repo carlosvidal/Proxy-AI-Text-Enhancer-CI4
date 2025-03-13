@@ -23,7 +23,6 @@
                         <thead>
                             <tr>
                                 <th>Name</th>
-                                <th>Tenant ID</th>
                                 <th>Email</th>
                                 <th>API Users</th>
                                 <th>Status</th>
@@ -41,11 +40,10 @@
                                         <?= esc($tenant['name']) ?>
                                     </a>
                                 </td>
-                                <td><code><?= esc($tenant['tenant_id']) ?></code></td>
                                 <td><?= esc($tenant['email'] ?? 'N/A') ?></td>
                                 <td>
                                     <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/users') ?>" class="text-decoration-none">
-                                        <span class="badge bg-primary"><?= $tenant['api_users'] ?? 0 ?> users</span>
+                                        <?= $tenant['api_users'] ?? 0 ?> users
                                     </a>
                                 </td>
                                 <td>
@@ -105,7 +103,7 @@
                             <?php endforeach; ?>
                             <?php if (empty($tenants)): ?>
                             <tr>
-                                <td colspan="9" class="text-center">No tenants found</td>
+                                <td colspan="8" class="text-center">No tenants found</td>
                             </tr>
                             <?php endif; ?>
                         </tbody>

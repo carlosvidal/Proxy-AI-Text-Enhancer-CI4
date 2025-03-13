@@ -146,7 +146,7 @@ class Admin extends BaseController
             $usage = $db->query("
                 SELECT COALESCE(SUM(tokens), 0) as total_tokens
                 FROM usage_logs
-                WHERE tenant_id = ? AND api_user_id = ?
+                WHERE tenant_id = ? AND user_id = ?
             ", [$tenant['tenant_id'], $user['user_id']])->getRowArray();
             
             $user['usage'] = $usage['total_tokens'] ?? 0;
@@ -162,12 +162,12 @@ class Admin extends BaseController
                     COALESCE(SUM(tokens), 0) as total_tokens,
                     COALESCE(AVG(tokens), 0) as avg_tokens_per_request,
                     COALESCE(MAX(tokens), 0) as max_tokens,
-                    COUNT(DISTINCT api_user_id) as unique_users
+                    COUNT(DISTINCT user_id) as unique_users
                 FROM usage_logs
                 WHERE tenant_id = ? 
                 AND button_id = ?
                 AND status = 'success'
-            ", [$tenant['tenant_id'], $button['id']])->getRowArray();
+            ", [$tenant['tenant_id'], $button['button_id']])->getRowArray();
 
             // Get last usage timestamp
             $lastUsage = $db->query("
@@ -177,7 +177,7 @@ class Admin extends BaseController
                 AND button_id = ?
                 ORDER BY created_at DESC
                 LIMIT 1
-            ", [$tenant['tenant_id'], $button['id']])->getRowArray();
+            ", [$tenant['tenant_id'], $button['button_id']])->getRowArray();
 
             $button['usage'] = $usage;
             $button['last_used'] = $lastUsage['created_at'] ?? null;
@@ -300,14 +300,14 @@ class Admin extends BaseController
             ];
 
             if ($this->validate($rules)) {
-                // Update tenant
-                $this->tenantsModel->update($tenantId, [
+                // Update tenant using tenant_id
+                $this->tenantsModel->where('tenant_id', $tenantId)->set([
                     'name' => $this->request->getPost('name'),
                     'email' => $this->request->getPost('email'),
                     'subscription_status' => $this->request->getPost('subscription_status'),
                     'active' => $this->request->getPost('active') ?? 1,
                     'updated_at' => date('Y-m-d H:i:s')
-                ]);
+                ])->update();
 
                 return redirect()->to('admin/tenants')
                     ->with('success', 'Tenant updated successfully');
@@ -336,8 +336,8 @@ class Admin extends BaseController
             return redirect()->to('admin/tenants')->with('error', 'Tenant not found');
         }
 
-        // Delete tenant and all related data
-        $this->tenantsModel->delete($tenant['id']);
+        // Delete tenant using tenant_id
+        $this->tenantsModel->where('tenant_id', $tenantId)->delete();
 
         return redirect()->to('admin/tenants')
             ->with('success', 'Tenant deleted successfully');
@@ -432,9 +432,11 @@ class Admin extends BaseController
         }
 
         // Get API user details
-        $user = $this->tenantUsersModel->find($userId);
-        if (!$user || $user['tenant_id'] !== $tenant['tenant_id']) {
-            return redirect()->to('admin/tenants/users/' . $tenantId)
+        $user = $this->tenantUsersModel->where('user_id', $userId)
+                                      ->where('tenant_id', $tenant['tenant_id'])
+                                      ->first();
+        if (!$user) {
+            return redirect()->to('admin/tenants/' . $tenantId . '/users')
                 ->with('error', 'API user not found');
         }
 
@@ -449,15 +451,15 @@ class Admin extends BaseController
 
             if ($this->validate($rules)) {
                 // Update API user
-                $this->tenantUsersModel->update($userId, [
+                $this->tenantUsersModel->where('user_id', $userId)->set([
                     'name' => $this->request->getPost('name'),
                     'email' => $this->request->getPost('email'),
                     'quota' => $this->request->getPost('quota'),
                     'active' => $this->request->getPost('active'),
                     'updated_at' => date('Y-m-d H:i:s')
-                ]);
+                ])->update();
 
-                return redirect()->to('admin/tenants/users/' . $tenantId)
+                return redirect()->to('admin/tenants/' . $tenantId . '/users')
                     ->with('success', 'API user updated successfully');
             }
 
@@ -487,16 +489,18 @@ class Admin extends BaseController
         }
 
         // Get API user details
-        $user = $this->tenantUsersModel->find($userId);
-        if (!$user || $user['tenant_id'] !== $tenant['tenant_id']) {
-            return redirect()->to('admin/tenants/users/' . $tenantId)
+        $user = $this->tenantUsersModel->where('user_id', $userId)
+                                      ->where('tenant_id', $tenant['tenant_id'])
+                                      ->first();
+        if (!$user) {
+            return redirect()->to('admin/tenants/' . $tenantId . '/users')
                 ->with('error', 'API user not found');
         }
 
         // Delete API user
-        $this->tenantUsersModel->delete($userId);
+        $this->tenantUsersModel->where('user_id', $userId)->delete();
 
-        return redirect()->to('admin/tenants/users/' . $tenantId)
+        return redirect()->to('admin/tenants/' . $tenantId . '/users')
             ->with('success', 'API user deleted successfully');
     }
 
@@ -514,40 +518,28 @@ class Admin extends BaseController
         }
 
         // Get API user details
-        $user = $this->tenantUsersModel->find($userId);
-        if (!$user || $user['tenant_id'] !== $tenant['tenant_id']) {
-            return redirect()->to('admin/tenants/users/' . $tenantId)
+        $user = $this->tenantUsersModel->where('user_id', $userId)
+                                      ->where('tenant_id', $tenant['tenant_id'])
+                                      ->first();
+        if (!$user) {
+            return redirect()->to('admin/tenants/' . $tenantId . '/users')
                 ->with('error', 'API user not found');
         }
 
-        // Get usage statistics
-        $db = \Config\Database::connect();
-        $monthlyUsage = $db->query("
-            WITH RECURSIVE dates(date) AS (
-                SELECT date('now', '-11 months', 'start of month')
-                UNION ALL
-                SELECT date(date, '+1 month')
-                FROM dates
-                WHERE date < date('now', 'start of month')
-            )
-            SELECT 
-                strftime('%Y-%m', dates.date) as month,
-                COUNT(DISTINCT ul.id) as total_requests,
-                COALESCE(SUM(ul.tokens), 0) as total_tokens
-            FROM dates
-            LEFT JOIN usage_logs ul ON 
-                strftime('%Y-%m', datetime(ul.created_at)) = strftime('%Y-%m', dates.date)
-                AND ul.tenant_id = ?
-                AND ul.api_user_id = ?
-            GROUP BY strftime('%Y-%m', dates.date)
-            ORDER BY dates.date ASC
-        ", [$tenant['tenant_id'], $user['user_id']])->getResultArray();
+        // Get usage data
+        $db = db_connect();
+        $usage = $db->table('usage_logs')
+                   ->where('tenant_id', $tenant['tenant_id'])
+                   ->where('user_id', $user['user_id'])
+                   ->orderBy('usage_date', 'DESC')
+                   ->get()
+                   ->getResultArray();
 
         $data = [
-            'title' => 'API User Usage - ' . $user['name'],
+            'title' => 'API Usage - ' . $user['name'],
             'tenant' => $tenant,
             'user' => $user,
-            'monthlyUsage' => $monthlyUsage
+            'usage' => $usage
         ];
 
         return view('admin/tenant_user_usage', $data);
@@ -577,12 +569,12 @@ class Admin extends BaseController
                     COALESCE(SUM(tokens), 0) as total_tokens,
                     COALESCE(AVG(tokens), 0) as avg_tokens_per_request,
                     COALESCE(MAX(tokens), 0) as max_tokens,
-                    COUNT(DISTINCT api_user_id) as unique_users
+                    COUNT(DISTINCT user_id) as unique_users
                 FROM usage_logs
                 WHERE tenant_id = ? 
                 AND button_id = ?
                 AND status = 'success'
-            ", [$tenant['tenant_id'], $button['id']])->getRowArray();
+            ", [$tenant['tenant_id'], $button['button_id']])->getRowArray();
 
             // Get last usage timestamp
             $lastUsage = $db->query("
@@ -592,7 +584,7 @@ class Admin extends BaseController
                 AND button_id = ?
                 ORDER BY created_at DESC
                 LIMIT 1
-            ", [$tenant['tenant_id'], $button['id']])->getRowArray();
+            ", [$tenant['tenant_id'], $button['button_id']])->getRowArray();
 
             $button['usage'] = $usage;
             $button['last_used'] = $lastUsage['created_at'] ?? null;
@@ -626,6 +618,7 @@ class Admin extends BaseController
 
         if ($this->request->getMethod() === 'post') {
             $rules = [
+                'button_id' => 'required|min_length[3]|max_length[255]|is_unique[buttons.button_id]',
                 'name' => 'required|min_length[3]|max_length[255]',
                 'type' => 'required|in_list[standard,custom]',
                 'description' => 'permit_empty|max_length[1000]',
@@ -638,6 +631,7 @@ class Admin extends BaseController
             if ($this->validate($rules)) {
                 $buttonData = [
                     'tenant_id' => $tenant['tenant_id'],
+                    'button_id' => $this->request->getPost('button_id'),
                     'name' => $this->request->getPost('name'),
                     'type' => $this->request->getPost('type'),
                     'description' => $this->request->getPost('description'),
@@ -666,6 +660,7 @@ class Admin extends BaseController
         $data = [
             'title' => 'Create Button - ' . $tenant['name'],
             'tenant' => $tenant,
+            'tenantId' => $tenantId,
             'validation' => $this->validator
         ];
 
@@ -685,7 +680,7 @@ class Admin extends BaseController
         }
 
         $button = $this->buttonsModel->where('tenant_id', $tenant['tenant_id'])
-            ->where('id', $buttonId)
+            ->where('button_id', $buttonId)
             ->first();
 
         if (!$button) {
@@ -717,7 +712,7 @@ class Admin extends BaseController
                     'active' => $this->request->getPost('active')
                 ];
 
-                if ($this->buttonsModel->update($button['id'], $buttonData)) {
+                if ($this->buttonsModel->where('button_id', $buttonId)->set($buttonData)->update()) {
                     return redirect()->to("admin/tenants/{$tenant['tenant_id']}/buttons")
                         ->with('success', 'Button updated successfully');
                 }
@@ -755,7 +750,7 @@ class Admin extends BaseController
         }
 
         $button = $this->buttonsModel->where('tenant_id', $tenant['tenant_id'])
-            ->where('id', $buttonId)
+            ->where('button_id', $buttonId)
             ->first();
 
         if (!$button) {
@@ -766,11 +761,11 @@ class Admin extends BaseController
         try {
             // Delete associated usage logs first
             $this->usageLogsModel->where('tenant_id', $tenant['tenant_id'])
-                ->where('button_id', $button['id'])
+                ->where('button_id', $button['button_id'])
                 ->delete();
 
             // Then delete the button
-            if ($this->buttonsModel->delete($button['id'])) {
+            if ($this->buttonsModel->where('button_id', $buttonId)->delete()) {
                 return redirect()->to("admin/tenants/{$tenant['tenant_id']}/buttons")
                     ->with('success', 'Button and associated usage logs deleted successfully');
             }

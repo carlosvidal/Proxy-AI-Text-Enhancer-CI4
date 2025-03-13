@@ -27,8 +27,8 @@
             </div>
             <div class="card-body">
                 <dl class="row mb-0">
-                    <dt class="col-sm-4">Tenant ID</dt>
-                    <dd class="col-sm-8"><code><?= esc($tenant['tenant_id']) ?></code></dd>
+                    <dt class="col-sm-4">Name</dt>
+                    <dd class="col-sm-8"><?= esc($tenant['name']) ?></dd>
 
                     <dt class="col-sm-4">Email</dt>
                     <dd class="col-sm-8"><?= esc($tenant['email'] ?? 'N/A') ?></dd>

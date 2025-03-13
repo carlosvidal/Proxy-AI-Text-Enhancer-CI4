@@ -17,7 +17,7 @@
         Tenant Information
     </div>
     <div class="card-body">
-        <form action="<?= site_url('admin/tenants/edit/' . $tenant['id']) ?>" method="post">
+        <form action="<?= site_url('admin/tenants/edit/' . $tenant['tenant_id']) ?>" method="post">
             <?= csrf_field() ?>
 
             <div class="mb-3">
@@ -26,9 +26,8 @@
             </div>
 
             <div class="mb-3">
-                <label for="tenant_id" class="form-label">Tenant ID</label>
-                <input type="text" class="form-control" id="tenant_id" name="tenant_id" value="<?= old('tenant_id', $tenant['tenant_id']) ?>" readonly>
-                <small class="text-muted">The tenant ID cannot be changed once created.</small>
+                <label for="email" class="form-label">Email</label>
+                <input type="email" class="form-control" id="email" name="email" value="<?= old('email', $tenant['email']) ?>" required>
             </div>
 
             <div class="mb-3">
@@ -42,7 +41,7 @@
 
             <div class="mb-3">
                 <div class="form-check">
-                    <input type="checkbox" class="form-check-input" id="active" name="active" value="1" <?= old('active', $tenant['active']) === '1' ? 'checked' : '' ?>>
+                    <input type="checkbox" class="form-check-input" id="active" name="active" value="1" <?= old('active', $tenant['active']) == 1 ? 'checked' : '' ?>>
                     <label class="form-check-label" for="active">Active</label>
                 </div>
                 <small class="text-muted">If unchecked, the tenant will not be able to use the API.</small>
