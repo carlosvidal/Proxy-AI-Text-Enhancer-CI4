@@ -94,7 +94,7 @@ class Usage extends Controller
                    COUNT(ul.id) as request_count,
                    COALESCE(SUM(ul.tokens), 0) as total_tokens
             FROM tenant_users tu
-            LEFT JOIN usage_logs ul ON tu.id = ul.api_user_id 
+            LEFT JOIN usage_logs ul ON tu.id = ul.user_id 
                 AND ul.created_at >= date('now', '-30 days')
             WHERE tu.tenant_id = ?
             GROUP BY tu.id, tu.name
@@ -126,7 +126,7 @@ class Usage extends Controller
                    tu.name as api_user_name
             FROM usage_logs ul
             LEFT JOIN buttons b ON ul.button_id = b.id
-            LEFT JOIN tenant_users tu ON ul.api_user_id = tu.id
+            LEFT JOIN tenant_users tu ON ul.user_id = tu.id
             WHERE ul.tenant_id = ?
             ORDER BY ul.created_at DESC
             LIMIT 100",
@@ -161,7 +161,7 @@ class Usage extends Controller
                    COALESCE(SUM(ul.tokens), 0) as total_tokens,
                    MAX(ul.created_at) as last_used
             FROM tenant_users tu
-            LEFT JOIN usage_logs ul ON tu.id = ul.api_user_id
+            LEFT JOIN usage_logs ul ON tu.id = ul.user_id
             WHERE tu.tenant_id = ?
             GROUP BY tu.id, tu.name, tu.email, tu.active
             ORDER BY total_tokens DESC",
@@ -207,7 +207,7 @@ class Usage extends Controller
                    SUM(tokens) as total_tokens
             FROM usage_logs
             WHERE tenant_id = ?
-            AND api_user_id = ?
+            AND user_id = ?
             AND created_at >= date('now', '-30 days')
             GROUP BY date(created_at)
             ORDER BY usage_date DESC",
