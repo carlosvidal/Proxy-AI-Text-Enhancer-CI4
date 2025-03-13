@@ -78,10 +78,10 @@ class Usage extends Controller
                    COUNT(*) as use_count,
                    SUM(u.tokens) as total_tokens
             FROM usage_logs u
-            JOIN buttons b ON u.button_id = b.id
+            JOIN buttons b ON u.button_id = b.button_id
             WHERE u.tenant_id = ?
             AND u.created_at >= date('now', '-30 days')
-            GROUP BY b.id, b.name
+            GROUP BY b.button_id, b.name
             ORDER BY use_count DESC",
             [$tenant_id]
         );
@@ -125,7 +125,7 @@ class Usage extends Controller
                    b.name as button_name,
                    tu.name as api_user_name
             FROM usage_logs ul
-            LEFT JOIN buttons b ON ul.button_id = b.id
+            LEFT JOIN buttons b ON ul.button_id = b.button_id
             LEFT JOIN tenant_users tu ON ul.user_id = tu.id
             WHERE ul.tenant_id = ?
             ORDER BY ul.created_at DESC
