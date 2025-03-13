@@ -91,14 +91,13 @@ class Usage extends Controller
         $query = $db->query("
             SELECT tu.id,
                    tu.name,
-                   tu.quota,
                    COUNT(ul.id) as request_count,
                    COALESCE(SUM(ul.tokens), 0) as total_tokens
             FROM tenant_users tu
             LEFT JOIN usage_logs ul ON tu.id = ul.api_user_id 
                 AND ul.created_at >= date('now', '-30 days')
             WHERE tu.tenant_id = ?
-            GROUP BY tu.id, tu.name, tu.quota
+            GROUP BY tu.id, tu.name
             ORDER BY total_tokens DESC",
             [$tenant_id]
         );
@@ -157,7 +156,6 @@ class Usage extends Controller
             SELECT tu.id,
                    tu.name,
                    tu.email,
-                   tu.quota,
                    tu.active,
                    COUNT(ul.id) as request_count,
                    COALESCE(SUM(ul.tokens), 0) as total_tokens,
@@ -165,7 +163,7 @@ class Usage extends Controller
             FROM tenant_users tu
             LEFT JOIN usage_logs ul ON tu.id = ul.api_user_id
             WHERE tu.tenant_id = ?
-            GROUP BY tu.id, tu.name, tu.email, tu.quota, tu.active
+            GROUP BY tu.id, tu.name, tu.email, tu.active
             ORDER BY total_tokens DESC",
             [$tenant_id]
         );
