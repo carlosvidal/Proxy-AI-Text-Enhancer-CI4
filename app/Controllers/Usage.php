@@ -49,7 +49,7 @@ class Usage extends Controller
             FROM usage_logs 
             WHERE tenant_id = ?
             AND created_at >= date('now', '-30 days')",
-            [$tenant_id]
+            [(int)$tenant_id]
         );
         $result = $query->getRow();
         
@@ -68,7 +68,7 @@ class Usage extends Controller
             AND created_at >= date('now', '-30 days')
             GROUP BY date(created_at)
             ORDER BY usage_date DESC",
-            [$tenant_id]
+            [(int)$tenant_id]
         );
         $data['daily_stats'] = $query->getResult();
 
@@ -78,12 +78,12 @@ class Usage extends Controller
                    COUNT(*) as use_count,
                    SUM(u.tokens) as total_tokens
             FROM usage_logs u
-            JOIN buttons b ON u.button_id = b.button_id
+            JOIN buttons b ON CAST(u.button_id as VARCHAR) = b.button_id
             WHERE u.tenant_id = ?
             AND u.created_at >= date('now', '-30 days')
             GROUP BY b.button_id, b.name
             ORDER BY use_count DESC",
-            [$tenant_id]
+            [(int)$tenant_id]
         );
         $data['button_stats'] = $query->getResult();
 
@@ -94,12 +94,12 @@ class Usage extends Controller
                    COUNT(ul.id) as request_count,
                    COALESCE(SUM(ul.tokens), 0) as total_tokens
             FROM tenant_users tu
-            LEFT JOIN usage_logs ul ON tu.id = ul.user_id 
+            LEFT JOIN usage_logs ul ON tu.id = CAST(ul.api_user_id as INTEGER)
                 AND ul.created_at >= date('now', '-30 days')
             WHERE tu.tenant_id = ?
             GROUP BY tu.id, tu.name
             ORDER BY total_tokens DESC",
-            [$tenant_id]
+            [(int)$tenant_id]
         );
         $data['api_stats'] = $query->getResult();
 
@@ -125,12 +125,12 @@ class Usage extends Controller
                    b.name as button_name,
                    tu.name as api_user_name
             FROM usage_logs ul
-            LEFT JOIN buttons b ON ul.button_id = b.button_id
-            LEFT JOIN tenant_users tu ON ul.user_id = tu.id
+            LEFT JOIN buttons b ON CAST(ul.button_id as VARCHAR) = b.button_id
+            LEFT JOIN tenant_users tu ON tu.id = CAST(ul.api_user_id as INTEGER)
             WHERE ul.tenant_id = ?
             ORDER BY ul.created_at DESC
             LIMIT 100",
-            [$tenant_id]
+            [(int)$tenant_id]
         );
         
         $data['logs'] = $query->getResult();
@@ -161,11 +161,11 @@ class Usage extends Controller
                    COALESCE(SUM(ul.tokens), 0) as total_tokens,
                    MAX(ul.created_at) as last_used
             FROM tenant_users tu
-            LEFT JOIN usage_logs ul ON tu.id = ul.user_id
+            LEFT JOIN usage_logs ul ON tu.id = CAST(ul.api_user_id as INTEGER)
             WHERE tu.tenant_id = ?
             GROUP BY tu.id, tu.name, tu.email, tu.active
             ORDER BY total_tokens DESC",
-            [$tenant_id]
+            [(int)$tenant_id]
         );
         
         $data['api_users'] = $query->getResult();
@@ -203,15 +203,15 @@ class Usage extends Controller
         $db = db_connect();
         $query = $db->query("
             SELECT date(created_at) as usage_date,
-                   COUNT(*) as request_count,
+                   COUNT(*) as daily_requests,
                    SUM(tokens) as total_tokens
             FROM usage_logs
             WHERE tenant_id = ?
-            AND user_id = ?
+            AND api_user_id = ?
             AND created_at >= date('now', '-30 days')
             GROUP BY date(created_at)
             ORDER BY usage_date DESC",
-            [$tenant_id, $user_id]
+            [(int)$tenant_id, (int)$user_id]
         );
         
         $data['daily_stats'] = $query->getResult();
