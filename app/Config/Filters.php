@@ -28,6 +28,7 @@ class Filters extends BaseConfig
         'secureheaders' => SecureHeaders::class,
         'auth' => \App\Filters\AuthFilter::class,
         'jwt' => \App\Filters\JwtFilter::class, // Added JWT filter
+        'compress' => \App\Filters\CompressionFilter::class, // Added compression filter
     ];
 
     /**
@@ -86,6 +87,14 @@ class Filters extends BaseConfig
             'before' => [
                 'api/llm-proxy/secure',  // Example of a secured endpoint
                 'api/quota/secure',      // Example of a secured quota endpoint
+            ]
+        ],
+        'compress' => [
+            'after' => [
+                'api/llm-proxy/*',  // All LLM proxy endpoints
+                'api/quota/*',      // All quota endpoints
+                'api/*/stats',      // Any stats endpoints
+                'api/*/usage',      // Any usage endpoints
             ]
         ],
     ];

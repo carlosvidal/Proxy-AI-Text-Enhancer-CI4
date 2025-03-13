@@ -21,7 +21,7 @@ class Cache extends BaseConfig
      * The name of the preferred handler that should be used. If for some reason
      * it is not available, the $backupHandler will be used in its place.
      */
-    public string $handler = 'file';
+    public string $handler = 'dummy';
 
     /**
      * --------------------------------------------------------------------------
@@ -112,7 +112,7 @@ class Cache extends BaseConfig
      */
     public array $file = [
         'storePath' => WRITEPATH . 'cache/',
-        'mode'      => 0640,
+        'mode'      => 0777,  // More permissive mode for development
     ];
 
     /**

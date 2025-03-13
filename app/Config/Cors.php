@@ -3,75 +3,80 @@
 namespace Config;
 
 use CodeIgniter\Config\BaseConfig;
-use CodeIgniter\Session\Handlers\BaseHandler;
-use CodeIgniter\Session\Handlers\FileHandler;
 
-class Session extends BaseConfig
+class Cors extends BaseConfig
 {
     /**
      * --------------------------------------------------------------------------
-     * Session Driver
+     * Cross-Origin Resource Sharing (CORS) Settings
      * --------------------------------------------------------------------------
+     *
+     * Here you can configure your settings for cross-origin resource sharing
+     * or CORS. This determines what cross-origin operations may execute
+     * in web browsers.
+     *
+     * @see https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
      */
-    public string $driver = FileHandler::class;
 
     /**
      * --------------------------------------------------------------------------
-     * Session Cookie Name
+     * Allowed HTTP Methods
      * --------------------------------------------------------------------------
+     *
+     * @var array
      */
-    public string $cookieName = 'llm_proxy_session';
+    public array $allowedMethods = ['*'];
 
     /**
      * --------------------------------------------------------------------------
-     * Session Expiration
+     * Allowed HTTP Headers
      * --------------------------------------------------------------------------
+     *
+     * @var array
      */
-    public int $expiration = 3600;
+    public array $allowedHeaders = ['*'];
 
     /**
      * --------------------------------------------------------------------------
-     * Session Save Path
+     * Allowed HTTP Origins
      * --------------------------------------------------------------------------
+     *
+     * @var array
      */
-    public string $savePath = WRITEPATH . 'sessions';
+    public array $allowedOrigins = [
+        'http://llmproxy2.test:8080',
+        'http://127.0.0.1:54323',
+        'http://localhost:8080',
+        'http://localhost:8081',
+        'http://localhost:8082',
+        'http://localhost:8083',
+        'http://localhost:8084'
+    ];
 
     /**
      * --------------------------------------------------------------------------
-     * Session Match IP
+     * Exposed HTTP Headers
      * --------------------------------------------------------------------------
+     *
+     * @var array
      */
-    public bool $matchIP = false;
+    public array $exposedHeaders = [];
 
     /**
      * --------------------------------------------------------------------------
-     * Session Time to Update
+     * Max Age
      * --------------------------------------------------------------------------
+     *
+     * @var int
      */
-    public int $timeToUpdate = 300;
+    public int $maxAge = 0;
 
     /**
      * --------------------------------------------------------------------------
-     * Session Regenerate Destroy
+     * Should we allow Credentials
      * --------------------------------------------------------------------------
+     *
+     * @var bool
      */
-    public bool $regenerateDestroy = true;
-
-    /**
-     * --------------------------------------------------------------------------
-     * Session Database Group
-     * --------------------------------------------------------------------------
-     */
-    public ?string $DBGroup = null;
-
-    /**
-     * --------------------------------------------------------------------------
-     * Cookie Settings
-     * --------------------------------------------------------------------------
-     */
-    public bool $cookieSecure = false;
-    public bool $cookieHTTPOnly = true;
-    public string $cookieDomain = '';  // Let Apache handle the domain
-    public string $cookiePath = '/';
-    public string $cookieSameSite = 'Lax';
+    public bool $allowCredentials = true;
 }

@@ -72,7 +72,7 @@
                 </div>
             <?php endif; ?>
 
-            <form action="/auth/login" method="post">
+            <form action="<?= base_url('auth/attemptLogin') ?>" method="post">
                 <?= csrf_field() ?>
 
                 <div class="mb-3">
@@ -95,6 +95,12 @@
                     <button type="submit" class="btn btn-primary">Sign In</button>
                 </div>
             </form>
+
+            <!-- Debug Info -->
+            <div class="mt-4 text-muted small">
+                <p>Current URL: <?= current_url() ?></p>
+                <p>Base URL: <?= base_url() ?></p>
+            </div>
         </div>
     </div>
 

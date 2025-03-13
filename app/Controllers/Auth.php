@@ -23,14 +23,25 @@ class Auth extends Controller
 
     public function login()
     {
+        // Debug logging
+        log_message('debug', '=== Login Page Debug ===');
+        log_message('debug', 'Request URL: ' . current_url());
+        log_message('debug', 'Base URL: ' . base_url());
+        
         // If already logged in, redirect based on role
         if (session()->get('isLoggedIn')) {
+            log_message('debug', 'User already logged in');
+            log_message('debug', 'Role: ' . session()->get('role'));
+            
             if (session()->get('role') === 'superadmin') {
                 return redirect()->to('/admin/dashboard');
             }
             return redirect()->to('/buttons');
         }
 
+        // Debug session data
+        log_message('debug', 'Session Data: ' . json_encode(session()->get()));
+        
         return view('auth/login', [
             'title' => 'Login'
         ]);
@@ -38,12 +49,20 @@ class Auth extends Controller
 
     public function attemptLogin()
     {
+        // Debug logging
+        log_message('debug', '=== Login Attempt Debug ===');
+        log_message('debug', 'Request URL: ' . current_url());
+        log_message('debug', 'Request Method: ' . $this->request->getMethod());
+        log_message('debug', 'Content Type: ' . $this->request->getHeaderLine('Content-Type'));
+        log_message('debug', 'Session Cookie: ' . $this->request->getHeaderLine('Cookie'));
+
         $rules = [
             'username' => 'required|min_length[3]|max_length[50]',
             'password' => 'required|min_length[3]|max_length[255]'
         ];
 
         if (!$this->validate($rules)) {
+            log_message('debug', 'Validation failed: ' . json_encode($this->validator->getErrors()));
             return redirect()->back()
                 ->withInput()
                 ->with('error', $this->validator->getErrors());
@@ -53,7 +72,6 @@ class Auth extends Controller
         $password = trim($this->request->getPost('password'));
 
         // Debug logging
-        log_message('debug', '=== Login Attempt Debug ===');
         log_message('debug', 'Username/Email: ' . $username);
         log_message('debug', 'Password length: ' . strlen($password));
 
@@ -76,15 +94,13 @@ class Auth extends Controller
             ]));
         } else {
             log_message('debug', 'User not found');
-        }
-
-        if (!$user) {
             return redirect()->back()
                 ->withInput()
                 ->with('error', 'Usuario no encontrado');
         }
 
         if (!$user['active']) {
+            log_message('debug', 'Account inactive');
             return redirect()->back()
                 ->withInput()
                 ->with('error', 'La cuenta está inactiva');
@@ -102,12 +118,6 @@ class Auth extends Controller
                 ->withInput()
                 ->with('error', 'Usuario o contraseña incorrectos');
         }
-
-        // Add debug logging
-        log_message('debug', 'Login attempt for user: ' . $username);
-        log_message('debug', 'Password verification result: ' . (password_verify($password, $user['password']) ? 'true' : 'false'));
-        log_message('debug', 'Stored hash: ' . $user['password']);
-        log_message('debug', 'Provided password: ' . $password);
 
         // Update last login
         $this->usersModel->update($user['id'], [
@@ -174,6 +184,10 @@ class Auth extends Controller
         // Set session data
         session()->set($sessionData);
 
+        // Debug session after login
+        log_message('debug', 'Session data after login: ' . json_encode(session()->get()));
+        log_message('debug', 'Session ID: ' . session_id());
+
         // Redirect based on role
         if ($user['role'] === 'superadmin') {
             return redirect()->to('/admin/dashboard');
@@ -185,7 +199,13 @@ class Auth extends Controller
 
     public function logout()
     {
+        log_message('debug', '=== Logout Debug ===');
+        log_message('debug', 'Session before destroy: ' . json_encode(session()->get()));
+        
         session()->destroy();
+        
+        log_message('debug', 'Session after destroy: ' . json_encode(session()->get()));
+        
         return redirect()->to('/auth/login')
             ->with('message', 'Has cerrado sesión correctamente');
     }

@@ -38,6 +38,7 @@ $routes->get('/', 'Home::index');
  */
 $routes->get('auth/login', 'Auth::login');
 $routes->post('auth/login', 'Auth::attemptLogin');
+$routes->post('auth/attemptLogin', 'Auth::attemptLogin'); // Added for preview support
 $routes->get('auth/logout', 'Auth::logout');
 
 /*
@@ -136,7 +137,6 @@ $routes->group('admin', ['filter' => 'auth:superadmin'], function($routes) {
 $routes->group('api', ['filter' => 'jwt'], function($routes) {
     // LLM Proxy endpoints
     $routes->post('enhance', 'Api::enhance');
-    $routes->get('quota', 'Api::quota');
     
     // Button management endpoints
     $routes->get('buttons', 'Api::getButtons');
@@ -144,6 +144,38 @@ $routes->group('api', ['filter' => 'jwt'], function($routes) {
     $routes->put('buttons/(:num)', 'Api::updateButton/$1');
     $routes->delete('buttons/(:num)', 'Api::deleteButton/$1');
 });
+
+/*
+ * --------------------------------------------------------------------
+ * LLM Proxy Routes
+ * --------------------------------------------------------------------
+ */
+
+// Main endpoint for proxy requests
+$routes->post('api/llm-proxy', 'LlmProxy::index');
+
+// CORS preflight requests
+$routes->options('api/llm-proxy', 'LlmProxy::options');
+$routes->options('api/llm-proxy/(:any)', 'LlmProxy::options/$1');
+
+// JWT secured endpoint - requires valid token
+$routes->post('api/llm-proxy/secure', 'LlmProxy::index', ['filter' => 'jwt']);
+$routes->options('api/llm-proxy/secure', 'LlmProxy::options');
+
+// Quota endpoints
+$routes->get('api/quota', 'LlmProxy::quota');
+$routes->options('api/quota', 'LlmProxy::options');
+$routes->get('api/quota/secure', 'LlmProxy::quota', ['filter' => 'jwt']);
+$routes->options('api/quota/secure', 'LlmProxy::options');
+
+// Installation endpoint (protected, admin only)
+$routes->get('api/llm-proxy/install', 'LlmProxy::install');
+
+// Proxy status endpoint
+$routes->get('api/llm-proxy/status', 'LlmProxy::status');
+
+// Connection test endpoint
+$routes->get('api/llm-proxy/test-connection', 'LlmProxy::test_connection');
 
 // JWT API Authentication routes
 $routes->post('api/auth/login', 'Auth::apiLogin');
