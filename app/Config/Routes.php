@@ -122,6 +122,18 @@ $routes->group('admin', ['filter' => 'auth:superadmin'], function($routes) {
 
 /*
  * --------------------------------------------------------------------
+ * Migration Routes (protected, admin only)
+ * --------------------------------------------------------------------
+ */
+$routes->group('', ['filter' => 'auth:superadmin'], function($routes) {
+    $routes->get('migrate', 'Migrate::index');
+    $routes->get('migrate/version/(:num)', 'Migrate::version/$1');
+    $routes->get('migrate/reset', 'Migrate::reset');
+    $routes->get('migrate/status', 'Migrate::status');
+});
+
+/*
+ * --------------------------------------------------------------------
  * API Routes (requires JWT authentication)
  * --------------------------------------------------------------------
  */
