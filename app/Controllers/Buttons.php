@@ -85,38 +85,20 @@ class Buttons extends Controller
         if ($this->request->getMethod() === 'post') {
             $rules = [
                 'name' => 'required|min_length[3]|max_length[255]',
-                'domain' => 'required|min_length[3]|max_length[255]',
                 'provider' => 'required',
                 'model' => 'required',
             ];
 
             if ($this->validate($rules)) {
-                $domain = $this->request->getPost('domain');
-
-                // Check if domain already exists for this tenant
-                if ($this->buttonsModel->domainExists($domain, $tenant_id)) {
-                    return redirect()->back()
-                        ->with('error', 'A button with this domain already exists for this tenant')
-                        ->withInput();
-                }
-
-                // Get API key if provided
-                $api_key = $this->request->getPost('api_key');
-
-                // Generate a unique button_id
-                $button_id = $this->buttonsModel->generateButtonId();
-
+                // Create button data
                 $buttonData = [
                     'tenant_id' => $tenant_id,
-                    'button_id' => $button_id,
                     'name' => $this->request->getPost('name'),
-                    'domain' => $domain,
                     'provider' => $this->request->getPost('provider'),
                     'model' => $this->request->getPost('model'),
-                    'api_key' => $api_key,
+                    'api_key' => $this->request->getPost('api_key'),
                     'system_prompt' => $this->request->getPost('system_prompt'),
-                    'active' => 1,
-                    'created_at' => date('Y-m-d H:i:s')
+                    'active' => 1
                 ];
 
                 if ($this->buttonsModel->insert($buttonData)) {
