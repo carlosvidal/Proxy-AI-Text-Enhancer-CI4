@@ -8,25 +8,48 @@ class AddUserIdToUsageLogs extends Migration
 {
     public function up()
     {
-        // Add user_id column to usage_logs table
+        // Primero, establecemos un valor por defecto para los registros existentes
+        $this->db->query("UPDATE usage_logs SET user_id = 0 WHERE user_id IS NULL");
+
+        // Modificar la columna user_id para que coincida con el formato de IDs hash
         $fields = [
-            'user_id' => [ // References tenant_users.user_id (format: usr-{timestamp}-{random})
+            'user_id' => [
                 'type' => 'VARCHAR',
                 'constraint' => 50,
-                'null' => false,
-                'after' => 'tenant_id'
+                'null' => true // Temporalmente permitimos NULL
             ]
         ];
 
-        $this->forge->addColumn('usage_logs', $fields);
+        $this->forge->modifyColumn('usage_logs', $fields);
+
+        // Actualizar los IDs existentes al nuevo formato
+        $this->db->query("UPDATE usage_logs SET user_id = 'usr-' || substr(hex(randomblob(4)), 1, 8) || '-' || substr(hex(randomblob(4)), 1, 8) WHERE user_id = '0'");
+
+        // Hacer la columna NOT NULL
+        $fields = [
+            'user_id' => [
+                'type' => 'VARCHAR',
+                'constraint' => 50,
+                'null' => false
+            ]
+        ];
+
+        $this->forge->modifyColumn('usage_logs', $fields);
         
-        // Add index for faster lookups
-        $this->forge->addKey(['tenant_id', 'user_id']);
+        // Asegurarnos de que el índice existe
+        $this->db->query('CREATE INDEX IF NOT EXISTS idx_usage_logs_tenant_user ON usage_logs(tenant_id, user_id)');
     }
 
     public function down()
     {
-        // Remove user_id column from usage_logs table
-        $this->forge->dropColumn('usage_logs', ['user_id']);
+        // Revertir la columna user_id a INTEGER NULL
+        $fields = [
+            'user_id' => [
+                'type' => 'INTEGER',
+                'null' => true
+            ]
+        ];
+
+        $this->forge->modifyColumn('usage_logs', $fields);
     }
 }
