@@ -4,7 +4,7 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <a href="<?= site_url('buttons/' . $tenant['id']) ?>" class="btn btn-secondary btn-sm mb-2">
+        <a href="<?= site_url('buttons') ?>" class="btn btn-secondary btn-sm mb-2">
             <i class="fas fa-arrow-left me-1"></i>Back to Buttons
         </a>
         <h2>Edit Button for <?= esc($tenant['name']) ?></h2>
@@ -14,91 +14,100 @@
 <div class="card">
     <div class="card-header">
         <i class="fas fa-edit me-1"></i>
-        Edit Button: <?= esc($button['name']) ?>
+        Edit Button
     </div>
     <div class="card-body">
-        <form action="<?= site_url('buttons/edit/' . $button['id']) ?>" method="post">
-            <?= csrf_field() ?>
+        <?php if (session()->has('error')): ?>
+            <div class="alert alert-danger">
+                <?= session('error') ?>
+            </div>
+        <?php endif; ?>
 
-            <?php if (isset($validation)): ?>
-                <div class="alert alert-danger">
-                    <?= $validation->listErrors() ?>
-                </div>
-            <?php endif; ?>
+        <form action="<?= site_url('buttons/edit/' . $button['button_id']) ?>" method="post">
+            <?= csrf_field() ?>
 
             <div class="row">
                 <div class="col-md-6">
                     <div class="mb-3">
                         <label for="name" class="form-label">Button Name</label>
-                        <input type="text" class="form-control" id="name" name="name" value="<?= set_value('name', $button['name']) ?>" required>
+                        <input type="text" class="form-control <?= session('errors.name') ? 'is-invalid' : '' ?>" 
+                               id="name" name="name" value="<?= old('name', $button['name']) ?>" required>
+                        <?php if (session('errors.name')): ?>
+                            <div class="invalid-feedback"><?= session('errors.name') ?></div>
+                        <?php endif; ?>
                     </div>
 
                     <div class="mb-3">
                         <label for="domain" class="form-label">Domain</label>
-                        <input type="text" class="form-control" id="domain" name="domain" value="<?= set_value('domain', $button['domain']) ?>" required>
+                        <input type="text" class="form-control <?= session('errors.domain') ? 'is-invalid' : '' ?>" 
+                               id="domain" name="domain" value="<?= old('domain', $button['domain']) ?>" required>
+                        <?php if (session('errors.domain')): ?>
+                            <div class="invalid-feedback"><?= session('errors.domain') ?></div>
+                        <?php endif; ?>
                         <div class="form-text">The domain where this button will be used (e.g., example.com)</div>
                     </div>
 
                     <div class="mb-3">
                         <label for="provider" class="form-label">LLM Provider</label>
-                        <select class="form-select" id="provider" name="provider" required>
+                        <select class="form-select <?= session('errors.provider') ? 'is-invalid' : '' ?>" 
+                                id="provider" name="provider" required>
                             <option value="">Select Provider</option>
                             <?php foreach ($providers as $key => $label): ?>
-                                <option value="<?= $key ?>" <?= $key == $button['provider'] ? 'selected' : '' ?>><?= $label ?></option>
+                                <option value="<?= $key ?>" <?= old('provider', $button['provider']) == $key ? 'selected' : '' ?>><?= $label ?></option>
                             <?php endforeach; ?>
                         </select>
+                        <?php if (session('errors.provider')): ?>
+                            <div class="invalid-feedback"><?= session('errors.provider') ?></div>
+                        <?php endif; ?>
                     </div>
 
                     <div class="mb-3">
                         <label for="model" class="form-label">LLM Model</label>
-                        <select class="form-select" id="model" name="model" required>
+                        <select class="form-select <?= session('errors.model') ? 'is-invalid' : '' ?>" 
+                                id="model" name="model" required>
                             <option value="">Select Model</option>
                             <?php foreach ($models as $provider => $providerModels): ?>
                                 <optgroup label="<?= $providers[$provider] ?>" class="model-group" data-provider="<?= $provider ?>">
                                     <?php foreach ($providerModels as $key => $label): ?>
-                                        <option value="<?= $key ?>" <?= $key == $button['model'] ? 'selected' : '' ?>><?= $label ?></option>
+                                        <option value="<?= $key ?>" <?= old('model', $button['model']) == $key ? 'selected' : '' ?>><?= $label ?></option>
                                     <?php endforeach; ?>
                                 </optgroup>
                             <?php endforeach; ?>
                         </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="active" class="form-label">Status</label>
-                        <select class="form-select" id="active" name="active">
-                            <option value="1" <?= $button['active'] ? 'selected' : '' ?>>Active</option>
-                            <option value="0" <?= !$button['active'] ? 'selected' : '' ?>>Inactive</option>
-                        </select>
+                        <?php if (session('errors.model')): ?>
+                            <div class="invalid-feedback"><?= session('errors.model') ?></div>
+                        <?php endif; ?>
                     </div>
                 </div>
 
                 <div class="col-md-6">
                     <div class="mb-3">
                         <label for="api_key" class="form-label">Provider API Key</label>
-                        <div class="input-group">
-                            <input type="password" class="form-control" id="api_key" name="api_key" placeholder="Enter new API key or leave blank to keep current" />
-                            <?php if (!empty($button['api_key'])): ?>
-                                <span class="input-group-text bg-light">
-                                    <small>Current: ••••••<?= substr($button['api_key'], -4) ?></small>
-                                </span>
-                            <?php endif; ?>
-                        </div>
+                        <input type="password" class="form-control <?= session('errors.api_key') ? 'is-invalid' : '' ?>" 
+                               id="api_key" name="api_key">
+                        <?php if (session('errors.api_key')): ?>
+                            <div class="invalid-feedback"><?= session('errors.api_key') ?></div>
+                        <?php endif; ?>
                         <div class="form-text">
-                            Leave blank to keep the current API key. Enter a new key only if you want to replace it.
-                            Enter "delete" to remove the current API key and use the global key instead.
+                            Enter a new API key to update the current one.
+                            <strong>Note:</strong> Leave blank to keep the current API key.
                         </div>
                     </div>
 
                     <div class="mb-3">
                         <label for="system_prompt" class="form-label">System Prompt</label>
-                        <textarea class="form-control" id="system_prompt" name="system_prompt" rows="8"><?= set_value('system_prompt', $button['system_prompt']) ?></textarea>
+                        <textarea class="form-control <?= session('errors.system_prompt') ? 'is-invalid' : '' ?>" 
+                                  id="system_prompt" name="system_prompt" rows="8"><?= old('system_prompt', $button['system_prompt']) ?></textarea>
+                        <?php if (session('errors.system_prompt')): ?>
+                            <div class="invalid-feedback"><?= session('errors.system_prompt') ?></div>
+                        <?php endif; ?>
                         <div class="form-text">System instructions for the model that define its behavior</div>
                     </div>
                 </div>
             </div>
 
             <div class="d-flex justify-content-between mt-4">
-                <a href="<?= site_url('buttons/' . $tenant['id']) ?>" class="btn btn-secondary">Cancel</a>
+                <a href="<?= site_url('buttons') ?>" class="btn btn-secondary">Cancel</a>
                 <button type="submit" class="btn btn-primary">Update Button</button>
             </div>
         </form>
@@ -137,6 +146,14 @@
                     options.forEach(option => {
                         option.disabled = false;
                     });
+
+                    // Select the first option of the group if none selected
+                    if (!modelSelect.value || !selectedGroup.querySelector(`option[value="${modelSelect.value}"]`)) {
+                        const firstOption = selectedGroup.querySelector('option');
+                        if (firstOption) {
+                            firstOption.selected = true;
+                        }
+                    }
                 }
             }
         }

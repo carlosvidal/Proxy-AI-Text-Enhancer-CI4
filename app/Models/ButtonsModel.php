@@ -7,26 +7,21 @@ use CodeIgniter\Model;
 class ButtonsModel extends Model
 {
     protected $table = 'buttons';
-    protected $primaryKey = 'button_id';
+    protected $primaryKey = 'id';
     protected $returnType = 'array';
     protected $useSoftDeletes = false;
 
     protected $allowedFields = [
+        'button_id',
         'tenant_id',
         'name',
-        'description',
-        'type',
-        'prompt',
-        'system_prompt',
-        'temperature',
-        'max_tokens',
+        'domain',
         'provider',
         'model',
         'api_key',
+        'system_prompt',
         'active'
     ];
-
-    // Note: button_id is NOT in allowedFields to prevent modification
 
     protected $useTimestamps = true;
     protected $dateFormat = 'datetime';
@@ -34,15 +29,12 @@ class ButtonsModel extends Model
     protected $validationRules = [
         'tenant_id' => 'required',
         'name' => 'required|min_length[3]|max_length[255]',
-        'description' => 'permit_empty|max_length[1000]',
-        'type' => 'required|in_list[standard,custom]',
-        'prompt' => 'required',
-        'system_prompt' => 'permit_empty',
-        'temperature' => 'required|decimal|greater_than_equal_to[0]|less_than_equal_to[2]',
-        'max_tokens' => 'required|integer|greater_than[0]|less_than_equal_to[4096]',
+        'domain' => 'required|min_length[3]|max_length[255]',
         'provider' => 'required|in_list[openai,anthropic,cohere,mistral,deepseek,google]',
         'model' => 'required',
-        'api_key' => 'required'
+        'api_key' => 'required',
+        'system_prompt' => 'permit_empty',
+        'active' => 'permit_empty'
     ];
 
     protected $validationMessages = [
@@ -54,27 +46,10 @@ class ButtonsModel extends Model
             'min_length' => 'Button name must be at least 3 characters',
             'max_length' => 'Button name cannot exceed 255 characters'
         ],
-        'description' => [
-            'max_length' => 'Description cannot exceed 1000 characters'
-        ],
-        'type' => [
-            'required' => 'Button type is required',
-            'in_list' => 'Invalid button type'
-        ],
-        'prompt' => [
-            'required' => 'Main prompt is required'
-        ],
-        'temperature' => [
-            'required' => 'Temperature is required',
-            'decimal' => 'Temperature must be a decimal number',
-            'greater_than_equal_to' => 'Temperature must be at least 0',
-            'less_than_equal_to' => 'Temperature cannot exceed 2'
-        ],
-        'max_tokens' => [
-            'required' => 'Max tokens is required',
-            'integer' => 'Max tokens must be a whole number',
-            'greater_than' => 'Max tokens must be greater than 0',
-            'less_than_equal_to' => 'Max tokens cannot exceed 4096'
+        'domain' => [
+            'required' => 'Domain is required',
+            'min_length' => 'Domain must be at least 3 characters',
+            'max_length' => 'Domain cannot exceed 255 characters'
         ],
         'provider' => [
             'required' => 'Provider is required',
@@ -94,6 +69,7 @@ class ButtonsModel extends Model
 
     /**
      * Generate a unique button ID using the format btn-{timestamp}-{random}
+     * Following the established ID format pattern from the system
      */
     protected function generateButtonId(array $data)
     {

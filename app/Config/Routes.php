@@ -68,10 +68,10 @@ $routes->group('', ['filter' => 'auth:tenant'], function($routes) {
     $routes->get('buttons', 'Buttons::index');
     $routes->get('buttons/create', 'Buttons::create');
     $routes->post('buttons/create', 'Buttons::create');
-    $routes->get('buttons/edit/(:num)', 'Buttons::edit/$1');
-    $routes->post('buttons/edit/(:num)', 'Buttons::edit/$1');
-    $routes->get('buttons/delete/(:num)', 'Buttons::delete/$1');
-    $routes->get('buttons/view/(:num)', 'Buttons::view/$1');
+    $routes->get('buttons/edit/(:segment)', 'Buttons::edit/$1');
+    $routes->post('buttons/edit/(:segment)', 'Buttons::edit/$1');
+    $routes->get('buttons/delete/(:segment)', 'Buttons::delete/$1');
+    $routes->get('buttons/view/(:segment)', 'Buttons::view/$1');
     
     // API Users Management
     $routes->get('api-users', 'TenantUsers::index');
@@ -113,9 +113,9 @@ $routes->group('admin', ['filter' => 'auth:superadmin'], function($routes) {
     $routes->get('tenants/(:segment)/buttons', 'Admin::tenantButtons/$1');
     $routes->get('tenants/(:segment)/buttons/create', 'Admin::createButton/$1');
     $routes->post('tenants/(:segment)/buttons/create', 'Admin::storeButton/$1');
-    $routes->get('tenants/(:segment)/buttons/(:num)/edit', 'Admin::editButton/$1/$2');
-    $routes->post('tenants/(:segment)/buttons/(:num)/edit', 'Admin::updateButton/$1/$2');
-    $routes->get('tenants/(:segment)/buttons/(:num)/delete', 'Admin::deleteButton/$1/$2');
+    $routes->get('tenants/(:segment)/buttons/(:segment)/edit', 'Admin::editButton/$1/$2');
+    $routes->post('tenants/(:segment)/buttons/(:segment)/edit', 'Admin::updateButton/$1/$2');
+    $routes->get('tenants/(:segment)/buttons/(:segment)/delete', 'Admin::deleteButton/$1/$2');
 });
 
 /*
@@ -142,8 +142,8 @@ $routes->group('api', ['filter' => 'jwt'], function($routes) {
     // Button management endpoints
     $routes->get('buttons', 'Api::getButtons');
     $routes->post('buttons', 'Api::createButton');
-    $routes->put('buttons/(:num)', 'Api::updateButton/$1');
-    $routes->delete('buttons/(:num)', 'Api::deleteButton/$1');
+    $routes->put('buttons/(:segment)', 'Api::updateButton/$1');
+    $routes->delete('buttons/(:segment)', 'Api::deleteButton/$1');
 });
 
 /*

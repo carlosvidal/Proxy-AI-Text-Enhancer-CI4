@@ -8,14 +8,58 @@ use App\Models\TenantsModel;
 
 class Buttons extends Controller
 {
+    protected $db;
     protected $buttonsModel;
     protected $tenantsModel;
+    protected $providers;
+    protected $models;
 
     public function __construct()
     {
-        helper(['url', 'form', 'logger', 'api_key']);
-        $this->buttonsModel = new ButtonsModel();
-        $this->tenantsModel = new TenantsModel();
+        $this->db = \Config\Database::connect();
+        $this->buttonsModel = new \App\Models\ButtonsModel();
+        $this->tenantsModel = new \App\Models\TenantsModel();
+        
+        // Define available providers
+        $this->providers = [
+            'openai' => 'OpenAI',
+            'anthropic' => 'Anthropic Claude',
+            'mistral' => 'Mistral AI',
+            'cohere' => 'Cohere',
+            'deepseek' => 'DeepSeek',
+            'google' => 'Google Gemini'
+        ];
+
+        // Define available models per provider
+        $this->models = [
+            'openai' => [
+                'gpt-3.5-turbo' => 'GPT-3.5 Turbo',
+                'gpt-4-turbo' => 'GPT-4 Turbo',
+                'gpt-4-vision' => 'GPT-4 Vision',
+            ],
+            'anthropic' => [
+                'claude-3-opus-20240229' => 'Claude 3 Opus',
+                'claude-3-sonnet-20240229' => 'Claude 3 Sonnet',
+                'claude-3-haiku-20240307' => 'Claude 3 Haiku',
+            ],
+            'mistral' => [
+                'mistral-small-latest' => 'Mistral Small',
+                'mistral-medium-latest' => 'Mistral Medium',
+                'mistral-large-latest' => 'Mistral Large',
+            ],
+            'cohere' => [
+                'command' => 'Command',
+                'command-light' => 'Command Light',
+            ],
+            'deepseek' => [
+                'deepseek-chat' => 'DeepSeek Chat',
+                'deepseek-coder' => 'DeepSeek Coder',
+            ],
+            'google' => [
+                'gemini-pro' => 'Gemini Pro',
+                'gemini-pro-vision' => 'Gemini Pro Vision',
+            ]
+        ];
     }
 
     /**
@@ -85,203 +129,150 @@ class Buttons extends Controller
         if ($this->request->getMethod() === 'post') {
             $rules = [
                 'name' => 'required|min_length[3]|max_length[255]',
-                'provider' => 'required',
+                'domain' => 'required|min_length[3]|max_length[255]',
+                'provider' => 'required|in_list[openai,anthropic,cohere,mistral,deepseek,google]',
                 'model' => 'required',
+                'api_key' => 'required'
             ];
 
             if ($this->validate($rules)) {
-                // Create button data
-                $buttonData = [
-                    'tenant_id' => $tenant_id,
-                    'name' => $this->request->getPost('name'),
-                    'provider' => $this->request->getPost('provider'),
-                    'model' => $this->request->getPost('model'),
-                    'api_key' => $this->request->getPost('api_key'),
-                    'system_prompt' => $this->request->getPost('system_prompt'),
-                    'active' => 1
-                ];
+                try {
+                    // Create button data
+                    $buttonData = [
+                        'tenant_id' => $tenant_id,
+                        'name' => $this->request->getPost('name'),
+                        'domain' => $this->request->getPost('domain'),
+                        'provider' => $this->request->getPost('provider'),
+                        'model' => $this->request->getPost('model'),
+                        'api_key' => $this->request->getPost('api_key'),
+                        'system_prompt' => $this->request->getPost('system_prompt'),
+                        'active' => 1
+                    ];
 
-                if ($this->buttonsModel->insert($buttonData)) {
-                    return redirect()->to('/buttons')
-                        ->with('success', 'Button created successfully');
-                } else {
+                    if ($this->buttonsModel->insert($buttonData)) {
+                        return redirect()->to('/buttons')
+                            ->with('success', 'Button created successfully');
+                    }
+
+                    // If we get here, there was a validation error
+                    $errors = $this->buttonsModel->errors();
                     return redirect()->back()
-                        ->with('error', 'Error creating button')
+                        ->with('error', 'Validation failed: ' . implode(', ', $errors))
+                        ->withInput();
+
+                } catch (\Exception $e) {
+                    log_message('error', '[Button Creation] ' . $e->getMessage());
+                    return redirect()->back()
+                        ->with('error', 'Error creating button: ' . $e->getMessage())
                         ->withInput();
                 }
-            } else {
-                $data['validation'] = $this->validator;
             }
+
+            // If we get here, controller validation failed
+            return redirect()->back()
+                ->with('error', 'Validation failed: ' . implode(', ', $this->validator->getErrors()))
+                ->withInput();
         }
 
         // Get available providers and models for dropdown
-        $data['providers'] = [
-            'openai' => 'OpenAI',
-            'anthropic' => 'Anthropic Claude',
-            'mistral' => 'Mistral AI',
-            'cohere' => 'Cohere',
-            'deepseek' => 'DeepSeek',
-            'google' => 'Google Gemini'
-        ];
-
-        $data['models'] = [
-            'openai' => [
-                'gpt-3.5-turbo' => 'GPT-3.5 Turbo',
-                'gpt-4-turbo' => 'GPT-4 Turbo',
-                'gpt-4-vision' => 'GPT-4 Vision',
-            ],
-            'anthropic' => [
-                'claude-3-opus-20240229' => 'Claude 3 Opus',
-                'claude-3-sonnet-20240229' => 'Claude 3 Sonnet',
-                'claude-3-haiku-20240307' => 'Claude 3 Haiku',
-            ],
-            'mistral' => [
-                'mistral-small-latest' => 'Mistral Small',
-                'mistral-medium-latest' => 'Mistral Medium',
-                'mistral-large-latest' => 'Mistral Large',
-            ],
-            'cohere' => [
-                'command' => 'Command',
-                'command-light' => 'Command Light',
-            ],
-            'deepseek' => [
-                'deepseek-chat' => 'DeepSeek Chat',
-                'deepseek-coder' => 'DeepSeek Coder',
-            ],
-            'google' => [
-                'gemini-pro' => 'Gemini Pro',
-                'gemini-pro-vision' => 'Gemini Pro Vision',
-            ],
-        ];
+        $data['providers'] = $this->providers;
+        $data['models'] = $this->models;
 
         return view('buttons/create', $data);
     }
 
     /**
-     * Edit an existing button
+     * View a button's details
      */
-    public function edit($id)
+    public function view($button_id = null)
     {
-        if (!session()->get('isLoggedIn')) {
-            return redirect()->to('/auth/login');
+        if (!$button_id) {
+            return redirect()->to('/buttons')->with('error', 'Button ID is required.');
         }
 
         $tenant_id = session()->get('tenant_id');
-        if (!$tenant_id) {
-            return redirect()->to('/auth/login')
-                ->with('error', 'No tenant found');
-        }
+        $button = $this->buttonsModel->where('button_id', $button_id)
+                                   ->where('tenant_id', $tenant_id)
+                                   ->first();
 
-        // Get tenant information
-        $tenant = $this->tenantsModel->where('tenant_id', $tenant_id)
-            ->where('active', 1)
-            ->first();
-
-        if (!$tenant) {
-            return redirect()->to('/auth/login')
-                ->with('error', 'Tenant not found');
+        if (!$button) {
+            return redirect()->to('/buttons')->with('error', 'Button not found.');
         }
 
         $data = [
-            'title' => 'Edit Button',
-            'tenant' => $tenant,
-            'button' => $this->buttonsModel->where('tenant_id', $tenant_id)
-                ->find($id)
+            'title' => 'View Button',
+            'button' => $button,
+            'tenant' => $this->tenantsModel->find($tenant_id),
+            'providers' => $this->providers,
+            'models' => $this->models
         ];
 
-        if (empty($data['button'])) {
-            return redirect()->to('/buttons')
-                ->with('error', 'Button not found');
+        return view('buttons/view', $data);
+    }
+
+    /**
+     * Edit an existing button
+     */
+    public function edit($button_id = null)
+    {
+        if (!$button_id) {
+            return redirect()->to('/buttons')->with('error', 'Button ID is required.');
+        }
+
+        $tenant_id = session()->get('tenant_id');
+        $button = $this->buttonsModel->where('button_id', $button_id)
+                                   ->where('tenant_id', $tenant_id)
+                                   ->first();
+
+        if (!$button) {
+            return redirect()->to('/buttons')->with('error', 'Button not found.');
         }
 
         if ($this->request->getMethod() === 'post') {
             $rules = [
                 'name' => 'required|min_length[3]|max_length[255]',
-                'domain' => 'required|min_length[3]|max_length[255]',
-                'provider' => 'required',
+                'domain' => 'required|valid_domain',
+                'provider' => 'required|in_list[openai,anthropic,cohere,mistral,deepseek,google]',
                 'model' => 'required',
+                'api_key' => 'permit_empty|min_length[10]|max_length[255]',
+                'system_prompt' => 'permit_empty|max_length[2000]'
             ];
 
             if ($this->validate($rules)) {
-                $domain = $this->request->getPost('domain');
-
-                // Check if domain already exists for this tenant (excluding this button)
-                if ($this->buttonsModel->domainExists($domain, $tenant_id, $id)) {
-                    return redirect()->back()
-                        ->with('error', 'A button with this domain already exists for this tenant')
-                        ->withInput();
-                }
-
-                $buttonData = [
+                $updateData = [
                     'name' => $this->request->getPost('name'),
-                    'domain' => $domain,
+                    'domain' => $this->request->getPost('domain'),
                     'provider' => $this->request->getPost('provider'),
                     'model' => $this->request->getPost('model'),
-                    'system_prompt' => $this->request->getPost('system_prompt'),
-                    'updated_at' => date('Y-m-d H:i:s')
+                    'system_prompt' => $this->request->getPost('system_prompt')
                 ];
 
-                // Handle API key updates
-                $api_key = $this->request->getPost('api_key');
-                if (!empty($api_key)) {
-                    if (strtolower($api_key) === 'delete') {
-                        $buttonData['api_key'] = null;
-                    } else {
-                        $buttonData['api_key'] = $api_key;
-                    }
+                // Only update API key if a new one is provided
+                $newApiKey = $this->request->getPost('api_key');
+                if (!empty($newApiKey)) {
+                    $updateData['api_key'] = $newApiKey;
                 }
 
-                if ($this->buttonsModel->update($id, $buttonData)) {
-                    return redirect()->to('/buttons')
-                        ->with('success', 'Button updated successfully');
-                } else {
-                    return redirect()->back()
-                        ->with('error', 'Error updating button')
-                        ->withInput();
+                try {
+                    $this->buttonsModel->where('button_id', $button_id)
+                                     ->where('tenant_id', $tenant_id)
+                                     ->set($updateData)
+                                     ->update();
+
+                    return redirect()->to('/buttons')->with('success', 'Button updated successfully.');
+                } catch (\Exception $e) {
+                    log_message('error', 'Error updating button: ' . $e->getMessage());
+                    return redirect()->back()->with('error', 'Failed to update button. Please try again.');
                 }
-            } else {
-                $data['validation'] = $this->validator;
             }
         }
 
-        // Get available providers and models for dropdown
-        $data['providers'] = [
-            'openai' => 'OpenAI',
-            'anthropic' => 'Anthropic Claude',
-            'mistral' => 'Mistral AI',
-            'cohere' => 'Cohere',
-            'deepseek' => 'DeepSeek',
-            'google' => 'Google Gemini'
-        ];
-
-        $data['models'] = [
-            'openai' => [
-                'gpt-3.5-turbo' => 'GPT-3.5 Turbo',
-                'gpt-4-turbo' => 'GPT-4 Turbo',
-                'gpt-4-vision' => 'GPT-4 Vision',
-            ],
-            'anthropic' => [
-                'claude-3-opus-20240229' => 'Claude 3 Opus',
-                'claude-3-sonnet-20240229' => 'Claude 3 Sonnet',
-                'claude-3-haiku-20240307' => 'Claude 3 Haiku',
-            ],
-            'mistral' => [
-                'mistral-small-latest' => 'Mistral Small',
-                'mistral-medium-latest' => 'Mistral Medium',
-                'mistral-large-latest' => 'Mistral Large',
-            ],
-            'cohere' => [
-                'command' => 'Command',
-                'command-light' => 'Command Light',
-            ],
-            'deepseek' => [
-                'deepseek-chat' => 'DeepSeek Chat',
-                'deepseek-coder' => 'DeepSeek Coder',
-            ],
-            'google' => [
-                'gemini-pro' => 'Gemini Pro',
-                'gemini-pro-vision' => 'Gemini Pro Vision',
-            ],
+        $data = [
+            'title' => 'Edit Button',
+            'button' => $button,
+            'tenant' => $this->tenantsModel->find($tenant_id),
+            'providers' => $this->providers,
+            'models' => $this->models
         ];
 
         return view('buttons/edit', $data);
@@ -290,63 +281,45 @@ class Buttons extends Controller
     /**
      * Delete a button
      */
-    public function delete($id)
+    public function delete($button_id = null)
     {
-        if (!session()->get('isLoggedIn')) {
-            return redirect()->to('/auth/login');
+        if (!$button_id) {
+            return redirect()->to('/buttons')->with('error', 'Button ID is required.');
         }
 
         $tenant_id = session()->get('tenant_id');
-        if (!$tenant_id) {
-            return redirect()->to('/auth/login')
-                ->with('error', 'No tenant found');
-        }
-
-        // Get tenant information
-        $tenant = $this->tenantsModel->where('tenant_id', $tenant_id)
-            ->where('active', 1)
-            ->first();
-
-        if (!$tenant) {
-            return redirect()->to('/auth/login')
-                ->with('error', 'Tenant not found');
-        }
-
-        // Check if button exists and belongs to this tenant
-        $button = $this->buttonsModel->where('tenant_id', $tenant_id)
-            ->find($id);
+        $button = $this->buttonsModel->where('button_id', $button_id)
+                                   ->where('tenant_id', $tenant_id)
+                                   ->first();
 
         if (!$button) {
-            return redirect()->to('/buttons')
-                ->with('error', 'Button not found');
+            return redirect()->to('/buttons')->with('error', 'Button not found.');
         }
 
-        if ($this->buttonsModel->delete($id)) {
-            return redirect()->to('/buttons')
-                ->with('success', 'Button deleted successfully');
+        try {
+            // Delete button and associated usage logs
+            $this->db->transStart();
+            
+            // Delete usage logs first (foreign key constraint)
+            $this->db->table('usage_logs')
+                     ->where('button_id', $button_id)
+                     ->delete();
+            
+            // Delete the button
+            $this->buttonsModel->where('button_id', $button_id)
+                              ->where('tenant_id', $tenant_id)
+                              ->delete();
+            
+            $this->db->transComplete();
+
+            if ($this->db->transStatus() === false) {
+                throw new \Exception('Failed to delete button and its usage logs.');
+            }
+
+            return redirect()->to('/buttons')->with('success', 'Button deleted successfully.');
+        } catch (\Exception $e) {
+            log_message('error', 'Error deleting button: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Failed to delete button. Please try again.');
         }
-
-        return redirect()->to('/buttons')
-            ->with('error', 'Error deleting button');
-    }
-
-    /**
-     * View button details
-     */
-    public function view($button_id)
-    {
-        if (!session()->get('isLoggedIn')) {
-            return redirect()->to('/auth/login');
-        }
-
-        $tenant_id = session()->get('tenant_id');
-        $data['title'] = 'Button Details';
-        $data['button'] = $this->buttonsModel->where('tenant_id', $tenant_id)->find($button_id);
-
-        if (empty($data['button'])) {
-            return redirect()->to('/buttons')->with('error', 'Button not found');
-        }
-
-        return view('buttons/view', $data);
     }
 }

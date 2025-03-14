@@ -4,13 +4,13 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <a href="<?= site_url('buttons/' . $tenant['id']) ?>" class="btn btn-secondary btn-sm mb-2">
+        <a href="<?= site_url('buttons') ?>" class="btn btn-secondary btn-sm mb-2">
             <i class="fas fa-arrow-left me-1"></i>Back to Buttons
         </a>
         <h2><?= esc($button['name']) ?> <span class="badge badge-tenant"><?= esc($button['domain']) ?></span></h2>
     </div>
     <div>
-        <a href="<?= site_url('buttons/edit/' . $button['id']) ?>" class="btn btn-warning text-white">
+        <a href="<?= site_url('buttons/edit/' . $button['button_id']) ?>" class="btn btn-warning text-white">
             <i class="fas fa-edit me-1"></i>Edit
         </a>
     </div>
@@ -118,12 +118,9 @@
             <pre class="bg-light p-3 rounded"><code>POST <?= base_url('api/llm-proxy') ?></code></pre>
         </div>
 
-
         <div class="mb-4">
             <h5>Request Body</h5>
-            <p>You can easily integrate this button using your own Web Component:</p>
-            <pre class="bg-light p-3 rounded">
-<code>{
+            <pre class="bg-light p-3 rounded"><code>{
     "tenantId": "<?= esc($tenant['tenant_id']) ?>",
     "buttonId": "<?= esc($button['button_id']) ?>",
     "userId": "[USER_ID]",
@@ -131,9 +128,9 @@
         { "role": "user", "content": "Your message here" }
     ],
     "stream": true  // Optional, set to false for non-streaming responses
-}</code>
-        </pre>
+}</code></pre>
         </div>
+
         <div class="row">
             <div class="col-12 col-md-8 mb-4">
                 <h5>Web Component Integration</h5>
@@ -154,12 +151,12 @@ import "https://cdn.jsdelivr.net/gh/carlosvidal/AI-Text-Enhancer/dist/ai-text-en
                 <strong>Preview</strong>
                 <textarea id="target-wysiswyg" class="form-control" rows="5" placeholder="Type your message here..."></textarea>
                 <ai-text-enhancer
-                    id="59200d9fa9791103"
+                    id="<?= esc($button['button_id']) ?>"
                     editor-id="target-wysiswyg"
                     language="es"
-                    tenant-id="miti8f58"
+                    tenant-id="<?= esc($tenant['tenant_id']) ?>"
                     user-id="[USER_ID]"
-                    proxy-endpoint="http://llmproxy2.test:8080/api/llm-proxy">
+                    proxy-endpoint="<?= base_url('api/llm-proxy') ?>">
                 </ai-text-enhancer>
                 <script type="module">
                     import "https://cdn.jsdelivr.net/gh/carlosvidal/AI-Text-Enhancer/dist/ai-text-enhancer.umd.js?purge"
@@ -171,47 +168,43 @@ import "https://cdn.jsdelivr.net/gh/carlosvidal/AI-Text-Enhancer/dist/ai-text-en
             </div>
         </div>
     </div>
+</div>
 
-    <style>
-        .system-prompt {
-            background-color: #f8f9fa;
-            padding: 1rem;
-            border-radius: 0.25rem;
-            border: 1px solid #dee2e6;
-            white-space: pre-wrap;
-            font-family: monospace;
-            font-size: 0.9rem;
-            color: #495057;
-        }
-    </style>
+<style>
+    .system-prompt {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-radius: 0.25rem;
+        border: 1px solid #dee2e6;
+        white-space: pre-wrap;
+        font-family: monospace;
+        font-size: 0.9rem;
+        color: #495057;
+    }
+</style>
 
-    <script>
-        function copyToClipboard(text) {
-            // Create a temporary textarea
-            const textarea = document.createElement('textarea');
-            textarea.value = text;
-            document.body.appendChild(textarea);
+<script>
+    function copyToClipboard(text) {
+        // Create a temporary textarea
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
 
-            // Select and copy
-            textarea.select();
-            document.execCommand('copy');
+        // Select and copy
+        textarea.select();
+        document.execCommand('copy');
 
-            // Remove the textarea
-            document.body.removeChild(textarea);
+        // Remove the textarea
+        document.body.removeChild(textarea);
 
-            // Show a notification
-            const notification = document.createElement('div');
-            notification.className = 'position-fixed top-50 start-50 translate-middle p-3 bg-dark text-white rounded';
-            notification.style.zIndex = 9999;
-            notification.innerHTML = '<i class="fas fa-check-circle me-2"></i>Copied to clipboard!';
+        // Show feedback
+        const button = event.target.closest('button');
+        const originalIcon = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check"></i>';
+        setTimeout(() => {
+            button.innerHTML = originalIcon;
+        }, 2000);
+    }
+</script>
 
-            document.body.appendChild(notification);
-
-            // Remove notification after 2 seconds
-            setTimeout(() => {
-                document.body.removeChild(notification);
-            }, 2000);
-        }
-    </script>
-
-    <?= $this->endSection() ?>
+<?= $this->endSection() ?>

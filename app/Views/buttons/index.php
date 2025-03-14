@@ -55,13 +55,13 @@
                                 </td>
                                 <td><?= date('Y-m-d', strtotime($button['created_at'])) ?></td>
                                 <td>
-                                    <a href="<?= site_url('buttons/view/' . $button['id']) ?>" class="btn btn-sm btn-info text-white" title="View">
+                                    <a href="<?= site_url('buttons/view/' . $button['button_id']) ?>" class="btn btn-sm btn-info text-white" title="View">
                                         <i class="fas fa-eye"></i>
                                     </a>
-                                    <a href="<?= site_url('buttons/edit/' . $button['id']) ?>" class="btn btn-sm btn-warning text-white" title="Edit">
+                                    <a href="<?= site_url('buttons/edit/' . $button['button_id']) ?>" class="btn btn-sm btn-warning text-white" title="Edit">
                                         <i class="fas fa-edit"></i>
                                     </a>
-                                    <a href="<?= site_url('buttons/delete/' . $button['id']) ?>" class="btn btn-sm btn-danger" title="Delete" onclick="return confirm('Are you sure you want to delete this button?')">
+                                    <a href="<?= site_url('buttons/delete/' . $button['button_id']) ?>" class="btn btn-sm btn-danger" title="Delete" onclick="return confirm('Are you sure you want to delete this button?')">
                                         <i class="fas fa-trash"></i>
                                     </a>
                                 </td>

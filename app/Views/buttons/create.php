@@ -17,66 +17,90 @@
         Create New Button
     </div>
     <div class="card-body">
+        <?php if (session()->has('error')): ?>
+            <div class="alert alert-danger">
+                <?= session('error') ?>
+            </div>
+        <?php endif; ?>
+
         <form action="<?= site_url('buttons/create') ?>" method="post">
             <?= csrf_field() ?>
-
-            <?php if (isset($validation)): ?>
-                <div class="alert alert-danger">
-                    <?= $validation->listErrors() ?>
-                </div>
-            <?php endif; ?>
 
             <div class="row">
                 <div class="col-md-6">
                     <div class="mb-3">
                         <label for="name" class="form-label">Button Name</label>
-                        <input type="text" class="form-control" id="name" name="name" value="<?= set_value('name') ?>" required>
+                        <input type="text" class="form-control <?= session('errors.name') ? 'is-invalid' : '' ?>" 
+                               id="name" name="name" value="<?= old('name') ?>" required>
+                        <?php if (session('errors.name')): ?>
+                            <div class="invalid-feedback"><?= session('errors.name') ?></div>
+                        <?php endif; ?>
                     </div>
 
                     <div class="mb-3">
                         <label for="domain" class="form-label">Domain</label>
-                        <input type="text" class="form-control" id="domain" name="domain" value="<?= set_value('domain') ?>" required>
+                        <input type="text" class="form-control <?= session('errors.domain') ? 'is-invalid' : '' ?>" 
+                               id="domain" name="domain" value="<?= old('domain') ?>" required>
+                        <?php if (session('errors.domain')): ?>
+                            <div class="invalid-feedback"><?= session('errors.domain') ?></div>
+                        <?php endif; ?>
                         <div class="form-text">The domain where this button will be used (e.g., example.com)</div>
                     </div>
 
                     <div class="mb-3">
                         <label for="provider" class="form-label">LLM Provider</label>
-                        <select class="form-select" id="provider" name="provider" required>
+                        <select class="form-select <?= session('errors.provider') ? 'is-invalid' : '' ?>" 
+                                id="provider" name="provider" required>
                             <option value="">Select Provider</option>
                             <?php foreach ($providers as $key => $label): ?>
-                                <option value="<?= $key ?>" <?= set_select('provider', $key) ?>><?= $label ?></option>
+                                <option value="<?= $key ?>" <?= old('provider') == $key ? 'selected' : '' ?>><?= $label ?></option>
                             <?php endforeach; ?>
                         </select>
+                        <?php if (session('errors.provider')): ?>
+                            <div class="invalid-feedback"><?= session('errors.provider') ?></div>
+                        <?php endif; ?>
                     </div>
 
                     <div class="mb-3">
                         <label for="model" class="form-label">LLM Model</label>
-                        <select class="form-select" id="model" name="model" required>
+                        <select class="form-select <?= session('errors.model') ? 'is-invalid' : '' ?>" 
+                                id="model" name="model" required>
                             <option value="">Select Model</option>
                             <?php foreach ($models as $provider => $providerModels): ?>
                                 <optgroup label="<?= $providers[$provider] ?>" class="model-group" data-provider="<?= $provider ?>">
                                     <?php foreach ($providerModels as $key => $label): ?>
-                                        <option value="<?= $key ?>" <?= set_select('model', $key) ?>><?= $label ?></option>
+                                        <option value="<?= $key ?>" <?= old('model') == $key ? 'selected' : '' ?>><?= $label ?></option>
                                     <?php endforeach; ?>
                                 </optgroup>
                             <?php endforeach; ?>
                         </select>
+                        <?php if (session('errors.model')): ?>
+                            <div class="invalid-feedback"><?= session('errors.model') ?></div>
+                        <?php endif; ?>
                     </div>
                 </div>
 
                 <div class="col-md-6">
                     <div class="mb-3">
                         <label for="api_key" class="form-label">Provider API Key</label>
-                        <input type="password" class="form-control" id="api_key" name="api_key" value="<?= set_value('api_key') ?>">
+                        <input type="password" class="form-control <?= session('errors.api_key') ? 'is-invalid' : '' ?>" 
+                               id="api_key" name="api_key" required>
+                        <?php if (session('errors.api_key')): ?>
+                            <div class="invalid-feedback"><?= session('errors.api_key') ?></div>
+                        <?php endif; ?>
                         <div class="form-text">
-                            Enter the API key obtained from the LLM provider. Leave blank to use the global API key.
+                            Enter the API key obtained from the LLM provider.
                             <strong>Note:</strong> This key will be securely stored and never displayed in full again.
                         </div>
                     </div>
 
                     <div class="mb-3">
                         <label for="system_prompt" class="form-label">System Prompt</label>
-                        <textarea class="form-control" id="system_prompt" name="system_prompt" rows="8"><?= set_value('system_prompt') ?></textarea>
+                        <textarea class="form-control <?= session('errors.system_prompt') ? 'is-invalid' : '' ?>" 
+                                  id="system_prompt" name="system_prompt" rows="8"><?= old('system_prompt') ?></textarea>
+                        <?php if (session('errors.system_prompt')): ?>
+                            <div class="invalid-feedback"><?= session('errors.system_prompt') ?></div>
+                        <?php endif; ?>
                         <div class="form-text">System instructions for the model that define its behavior</div>
                     </div>
                 </div>
