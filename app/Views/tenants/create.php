@@ -28,6 +28,19 @@
             </div>
 
             <div class="mb-3">
+                <label for="plan_code" class="form-label">Subscription Plan</label>
+                <select class="form-select" id="plan_code" name="plan_code" required>
+                    <?php foreach ($plans as $plan): ?>
+                        <option value="<?= $plan['code'] ?>" <?= set_select('plan_code', $plan['code']) ?>>
+                            <?= esc($plan['name']) ?> - $<?= number_format($plan['price'], 2) ?>/mo 
+                            (<?= $plan['requests_limit'] ?> requests, <?= $plan['users_limit'] ? $plan['users_limit'] . ' users' : 'Unlimited users' ?>)
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <div class="form-text">Select a subscription plan for this tenant</div>
+            </div>
+
+            <div class="mb-3">
                 <label for="quota" class="form-label">Default Quota (tokens)</label>
                 <input type="number" class="form-control" id="quota" name="quota" value="<?= set_value('quota', 100000) ?>" required>
                 <div class="form-text">Default token quota for this tenant's users</div>

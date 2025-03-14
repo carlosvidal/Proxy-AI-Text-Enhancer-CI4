@@ -4,19 +4,19 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <a href="<?= site_url('tenants') ?>" class="btn btn-secondary btn-sm mb-2">
+        <a href="<?= site_url('admin/tenants') ?>" class="btn btn-secondary btn-sm mb-2">
             <i class="fas fa-arrow-left me-1"></i>Back to Tenants
         </a>
-        <h2><?= esc($tenant['name']) ?> <span class="badge badge-tenant"><?= esc($tenant['id']) ?></span></h2>
+        <h2><?= esc($tenant['name']) ?> <span class="badge badge-tenant"><?= esc($tenant['tenant_id']) ?></span></h2>
     </div>
     <div>
-        <a href="<?= site_url('tenants/edit/' . $tenant['id']) ?>" class="btn btn-warning text-white">
+        <a href="<?= site_url('admin/tenants/edit/' . $tenant['id']) ?>" class="btn btn-warning text-white">
             <i class="fas fa-edit me-1"></i>Edit
         </a>
-        <a href="<?= site_url('tenants/users/' . $tenant['id']) ?>" class="btn btn-primary">
-            <i class="fas fa-users me-1"></i>Manage Users
+        <a href="<?= site_url('admin/tenants/users/' . $tenant['id']) ?>" class="btn btn-primary">
+            <i class="fas fa-users me-1"></i>Manage API Users
         </a>
-        <a href="<?= site_url('buttons/' . $tenant['id']) ?>" class="btn btn-info text-white">
+        <a href="<?= site_url('admin/buttons/' . $tenant['id']) ?>" class="btn btn-info text-white">
             <i class="fas fa-puzzle-piece me-1"></i>Manage Buttons
         </a>
     </div>
@@ -36,12 +36,12 @@
                         <td><?= esc($tenant['name']) ?></td>
                     </tr>
                     <tr>
-                        <th>Email:</th>
-                        <td><?= esc($tenant['email']) ?></td>
+                        <th>Tenant ID:</th>
+                        <td><code><?= esc($tenant['tenant_id']) ?></code></td>
                     </tr>
                     <tr>
-                        <th>Default Quota:</th>
-                        <td><?= number_format($tenant['quota']) ?> tokens</td>
+                        <th>Email:</th>
+                        <td><?= esc($tenant['email']) ?></td>
                     </tr>
                     <tr>
                         <th>Status:</th>
@@ -51,6 +51,26 @@
                             <?php else: ?>
                                 <span class="badge bg-danger">Inactive</span>
                             <?php endif; ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Subscription:</th>
+                        <td>
+                            <?php
+                            $status = strtolower($tenant['subscription_status'] ?? 'trial');
+                            if ($status === 'trial') {
+                                $statusClass = 'bg-info';
+                            } elseif ($status === 'active') {
+                                $statusClass = 'bg-success';
+                            } elseif ($status === 'expired') {
+                                $statusClass = 'bg-danger';
+                            } else {
+                                $statusClass = 'bg-secondary';
+                            }
+                            ?>
+                            <span class="badge <?= $statusClass ?>">
+                                <?= esc(ucfirst($tenant['subscription_status'] ?? 'Trial')) ?>
+                            </span>
                         </td>
                     </tr>
                     <tr>
@@ -66,22 +86,49 @@
                 </table>
             </div>
         </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-chart-line me-1"></i>
+                Usage Statistics
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="card-title">Total Requests</h6>
+                                <h3><?= number_format($tenant['total_requests']) ?></h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card bg-light">
+                            <div class="card-body text-center">
+                                <h6 class="card-title">Total Tokens</h6>
+                                <h3><?= number_format($tenant['total_tokens']) ?></h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="col-md-6">
         <div class="card mb-4">
-            <div class="card-header">
-                <i class="fas fa-users me-1"></i>
-                Users (<?= count($users) ?>)
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="fas fa-users me-1"></i>
+                    API Users (<?= count($apiUsers) ?>)
+                </div>
+                <a href="<?= site_url('admin/tenants/users/' . $tenant['id']) ?>" class="btn btn-sm btn-primary">
+                    <i class="fas fa-user-plus me-1"></i>Manage API Users
+                </a>
             </div>
             <div class="card-body">
-                <?php if (empty($users)): ?>
-                    <p class="text-muted text-center">No users found for this tenant.</p>
-                    <div class="text-center mt-3">
-                        <a href="<?= site_url('tenants/add_user/' . $tenant['id']) ?>" class="btn btn-primary">
-                            <i class="fas fa-user-plus me-1"></i>Add User
-                        </a>
-                    </div>
+                <?php if (empty($apiUsers)): ?>
+                    <p class="text-muted text-center">No API users found for this tenant.</p>
                 <?php else: ?>
                     <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
                         <table class="table table-sm">
@@ -94,13 +141,13 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php foreach ($users as $user): ?>
+                                <?php foreach ($apiUsers as $user): ?>
                                     <tr>
-                                        <td><?= esc($user->user_id) ?></td>
-                                        <td><?= esc($user->name) ?></td>
-                                        <td><?= number_format($user->quota) ?></td>
+                                        <td><code><?= esc($user['user_id']) ?></code></td>
+                                        <td><?= esc($user['name']) ?></td>
+                                        <td><?= number_format($user['quota']) ?></td>
                                         <td>
-                                            <?php if ($user->active): ?>
+                                            <?php if ($user['active']): ?>
                                                 <span class="badge bg-success">Active</span>
                                             <?php else: ?>
                                                 <span class="badge bg-danger">Inactive</span>
@@ -114,29 +161,20 @@
                 <?php endif; ?>
             </div>
         </div>
-    </div>
-</div>
 
-<div class="row">
-    <div class="col-md-12">
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <div>
                     <i class="fas fa-puzzle-piece me-1"></i>
                     Buttons
                 </div>
-                <a href="<?= site_url('buttons/' . $tenant['id']) ?>" class="btn btn-sm btn-primary">
+                <a href="<?= site_url('admin/buttons/' . $tenant['id']) ?>" class="btn btn-sm btn-primary">
                     <i class="fas fa-external-link-alt me-1"></i>Manage Buttons
                 </a>
             </div>
             <div class="card-body">
                 <?php if (empty($buttons)): ?>
                     <p class="text-muted text-center">No buttons configured for this tenant.</p>
-                    <div class="text-center mt-3">
-                        <a href="<?= site_url('buttons/create/' . $tenant['id']) ?>" class="btn btn-primary">
-                            <i class="fas fa-plus-circle me-1"></i>Create First Button
-                        </a>
-                    </div>
                 <?php else: ?>
                     <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
                         <table class="table table-sm">
@@ -171,17 +209,6 @@
                 <?php endif; ?>
             </div>
         </div>
-    </div>
-</div>
-
-<div class="card mb-4">
-    <div class="card-header">
-        <i class="fas fa-chart-line me-1"></i>
-        Usage Overview
-    </div>
-    <div class="card-body">
-        <!-- Aquí se podría agregar un gráfico de uso por mes o alguna estadística relevante -->
-        <p class="text-muted text-center">Usage statistics will be displayed here.</p>
     </div>
 </div>
 

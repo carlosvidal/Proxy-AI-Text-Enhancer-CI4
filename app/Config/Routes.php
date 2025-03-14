@@ -33,15 +33,130 @@ $routes->get('/', 'Home::index');
 
 /*
  * --------------------------------------------------------------------
+ * Authentication Routes (no auth required)
+ * --------------------------------------------------------------------
+ */
+$routes->match(['get', 'post'], 'auth/login', 'Auth::login');
+$routes->get('auth/logout', 'Auth::logout');
+
+/*
+ * --------------------------------------------------------------------
+ * Protected Routes (requires authentication)
+ * --------------------------------------------------------------------
+ */
+$routes->group('', ['filter' => 'auth'], function($routes) {
+    // Common routes
+    $routes->get('auth/profile', 'Auth::profile');
+    $routes->post('auth/profile', 'Auth::updateProfile');
+    
+    // Usage Statistics (main dashboard for tenants)
+    $routes->get('usage', 'Usage::index');
+    $routes->get('usage/logs', 'Usage::logs');
+    $routes->get('usage/api', 'Usage::api');
+});
+
+/*
+ * --------------------------------------------------------------------
+ * Tenant Routes (requires tenant role)
+ * --------------------------------------------------------------------
+ */
+$routes->group('', ['filter' => 'auth:tenant'], function($routes) {
+    // Redirect tenant root to usage dashboard
+    $routes->get('/', 'Usage::index');
+    
+    // Buttons Management
+    $routes->get('buttons', 'Buttons::index');
+    $routes->get('buttons/create', 'Buttons::create');
+    $routes->post('buttons/store', 'Buttons::store');
+    $routes->get('buttons/edit/(:segment)', 'Buttons::edit/$1');
+    $routes->post('buttons/update/(:segment)', 'Buttons::update/$1');
+    $routes->get('buttons/delete/(:segment)', 'Buttons::delete/$1');
+    $routes->get('buttons/view/(:segment)', 'Buttons::view/$1');
+    
+    // API Users Management
+    $routes->get('api-users', 'ApiUsers::index');
+    $routes->get('api-users/create', 'ApiUsers::create');
+    $routes->post('api-users/store', 'ApiUsers::store');
+    $routes->get('api-users/edit/(:segment)', 'ApiUsers::edit/$1');
+    $routes->post('api-users/update/(:segment)', 'ApiUsers::update/$1');
+    $routes->get('api-users/delete/(:segment)', 'ApiUsers::delete/$1');
+    $routes->get('api-users/view/(:segment)', 'ApiUsers::view/$1');
+});
+
+/*
+ * --------------------------------------------------------------------
+ * Admin Routes (requires superadmin role)
+ * --------------------------------------------------------------------
+ */
+$routes->group('admin', ['filter' => 'auth:superadmin'], function($routes) {
+    // Admin dashboard
+    $routes->get('dashboard', 'Admin::dashboard');
+    
+    // Tenants Management
+    $routes->get('tenants', 'Admin::tenants');
+    $routes->get('tenants/view/(:segment)', 'Admin::viewTenant/$1');
+    $routes->get('tenants/create', 'Admin::createTenant');
+    $routes->post('tenants/store', 'Admin::storeTenant');
+    $routes->get('tenants/edit/(:segment)', 'Admin::editTenant/$1');
+    $routes->post('tenants/update/(:segment)', 'Admin::updateTenant/$1');
+    $routes->get('tenants/delete/(:segment)', 'Admin::deleteTenant/$1');
+    
+    // API Users Management (admin section)
+    $routes->get('tenants/(:segment)/users', 'Admin::tenantApiUsers/$1');
+    $routes->get('tenants/(:segment)/users/create', 'Admin::createApiUser/$1');
+    $routes->post('tenants/(:segment)/users/store', 'Admin::storeApiUser/$1');
+    $routes->get('tenants/(:segment)/users/(:segment)/edit', 'Admin::editApiUser/$1/$2');
+    $routes->post('tenants/(:segment)/users/(:segment)/update', 'Admin::updateApiUser/$1/$2');
+    $routes->get('tenants/(:segment)/users/(:segment)/delete', 'Admin::deleteApiUser/$1/$2');
+    $routes->get('tenants/(:segment)/users/(:segment)/usage', 'Admin::apiUserUsage/$1/$2');
+    
+    // Tenant button management
+    $routes->get('tenants/(:segment)/buttons', 'Admin::tenantButtons/$1');
+    $routes->get('tenants/(:segment)/buttons/create', 'Admin::createButton/$1');
+    $routes->post('tenants/(:segment)/buttons/store', 'Admin::storeButton/$1');
+    $routes->get('tenants/(:segment)/buttons/(:segment)/edit', 'Admin::editButton/$1/$2');
+    $routes->post('tenants/(:segment)/buttons/(:segment)/update', 'Admin::updateButton/$1/$2');
+    $routes->get('tenants/(:segment)/buttons/(:segment)/delete', 'Admin::deleteButton/$1/$2');
+});
+
+/*
+ * --------------------------------------------------------------------
+ * Migration Routes (protected, admin only)
+ * --------------------------------------------------------------------
+ */
+$routes->group('', ['filter' => 'auth:superadmin'], function($routes) {
+    $routes->get('migrate', 'Migrate::index');
+    $routes->get('migrate/version/(:num)', 'Migrate::version/$1');
+    $routes->get('migrate/reset', 'Migrate::reset');
+    $routes->get('migrate/status', 'Migrate::status');
+});
+
+/*
+ * --------------------------------------------------------------------
+ * API Routes (requires JWT authentication)
+ * --------------------------------------------------------------------
+ */
+$routes->group('api', ['filter' => 'jwt'], function($routes) {
+    // LLM Proxy endpoints
+    $routes->post('enhance', 'Api::enhance');
+    
+    // Button management endpoints
+    $routes->get('buttons', 'Api::getButtons');
+    $routes->post('buttons', 'Api::createButton');
+    $routes->put('buttons/(:segment)', 'Api::updateButton/$1');
+    $routes->delete('buttons/(:segment)', 'Api::deleteButton/$1');
+});
+
+/*
+ * --------------------------------------------------------------------
  * LLM Proxy Routes
  * --------------------------------------------------------------------
  */
 
 // Main endpoint for proxy requests
 $routes->post('api/llm-proxy', 'LlmProxy::index');
-$routes->options('api/llm-proxy', 'LlmProxy::options');
 
-// Asegúrate de que tengas estas líneas:
+// CORS preflight requests
 $routes->options('api/llm-proxy', 'LlmProxy::options');
 $routes->options('api/llm-proxy/(:any)', 'LlmProxy::options/$1');
 
@@ -49,11 +164,9 @@ $routes->options('api/llm-proxy/(:any)', 'LlmProxy::options/$1');
 $routes->post('api/llm-proxy/secure', 'LlmProxy::index', ['filter' => 'jwt']);
 $routes->options('api/llm-proxy/secure', 'LlmProxy::options');
 
-// Quota check endpoint
+// Quota endpoints
 $routes->get('api/quota', 'LlmProxy::quota');
 $routes->options('api/quota', 'LlmProxy::options');
-
-// JWT secured quota endpoint
 $routes->get('api/quota/secure', 'LlmProxy::quota', ['filter' => 'jwt']);
 $routes->options('api/quota/secure', 'LlmProxy::options');
 
@@ -66,92 +179,14 @@ $routes->get('api/llm-proxy/status', 'LlmProxy::status');
 // Connection test endpoint
 $routes->get('api/llm-proxy/test-connection', 'LlmProxy::test_connection');
 
-// CORS test routes
-$routes->get('test/cors', 'CorsTest::index');
-$routes->options('test/cors', 'CorsTest::options');
-
-// Usage dashboard routes
-$routes->get('usage', 'Usage::index');
-$routes->get('usage/logs', 'Usage::logs');
-$routes->get('usage/logs/(:num)', 'Usage::logs/$1');
-$routes->get('usage/quotas', 'Usage::quotas');
-$routes->get('usage/providers', 'Usage::providers');
-$routes->get('usage/cache', 'Usage::cache');
-
-// Tenants dashboard routes
-$routes->get('tenants', 'Tenants::index');
-$routes->get('tenants/create', 'Tenants::create');
-$routes->post('tenants/create', 'Tenants::create');
-$routes->get('tenants/edit/(:num)', 'Tenants::edit/$1');
-$routes->post('tenants/edit/(:num)', 'Tenants::edit/$1');
-$routes->get('tenants/delete/(:num)', 'Tenants::delete/$1');
-$routes->get('tenants/view/(:num)', 'Tenants::view/$1');
-
-// Tenant user management routes
-$routes->get('tenants/users/(:num)', 'Tenants::users/$1');
-$routes->get('tenants/add_user/(:num)', 'Tenants::add_user/$1');
-$routes->post('tenants/add_user/(:num)', 'Tenants::add_user/$1');
-$routes->get('tenants/remove_user/(:num)', 'Tenants::remove_user/$1');
-$routes->get('tenants/usage/(:num)', 'Tenants::usage/$1');
-$routes->get('tenants/logs/(:num)', 'Tenants::logs/$1');
-$routes->get('tenants/quotas/(:num)', 'Tenants::quotas/$1');
-$routes->get('tenants/cache/(:num)', 'Tenants::cache/$1');
-
-$routes->get('tenants/edit_user/(:num)', 'Tenants::edit_user/$1');
-$routes->post('tenants/edit_user/(:num)', 'Tenants::edit_user/$1');
-
-// Button routes
-$routes->get('buttons/(:num)', 'Buttons::index/$1');
-$routes->get('buttons/create/(:num)', 'Buttons::create/$1');
-$routes->post('buttons/create/(:num)', 'Buttons::create/$1');
-$routes->get('buttons/edit/(:num)', 'Buttons::edit/$1');
-$routes->post('buttons/edit/(:num)', 'Buttons::edit/$1');
-$routes->get('buttons/delete/(:num)', 'Buttons::delete/$1');
-$routes->get('buttons/view/(:num)', 'Buttons::view/$1');
-
-// Gestión de cuotas
-$routes->get('users/usage/(:segment)/(:segment)', 'Users::viewUsage/$1/$2');
-$routes->post('users/reset-usage/(:segment)/(:segment)', 'Users::resetUsage/$1/$2');
-
-
-// Migration routes for database setup
-$routes->get('migrate', 'Migrate::index');
-$routes->get('migrate/version/(:num)', 'Migrate::version/$1');
-$routes->get('migrate/reset', 'Migrate::reset');
-$routes->get('migrate/status', 'Migrate::status');
-
-// Authentication routes
-$routes->get('auth/login', 'Auth::login');
-$routes->post('auth/login', 'Auth::login');
-$routes->get('auth/logout', 'Auth::logout');
-$routes->get('auth/profile', 'Auth::profile');
-$routes->post('auth/profile', 'Auth::updateProfile');
-
 // JWT API Authentication routes
 $routes->post('api/auth/login', 'Auth::apiLogin');
 $routes->post('api/auth/refresh', 'Auth::refreshToken');
-
-// API Token Management Routes
-$routes->get('api/tokens', 'ApiToken::index');
-$routes->get('api/tokens/create', 'ApiToken::create');
-$routes->post('api/tokens/store', 'ApiToken::store');
-$routes->get('api/tokens/revoke/(:num)', 'ApiToken::revoke/$1');
-
-// Test route for token validation
-$routes->get('api/validate-token', 'ApiToken::validateToken', ['filter' => 'jwt']);
 
 /*
  * --------------------------------------------------------------------
  * Additional Routing
  * --------------------------------------------------------------------
- *
- * There will often be times that you need additional routing and you
- * need it to be able to override any defaults in this file. Environment
- * based routes is one such time. require() additional route files here
- * to make that happen.
- *
- * You will have access to the $routes object within that file without
- * needing to reload it.
  */
 if (is_file(APPPATH . 'Config/' . ENVIRONMENT . '/Routes.php')) {
     require APPPATH . 'Config/' . ENVIRONMENT . '/Routes.php';

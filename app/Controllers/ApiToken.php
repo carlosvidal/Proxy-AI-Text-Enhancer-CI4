@@ -4,16 +4,21 @@ namespace App\Controllers;
 
 use CodeIgniter\Controller;
 use App\Models\ApiTokenModel;
-use App\Models\UserModel;
+use App\Models\UsersModel;
+use App\Models\TenantsModel;
 
 class ApiToken extends Controller
 {
     protected $apiTokenModel;
+    protected $usersModel;
+    protected $tenantsModel;
 
     public function __construct()
     {
         helper(['url', 'form', 'jwt']);
         $this->apiTokenModel = new ApiTokenModel();
+        $this->usersModel = new UsersModel();
+        $this->tenantsModel = new TenantsModel();
     }
 
     /**
@@ -33,7 +38,7 @@ class ApiToken extends Controller
         $userId = session()->get('id');
         $data['tokens'] = $this->apiTokenModel->getUserTokens($userId);
 
-        return view('api_tokens/index', $data);
+        return view('shared/api_tokens/index', $data);
     }
 
     /**
@@ -52,11 +57,10 @@ class ApiToken extends Controller
 
         // Load tenants for dropdown if admin
         if (session()->get('role') === 'admin') {
-            $tenantsModel = new \App\Models\TenantsModel();
-            $data['tenants'] = $tenantsModel->findAll();
+            $data['tenants'] = $this->tenantsModel->findAll();
         }
 
-        return view('api_tokens/create', $data);
+        return view('shared/api_tokens/create', $data);
     }
 
     /**

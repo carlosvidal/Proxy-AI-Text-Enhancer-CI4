@@ -19,14 +19,16 @@ class Filters extends BaseConfig
      *                                                     or [filter_name => [classname1, classname2, ...]]
      */
     public array $aliases = [
+        'csrf'     => \CodeIgniter\Filters\CSRF::class,
+        'toolbar'  => \CodeIgniter\Filters\DebugToolbar::class,
+        'honeypot' => \CodeIgniter\Filters\Honeypot::class,
+        'role'     => \App\Filters\RoleFilter::class,
         'cors' => \App\Filters\CorsFilter::class, // CORS filter
-        'csrf'          => CSRF::class,
-        'toolbar'       => DebugToolbar::class,
-        'honeypot'      => Honeypot::class,
         'invalidchars'  => InvalidChars::class,
         'secureheaders' => SecureHeaders::class,
         'auth' => \App\Filters\AuthFilter::class,
         'jwt' => \App\Filters\JwtFilter::class, // Added JWT filter
+        'compress' => \App\Filters\CompressionFilter::class, // Added compression filter
     ];
 
     /**
@@ -37,10 +39,9 @@ class Filters extends BaseConfig
      */
     public array $globals = [
         'before' => [
-            // 'honeypot',
             // 'csrf',
-            // 'invalidchars',
-            'cors',  // CORS filter
+            'honeypot',
+            'invalidchars',
         ],
         'after' => [
             'toolbar',
@@ -86,6 +87,14 @@ class Filters extends BaseConfig
             'before' => [
                 'api/llm-proxy/secure',  // Example of a secured endpoint
                 'api/quota/secure',      // Example of a secured quota endpoint
+            ]
+        ],
+        'compress' => [
+            'after' => [
+                'api/llm-proxy/*',  // All LLM proxy endpoints
+                'api/quota/*',      // All quota endpoints
+                'api/*/stats',      // Any stats endpoints
+                'api/*/usage',      // Any usage endpoints
             ]
         ],
     ];

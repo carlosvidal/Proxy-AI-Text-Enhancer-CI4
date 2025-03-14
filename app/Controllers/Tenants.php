@@ -43,10 +43,11 @@ class Tenants extends Controller
 
         // Get buttons for this tenant
         $buttonsModel = new \App\Models\ButtonsModel();
-        $data['buttons'] = $buttonsModel->getButtonsByTenant($data['tenant']['tenant_id']);
+        $data['buttons'] = $buttonsModel->getButtonsWithStatsByTenant($data['tenant']['tenant_id']);
 
         return view('tenants/view', $data);
     }
+
     /**
      * Crear un nuevo tenant
      */
@@ -54,11 +55,16 @@ class Tenants extends Controller
     {
         $data['title'] = 'Create Tenant';
 
+        // Load plans for the dropdown
+        $planModel = new \App\Models\PlanModel();
+        $data['plans'] = $planModel->findAll();
+
         if ($this->request->getMethod() === 'post') {
             $rules = [
                 'name' => 'required|min_length[3]|max_length[255]',
                 'email' => 'required|valid_email',
-                'quota' => 'required|numeric'
+                'quota' => 'required|numeric',
+                'plan_code' => 'required|alpha_dash'
             ];
 
             if ($this->validate($rules)) {
@@ -70,8 +76,10 @@ class Tenants extends Controller
                     'name' => $this->request->getPost('name'),
                     'email' => $this->request->getPost('email'),
                     'quota' => $this->request->getPost('quota'),
+                    'plan_code' => $this->request->getPost('plan_code'),
                     'active' => 1,
-                    'created_at' => date('Y-m-d H:i:s')
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s')
                 ];
 
                 if ($this->tenantsModel->insert($tenantData)) {

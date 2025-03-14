@@ -3,289 +3,234 @@
 namespace App\Controllers;
 
 use CodeIgniter\Controller;
-use App\Models\UserModel;
+use App\Models\UsersModel;
+use App\Models\TenantsModel;
+use App\Models\TenantUsersModel;
 
 class Auth extends Controller
 {
+    protected $usersModel;
+    protected $tenantsModel;
+    protected $tenantUsersModel;
+
     public function __construct()
     {
-        // Load necessary helpers
-        helper(['url', 'form', 'jwt']);
+        helper(['url', 'form']);
+        $this->usersModel = new UsersModel();
+        $this->tenantsModel = new TenantsModel();
+        $this->tenantUsersModel = new TenantUsersModel();
     }
 
     public function login()
     {
-        // If already logged in, redirect to dashboard
+        // If already logged in, redirect based on role
         if (session()->get('isLoggedIn')) {
-            return redirect()->to('usage');
+            if (session()->get('role') === 'superadmin') {
+                return redirect()->to('admin/dashboard');
+            }
+            return redirect()->to('buttons');
         }
 
-        $data = [
-            'title' => 'Login - LLM Proxy'
-        ];
-
+        // If this is a POST request, handle login attempt
         if ($this->request->getMethod() === 'post') {
             $rules = [
-                'username' => 'required',
-                'password' => 'required'
+                'username' => 'required|min_length[3]|max_length[50]',
+                'password' => 'required|min_length[3]|max_length[255]'
             ];
 
-            if ($this->validate($rules)) {
-                $model = new UserModel();
-                $user = $model->checkCredentials(
-                    $this->request->getPost('username'),
-                    $this->request->getPost('password')
-                );
-
-                if ($user) {
-                    // Set session data
-                    $sessionData = [
-                        'id' => $user['id'],
-                        'username' => $user['username'],
-                        'email' => $user['email'],
-                        'name' => $user['name'],
-                        'role' => $user['role'],
-                        'isLoggedIn' => true
-                    ];
-
-                    session()->set($sessionData);
-
-                    // Check if the last_login column exists before updating it
-                    $db = db_connect();
-                    $tableInfo = $db->getFieldData('admin_users');
-                    $hasLastLoginColumn = false;
-
-                    foreach ($tableInfo as $field) {
-                        if ($field->name === 'last_login') {
-                            $hasLastLoginColumn = true;
-                            break;
-                        }
-                    }
-
-                    // Only update last_login if the column exists
-                    if ($hasLastLoginColumn) {
-                        $model->update($user['id'], ['last_login' => date('Y-m-d H:i:s')]);
-                    }
-
-                    return redirect()->to('usage');
-                } else {
-                    return redirect()->back()
-                        ->with('error', 'Invalid username or password')
-                        ->withInput();
-                }
-            } else {
+            if (!$this->validate($rules)) {
                 return redirect()->back()
-                    ->with('error', $this->validator->getErrors())
-                    ->withInput();
+                    ->withInput()
+                    ->with('error', $this->validator->getErrors());
             }
-        }
 
-        return view('auth/login', $data);
-    }
+            $username = trim($this->request->getPost('username'));
+            $password = trim($this->request->getPost('password'));
 
-    /**
-     * API Login endpoint - Returns JWT token
-     */
-    public function apiLogin()
-    {
-        // Get JSON data
-        $json = $this->request->getJSON();
+            // First try to find by username
+            $user = $this->usersModel->where('username', $username)->first();
+            
+            // If not found by username, try email
+            if (!$user) {
+                $user = $this->usersModel->where('email', $username)->first();
+            }
 
-        if (!isset($json->username) || !isset($json->password)) {
-            return $this->response->setStatusCode(400)
-                ->setJSON([
-                    'error' => [
-                        'message' => 'Username and password are required'
-                    ]
-                ]);
-        }
+            if (!$user) {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', 'Usuario no encontrado');
+            }
 
-        $model = new UserModel();
-        $user = $model->checkCredentials(
-            $json->username,
-            $json->password
-        );
+            if (!$user['active']) {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', 'La cuenta está inactiva');
+            }
 
-        if (!$user) {
-            return $this->response->setStatusCode(401)
-                ->setJSON([
-                    'error' => [
-                        'message' => 'Invalid username or password'
-                    ]
-                ]);
-        }
+            if (!password_verify($password, $user['password'])) {
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', 'Usuario o contraseña incorrectos');
+            }
 
-        // Generate JWT token
-        $payload = [
-            'id' => $user['id'],
-            'username' => $user['username'],
-            'email' => $user['email'],
-            'name' => $user['name'],
-            'role' => $user['role']
-        ];
+            // Update last login
+            $this->usersModel->update($user['id'], [
+                'last_login' => date('Y-m-d H:i:s')
+            ]);
 
-        $token = generate_jwt($payload);
-
-        // Generate refresh token with longer expiration
-        $refreshToken = generate_jwt([
-            'id' => $user['id'],
-            'type' => 'refresh'
-        ], 86400 * 30); // 30 days
-
-        // Update last login time
-        $model->updateLastLogin($user['id']);
-
-        return $this->response->setJSON([
-            'access_token' => $token,
-            'token_type' => 'bearer',
-            'expires_in' => 3600,
-            'refresh_token' => $refreshToken,
-            'user' => [
+            // Set basic session data
+            $sessionData = [
                 'id' => $user['id'],
                 'username' => $user['username'],
-                'name' => $user['name'],
                 'email' => $user['email'],
-                'role' => $user['role']
-            ]
-        ]);
-    }
+                'role' => $user['role'],
+                'isLoggedIn' => true
+            ];
 
-    /**
-     * Refresh JWT token
-     */
-    public function refreshToken()
-    {
-        // Get JSON data
-        $json = $this->request->getJSON();
+            // If user is a tenant, get their tenant information
+            if ($user['role'] === 'tenant') {
+                // Get tenant information using tenant_id from users table
+                $tenant = null;
+                if (!empty($user['tenant_id'])) {
+                    $tenant = $this->tenantsModel->where('tenant_id', $user['tenant_id'])
+                        ->where('active', 1)
+                        ->first();
+                }
 
-        if (!isset($json->refresh_token)) {
-            return $this->response->setStatusCode(400)
-                ->setJSON([
-                    'error' => [
-                        'message' => 'Refresh token is required'
-                    ]
-                ]);
+                // If no tenant exists, create a demo tenant
+                if (!$tenant) {
+                    $tenant_id = 'demo_' . bin2hex(random_bytes(4));
+                    $tenant = [
+                        'tenant_id' => $tenant_id,
+                        'name' => 'Demo Tenant',
+                        'email' => $user['email'],
+                        'quota' => 1000,
+                        'active' => 1,
+                        'subscription_status' => 'trial',
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s')
+                    ];
+
+                    // Insert tenant
+                    $this->tenantsModel->insert($tenant);
+
+                    // Update user's tenant_id
+                    $this->usersModel->update($user['id'], ['tenant_id' => $tenant_id]);
+
+                    // Associate user with tenant
+                    $this->tenantUsersModel->insert([
+                        'tenant_id' => $tenant_id,
+                        'user_id' => $user['id'],
+                        'active' => 1,
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s')
+                    ]);
+
+                    // Refresh tenant data
+                    $tenant = $this->tenantsModel->where('tenant_id', $tenant_id)->first();
+                }
+
+                // Add tenant data to session
+                $sessionData['tenant_id'] = $tenant['tenant_id'];
+                $sessionData['tenant_name'] = $tenant['name'];
+            }
+
+            // Set session data
+            session()->set($sessionData);
+
+            // Redirect based on role
+            if ($user['role'] === 'superadmin') {
+                return redirect()->to('admin/dashboard');
+            }
+
+            // For tenant users, redirect to buttons page
+            return redirect()->to('buttons');
         }
-
-        // Validate refresh token
-        $tokenData = validate_jwt($json->refresh_token);
-
-        if (!$tokenData || !isset($tokenData->data->id) || !isset($tokenData->data->type) || $tokenData->data->type !== 'refresh') {
-            return $this->response->setStatusCode(401)
-                ->setJSON([
-                    'error' => [
-                        'message' => 'Invalid refresh token'
-                    ]
-                ]);
-        }
-
-        // Get user data
-        $model = new UserModel();
-        $user = $model->find($tokenData->data->id);
-
-        if (!$user) {
-            return $this->response->setStatusCode(401)
-                ->setJSON([
-                    'error' => [
-                        'message' => 'User not found'
-                    ]
-                ]);
-        }
-
-        // Generate new access token
-        $payload = [
-            'id' => $user['id'],
-            'username' => $user['username'],
-            'email' => $user['email'],
-            'name' => $user['name'],
-            'role' => $user['role']
-        ];
-
-        $token = generate_jwt($payload);
-
-        return $this->response->setJSON([
-            'access_token' => $token,
-            'token_type' => 'bearer',
-            'expires_in' => 3600
+        
+        // If this is a GET request, show login form
+        return view('auth/login', [
+            'title' => 'Login'
         ]);
     }
 
     public function logout()
     {
         session()->destroy();
-        return redirect()->to('auth/login');
+        return redirect()->to('auth/login')
+            ->with('message', 'Has cerrado sesión correctamente');
     }
 
     public function profile()
     {
-        // Check if logged in
         if (!session()->get('isLoggedIn')) {
-            return redirect()->to('auth/login');
+            return redirect()->to('/auth/login');
         }
 
         $data = [
-            'title' => 'My Profile'
+            'title' => 'Mi Perfil',
+            'user' => $this->usersModel->find(session()->get('id'))
         ];
 
-        $model = new UserModel();
-        $data['user'] = $model->find(session()->get('id'));
+        // If tenant user, get tenant information
+        if (session()->get('role') === 'tenant') {
+            $tenant = $this->tenantsModel->where('tenant_id', session()->get('tenant_id'))
+                ->where('active', 1)
+                ->first();
+            $data['tenant'] = $tenant;
+        }
 
         return view('auth/profile', $data);
     }
 
     public function updateProfile()
     {
-        // Check if logged in
         if (!session()->get('isLoggedIn')) {
-            return redirect()->to('auth/login');
+            return redirect()->to('/auth/login');
         }
 
-        if ($this->request->getMethod() === 'post') {
-            $rules = [
-                'name' => 'required',
-                'email' => 'required|valid_email'
-            ];
+        $rules = [
+            'email' => 'required|valid_email',
+            'current_password' => 'permit_empty|min_length[3]',
+            'new_password' => 'permit_empty|min_length[3]',
+            'confirm_password' => 'matches[new_password]'
+        ];
 
-            // If a new password is provided, validate it
-            if ($this->request->getPost('password')) {
-                $rules['password'] = 'required|min_length[8]';
-                $rules['password_confirm'] = 'matches[password]';
-            }
+        if (!$this->validate($rules)) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', $this->validator->getErrors());
+        }
 
-            if ($this->validate($rules)) {
-                $model = new UserModel();
-                $id = session()->get('id');
+        $id = session()->get('id');
+        $user = $this->usersModel->find($id);
 
-                $userData = [
-                    'name' => $this->request->getPost('name'),
-                    'email' => $this->request->getPost('email'),
-                    'updated_at' => date('Y-m-d H:i:s')
-                ];
+        $data = [
+            'email' => $this->request->getPost('email')
+        ];
 
-                // Update password if provided
-                if ($this->request->getPost('password')) {
-                    $userData['password'] = password_hash($this->request->getPost('password'), PASSWORD_DEFAULT);
-                }
+        // Handle password change if requested
+        $current_password = $this->request->getPost('current_password');
+        $new_password = $this->request->getPost('new_password');
 
-                if ($model->update($id, $userData)) {
-                    // Update session data
-                    session()->set('name', $userData['name']);
-                    session()->set('email', $userData['email']);
-
-                    return redirect()->to('auth/profile')
-                        ->with('success', 'Profile updated successfully');
-                } else {
-                    return redirect()->back()
-                        ->with('error', 'Error updating profile')
-                        ->withInput();
-                }
-            } else {
+        if (!empty($current_password) && !empty($new_password)) {
+            // Verify current password
+            if (!password_verify($current_password, $user['password'])) {
                 return redirect()->back()
-                    ->with('error', $this->validator->getErrors())
-                    ->withInput();
+                    ->with('error', 'La contraseña actual es incorrecta');
             }
+            $data['password'] = password_hash($new_password, PASSWORD_DEFAULT);
         }
 
-        return redirect()->to('auth/profile');
+        if ($this->usersModel->update($id, $data)) {
+            // Update session email if it was changed
+            session()->set('email', $data['email']);
+
+            return redirect()->back()
+                ->with('success', 'Perfil actualizado correctamente');
+        }
+
+        return redirect()->back()
+            ->withInput()
+            ->with('error', 'Error al actualizar el perfil');
     }
 }
