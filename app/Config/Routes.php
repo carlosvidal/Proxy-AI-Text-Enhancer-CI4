@@ -67,19 +67,20 @@ $routes->group('', ['filter' => 'auth:tenant'], function($routes) {
     // Buttons Management
     $routes->get('buttons', 'Buttons::index');
     $routes->get('buttons/create', 'Buttons::create');
-    $routes->post('buttons/create', 'Buttons::create');
+    $routes->post('buttons/store', 'Buttons::store');
     $routes->get('buttons/edit/(:segment)', 'Buttons::edit/$1');
-    $routes->post('buttons/edit/(:segment)', 'Buttons::edit/$1');
+    $routes->post('buttons/update/(:segment)', 'Buttons::update/$1');
     $routes->get('buttons/delete/(:segment)', 'Buttons::delete/$1');
     $routes->get('buttons/view/(:segment)', 'Buttons::view/$1');
     
     // API Users Management
-    $routes->get('api-users', 'TenantUsers::index');
-    $routes->get('api-users/create', 'TenantUsers::create');
-    $routes->post('api-users/create', 'TenantUsers::create');
-    $routes->get('api-users/edit/(:num)', 'TenantUsers::edit/$1');
-    $routes->post('api-users/edit/(:num)', 'TenantUsers::edit/$1');
-    $routes->get('api-users/delete/(:num)', 'TenantUsers::delete/$1');
+    $routes->get('api-users', 'ApiUsers::index');
+    $routes->get('api-users/create', 'ApiUsers::create');
+    $routes->post('api-users/store', 'ApiUsers::store');
+    $routes->get('api-users/edit/(:segment)', 'ApiUsers::edit/$1');
+    $routes->post('api-users/update/(:segment)', 'ApiUsers::update/$1');
+    $routes->get('api-users/delete/(:segment)', 'ApiUsers::delete/$1');
+    $routes->get('api-users/view/(:segment)', 'ApiUsers::view/$1');
 });
 
 /*
@@ -95,26 +96,26 @@ $routes->group('admin', ['filter' => 'auth:superadmin'], function($routes) {
     $routes->get('tenants', 'Admin::tenants');
     $routes->get('tenants/view/(:segment)', 'Admin::viewTenant/$1');
     $routes->get('tenants/create', 'Admin::createTenant');
-    $routes->post('tenants/create', 'Admin::storeTenant');
+    $routes->post('tenants/store', 'Admin::storeTenant');
     $routes->get('tenants/edit/(:segment)', 'Admin::editTenant/$1');
-    $routes->post('tenants/edit/(:segment)', 'Admin::updateTenant/$1');
+    $routes->post('tenants/update/(:segment)', 'Admin::updateTenant/$1');
     $routes->get('tenants/delete/(:segment)', 'Admin::deleteTenant/$1');
     
     // API Users Management (admin section)
     $routes->get('tenants/(:segment)/users', 'Admin::tenantApiUsers/$1');
     $routes->get('tenants/(:segment)/users/create', 'Admin::createApiUser/$1');
-    $routes->post('tenants/(:segment)/users/create', 'Admin::storeApiUser/$1');
+    $routes->post('tenants/(:segment)/users/store', 'Admin::storeApiUser/$1');
     $routes->get('tenants/(:segment)/users/(:segment)/edit', 'Admin::editApiUser/$1/$2');
-    $routes->post('tenants/(:segment)/users/(:segment)/edit', 'Admin::updateApiUser/$1/$2');
+    $routes->post('tenants/(:segment)/users/(:segment)/update', 'Admin::updateApiUser/$1/$2');
     $routes->get('tenants/(:segment)/users/(:segment)/delete', 'Admin::deleteApiUser/$1/$2');
     $routes->get('tenants/(:segment)/users/(:segment)/usage', 'Admin::apiUserUsage/$1/$2');
     
     // Tenant button management
     $routes->get('tenants/(:segment)/buttons', 'Admin::tenantButtons/$1');
     $routes->get('tenants/(:segment)/buttons/create', 'Admin::createButton/$1');
-    $routes->post('tenants/(:segment)/buttons/create', 'Admin::storeButton/$1');
+    $routes->post('tenants/(:segment)/buttons/store', 'Admin::storeButton/$1');
     $routes->get('tenants/(:segment)/buttons/(:segment)/edit', 'Admin::editButton/$1/$2');
-    $routes->post('tenants/(:segment)/buttons/(:segment)/edit', 'Admin::updateButton/$1/$2');
+    $routes->post('tenants/(:segment)/buttons/(:segment)/update', 'Admin::updateButton/$1/$2');
     $routes->get('tenants/(:segment)/buttons/(:segment)/delete', 'Admin::deleteButton/$1/$2');
 });
 

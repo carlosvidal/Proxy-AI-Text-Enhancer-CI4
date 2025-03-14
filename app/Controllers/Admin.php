@@ -50,7 +50,7 @@ class Admin extends BaseController
         ];
 
         // Get recent tenants with their usage stats
-        $recentTenants = $this->tenantsModel->orderBy('created_at', 'DESC')->findAll(5);
+        $recentTenants = $this->tenantsModel->orderBy('created_at', 'DESC')->asArray()->findAll(5);
         foreach ($recentTenants as &$tenant) {
             // Get API user count
             $tenant['api_users'] = $this->tenantUsersModel->where('tenant_id', $tenant['tenant_id'])->countAllResults();
@@ -96,7 +96,7 @@ class Admin extends BaseController
         }
 
         // Get all tenants
-        $tenants = $this->tenantsModel->orderBy('created_at', 'DESC')->findAll();
+        $tenants = $this->tenantsModel->orderBy('created_at', 'DESC')->asArray()->findAll();
 
         // Get usage statistics for each tenant
         $db = \Config\Database::connect();
@@ -132,13 +132,13 @@ class Admin extends BaseController
             return redirect()->to('/auth/login');
         }
 
-        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->first();
+        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->asArray()->first();
         if (!$tenant) {
             return redirect()->to('admin/tenants')->with('error', 'Tenant not found');
         }
 
         // Get API users for this tenant with their usage statistics
-        $apiUsers = $this->tenantUsersModel->where('tenant_id', $tenant['tenant_id'])->findAll();
+        $apiUsers = $this->tenantUsersModel->where('tenant_id', $tenant['tenant_id'])->asArray()->findAll();
         
         // Get usage statistics for each API user
         $db = \Config\Database::connect();
@@ -153,7 +153,7 @@ class Admin extends BaseController
         }
 
         // Get buttons with their usage statistics
-        $buttons = $this->buttonsModel->where('tenant_id', $tenant['tenant_id'])->findAll();
+        $buttons = $this->buttonsModel->where('tenant_id', $tenant['tenant_id'])->asArray()->findAll();
         foreach ($buttons as &$button) {
             // Get button usage statistics
             $usage = $db->query("
@@ -242,40 +242,57 @@ class Admin extends BaseController
             return redirect()->to('/auth/login');
         }
 
-        if ($this->request->getMethod() === 'post') {
-            // Validate input
-            $rules = [
-                'tenant_id' => 'required|min_length[3]|is_unique[tenants.tenant_id]',
-                'name' => 'required|min_length[3]',
-                'email' => 'required|valid_email',
-                'subscription_status' => 'required|in_list[trial,active,expired]',
-                'active' => 'permit_empty|in_list[0,1]'
-            ];
+        $data = [
+            'title' => 'Create New Tenant'
+        ];
 
-            if ($this->validate($rules)) {
-                // Create tenant
-                $this->tenantsModel->insert([
-                    'tenant_id' => $this->request->getPost('tenant_id'),
+        return view('admin/create_tenant', $data);
+    }
+
+    public function storeTenant()
+    {
+        // Check if user is logged in and is superadmin
+        if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
+            return redirect()->to('/auth/login');
+        }
+
+        // Validate input
+        $rules = [
+            'name' => 'required|min_length[3]',
+            'email' => 'required|valid_email',
+            'subscription_status' => 'required|in_list[trial,active,expired]',
+            'active' => 'permit_empty|in_list[0,1]'
+        ];
+
+        if ($this->validate($rules)) {
+            try {
+                helper('hash');
+                // Create tenant with auto-generated ID
+                $tenantData = [
+                    'tenant_id' => generate_hash_id('ten'),
                     'name' => $this->request->getPost('name'),
                     'email' => $this->request->getPost('email'),
                     'subscription_status' => $this->request->getPost('subscription_status'),
                     'active' => $this->request->getPost('active') ?? 1,
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s')
-                ]);
+                ];
+
+                $this->tenantsModel->insert($tenantData);
 
                 return redirect()->to('admin/tenants')
                     ->with('success', 'Tenant created successfully');
+            } catch (\Exception $e) {
+                log_message('error', 'Error creating tenant: ' . $e->getMessage());
+                return redirect()->back()
+                    ->with('error', 'Failed to create tenant. Please try again.')
+                    ->withInput();
             }
-
-            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
-        $data = [
-            'title' => 'Create Tenant'
-        ];
-
-        return view('admin/create_tenant', $data);
+        return redirect()->back()
+            ->withInput()
+            ->with('errors', $this->validator->getErrors());
     }
 
     public function editTenant($tenantId)
@@ -285,21 +302,41 @@ class Admin extends BaseController
             return redirect()->to('/auth/login');
         }
 
-        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->first();
+        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->asArray()->first();
         if (!$tenant) {
             return redirect()->to('admin/tenants')->with('error', 'Tenant not found');
         }
 
-        if ($this->request->getMethod() === 'post') {
-            // Validate input
-            $rules = [
-                'name' => 'required|min_length[3]',
-                'email' => 'required|valid_email',
-                'subscription_status' => 'required|in_list[trial,active,expired]',
-                'active' => 'permit_empty|in_list[0,1]'
-            ];
+        $data = [
+            'title' => 'Edit Tenant - ' . $tenant['name'],
+            'tenant' => $tenant
+        ];
 
-            if ($this->validate($rules)) {
+        return view('admin/tenant_edit', $data);
+    }
+
+    public function updateTenant($tenantId)
+    {
+        // Check if user is logged in and is superadmin
+        if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
+            return redirect()->to('/auth/login');
+        }
+
+        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->asArray()->first();
+        if (!$tenant) {
+            return redirect()->to('admin/tenants')->with('error', 'Tenant not found');
+        }
+
+        // Validate input
+        $rules = [
+            'name' => 'required|min_length[3]',
+            'email' => 'required|valid_email',
+            'subscription_status' => 'required|in_list[trial,active,expired]',
+            'active' => 'permit_empty|in_list[0,1]'
+        ];
+
+        if ($this->validate($rules)) {
+            try {
                 // Update tenant using tenant_id
                 $this->tenantsModel->where('tenant_id', $tenantId)->set([
                     'name' => $this->request->getPost('name'),
@@ -311,17 +348,17 @@ class Admin extends BaseController
 
                 return redirect()->to('admin/tenants')
                     ->with('success', 'Tenant updated successfully');
+            } catch (\Exception $e) {
+                log_message('error', 'Error updating tenant: ' . $e->getMessage());
+                return redirect()->back()
+                    ->with('error', 'Failed to update tenant. Please try again.')
+                    ->withInput();
             }
-
-            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
-        $data = [
-            'title' => 'Edit Tenant - ' . $tenant['name'],
-            'tenant' => $tenant
-        ];
-
-        return view('admin/tenant_edit', $data);
+        return redirect()->back()
+            ->withInput()
+            ->with('errors', $this->validator->getErrors());
     }
 
     public function deleteTenant($tenantId)
@@ -331,7 +368,7 @@ class Admin extends BaseController
             return redirect()->to('/auth/login');
         }
 
-        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->first();
+        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->asArray()->first();
         if (!$tenant) {
             return redirect()->to('admin/tenants')->with('error', 'Tenant not found');
         }
@@ -351,13 +388,16 @@ class Admin extends BaseController
         }
 
         // Get tenant details
-        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->first();
+        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->asArray()->first();
         if (!$tenant) {
             return redirect()->to('admin/tenants')->with('error', 'Tenant not found');
         }
 
-        // Get API users (not system users)
-        $users = $this->tenantUsersModel->where('tenant_id', $tenant['tenant_id'])->findAll();
+        // Get API users (not system users) and convert to array
+        $users = $this->tenantUsersModel
+            ->where('tenant_id', $tenant['tenant_id'])
+            ->asArray()
+            ->findAll();
 
         $data = [
             'title' => 'API Users - ' . $tenant['name'],
@@ -376,38 +416,9 @@ class Admin extends BaseController
         }
 
         // Get tenant details
-        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->first();
+        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->asArray()->first();
         if (!$tenant) {
             return redirect()->to('admin/tenants')->with('error', 'Tenant not found');
-        }
-
-        if ($this->request->getMethod() === 'post') {
-            // Validate input
-            $rules = [
-                'user_id' => 'required|min_length[3]|is_unique[tenant_users.user_id]',
-                'name' => 'required|min_length[3]',
-                'email' => 'permit_empty|valid_email',
-                'quota' => 'required|integer|greater_than[0]'
-            ];
-
-            if ($this->validate($rules)) {
-                // Create API user
-                $this->tenantUsersModel->insert([
-                    'tenant_id' => $tenant['tenant_id'],
-                    'user_id' => $this->request->getPost('user_id'),
-                    'name' => $this->request->getPost('name'),
-                    'email' => $this->request->getPost('email'),
-                    'quota' => $this->request->getPost('quota'),
-                    'active' => 1,
-                    'created_at' => date('Y-m-d H:i:s'),
-                    'updated_at' => date('Y-m-d H:i:s')
-                ]);
-
-                return redirect()->to('admin/tenants/users/' . $tenantId)
-                    ->with('success', 'API user created successfully');
-            }
-
-            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
         $data = [
@@ -418,6 +429,58 @@ class Admin extends BaseController
         return view('admin/tenant_user_add', $data);
     }
 
+    public function storeApiUser($tenantId)
+    {
+        // Check if user is logged in and is superadmin
+        if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
+            return redirect()->to('/auth/login');
+        }
+
+        // Get tenant details
+        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->asArray()->first();
+        if (!$tenant) {
+            return redirect()->to('admin/tenants')->with('error', 'Tenant not found');
+        }
+
+        // Validate input
+        $rules = [
+            'name' => 'required|min_length[3]',
+            'email' => 'permit_empty|valid_email',
+            'quota' => 'required|integer|greater_than[0]'
+        ];
+
+        if ($this->validate($rules)) {
+            try {
+                helper('hash');
+                // Create API user with auto-generated ID
+                $userData = [
+                    'tenant_id' => $tenant['tenant_id'],
+                    'user_id' => generate_hash_id('usr'),
+                    'name' => $this->request->getPost('name'),
+                    'email' => $this->request->getPost('email'),
+                    'quota' => $this->request->getPost('quota'),
+                    'active' => 1,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s')
+                ];
+
+                $this->tenantUsersModel->insert($userData);
+
+                return redirect()->to('admin/tenants/' . $tenantId . '/users')
+                    ->with('success', 'API user created successfully');
+            } catch (\Exception $e) {
+                log_message('error', 'Error creating API user: ' . $e->getMessage());
+                return redirect()->back()
+                    ->with('error', 'Failed to create API user. Please try again.')
+                    ->withInput();
+            }
+        }
+
+        return redirect()->back()
+            ->withInput()
+            ->with('errors', $this->validator->getErrors());
+    }
+
     public function editApiUser($tenantId, $userId)
     {
         // Check if user is logged in and is superadmin
@@ -426,7 +489,7 @@ class Admin extends BaseController
         }
 
         // Get tenant details
-        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->first();
+        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->asArray()->first();
         if (!$tenant) {
             return redirect()->to('admin/tenants')->with('error', 'Tenant not found');
         }
@@ -434,6 +497,7 @@ class Admin extends BaseController
         // Get API user details
         $user = $this->tenantUsersModel->where('user_id', $userId)
                                       ->where('tenant_id', $tenant['tenant_id'])
+                                      ->asArray()
                                       ->first();
         if (!$user) {
             return redirect()->to('admin/tenants/' . $tenantId . '/users')
@@ -483,7 +547,7 @@ class Admin extends BaseController
         }
 
         // Get tenant details
-        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->first();
+        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->asArray()->first();
         if (!$tenant) {
             return redirect()->to('admin/tenants')->with('error', 'Tenant not found');
         }
@@ -491,6 +555,7 @@ class Admin extends BaseController
         // Get API user details
         $user = $this->tenantUsersModel->where('user_id', $userId)
                                       ->where('tenant_id', $tenant['tenant_id'])
+                                      ->asArray()
                                       ->first();
         if (!$user) {
             return redirect()->to('admin/tenants/' . $tenantId . '/users')
@@ -512,7 +577,7 @@ class Admin extends BaseController
         }
 
         // Get tenant details
-        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->first();
+        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->asArray()->first();
         if (!$tenant) {
             return redirect()->to('admin/tenants')->with('error', 'Tenant not found');
         }
@@ -520,18 +585,19 @@ class Admin extends BaseController
         // Get API user details
         $user = $this->tenantUsersModel->where('user_id', $userId)
                                       ->where('tenant_id', $tenant['tenant_id'])
+                                      ->asArray()
                                       ->first();
         if (!$user) {
             return redirect()->to('admin/tenants/' . $tenantId . '/users')
                 ->with('error', 'API user not found');
         }
 
-        // Get usage data
-        $db = db_connect();
+        // Get usage data ordered by request timestamp
+        $db = \Config\Database::connect();
         $usage = $db->table('usage_logs')
                    ->where('tenant_id', $tenant['tenant_id'])
                    ->where('user_id', $user['user_id'])
-                   ->orderBy('usage_date', 'DESC')
+                   ->orderBy('request_timestamp', 'DESC')
                    ->get()
                    ->getResultArray();
 
@@ -552,13 +618,13 @@ class Admin extends BaseController
             return redirect()->to('/auth/login');
         }
 
-        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->first();
+        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->asArray()->first();
         if (!$tenant) {
             return redirect()->to('admin/tenants')->with('error', 'Tenant not found');
         }
 
         // Get buttons with usage statistics
-        $buttons = $this->buttonsModel->where('tenant_id', $tenant['tenant_id'])->findAll();
+        $buttons = $this->buttonsModel->where('tenant_id', $tenant['tenant_id'])->asArray()->findAll();
         $db = \Config\Database::connect();
         
         foreach ($buttons as &$button) {
@@ -611,60 +677,116 @@ class Admin extends BaseController
             return redirect()->to('/auth/login');
         }
 
-        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->first();
+        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->asArray()->first();
         if (!$tenant) {
             return redirect()->to('admin/tenants')->with('error', 'Tenant not found');
-        }
-
-        if ($this->request->getMethod() === 'post') {
-            $rules = [
-                'button_id' => 'required|min_length[3]|max_length[255]|is_unique[buttons.button_id]',
-                'name' => 'required|min_length[3]|max_length[255]',
-                'type' => 'required|in_list[standard,custom]',
-                'description' => 'permit_empty|max_length[1000]',
-                'prompt' => 'required|min_length[10]',
-                'system_prompt' => 'permit_empty|max_length[2000]',
-                'temperature' => 'permit_empty|decimal|greater_than_equal_to[0]|less_than_equal_to[2]',
-                'max_tokens' => 'permit_empty|integer|greater_than[0]|less_than[4096]'
-            ];
-
-            if ($this->validate($rules)) {
-                $buttonData = [
-                    'tenant_id' => $tenant['tenant_id'],
-                    'button_id' => $this->request->getPost('button_id'),
-                    'name' => $this->request->getPost('name'),
-                    'type' => $this->request->getPost('type'),
-                    'description' => $this->request->getPost('description'),
-                    'prompt' => $this->request->getPost('prompt'),
-                    'system_prompt' => $this->request->getPost('system_prompt'),
-                    'temperature' => $this->request->getPost('temperature') ?: 0.7,
-                    'max_tokens' => $this->request->getPost('max_tokens') ?: 2048,
-                    'active' => 1
-                ];
-
-                if ($this->buttonsModel->insert($buttonData)) {
-                    return redirect()->to("admin/tenants/{$tenant['tenant_id']}/buttons")
-                        ->with('success', 'Button created successfully');
-                }
-
-                return redirect()->back()
-                    ->with('error', 'Failed to create button')
-                    ->withInput();
-            }
-
-            return redirect()->back()
-                ->with('errors', $this->validator->getErrors())
-                ->withInput();
         }
 
         $data = [
             'title' => 'Create Button - ' . $tenant['name'],
             'tenant' => $tenant,
-            'tenantId' => $tenantId,
-            'validation' => $this->validator
+            'providers' => [
+                'openai' => 'OpenAI',
+                'anthropic' => 'Anthropic Claude',
+                'mistral' => 'Mistral AI',
+                'cohere' => 'Cohere',
+                'deepseek' => 'DeepSeek',
+                'google' => 'Google Gemini'
+            ],
+            'models' => [
+                'openai' => [
+                    'gpt-3.5-turbo' => 'GPT-3.5 Turbo',
+                    'gpt-4-turbo' => 'GPT-4 Turbo',
+                    'gpt-4-vision' => 'GPT-4 Vision',
+                ],
+                'anthropic' => [
+                    'claude-3-opus-20240229' => 'Claude 3 Opus',
+                    'claude-3-sonnet-20240229' => 'Claude 3 Sonnet',
+                    'claude-3-haiku-20240307' => 'Claude 3 Haiku',
+                ],
+                'mistral' => [
+                    'mistral-small-latest' => 'Mistral Small',
+                    'mistral-medium-latest' => 'Mistral Medium',
+                    'mistral-large-latest' => 'Mistral Large',
+                ],
+                'cohere' => [
+                    'command' => 'Command',
+                    'command-light' => 'Command Light',
+                ],
+                'deepseek' => [
+                    'deepseek-chat' => 'DeepSeek Chat',
+                    'deepseek-coder' => 'DeepSeek Coder',
+                ],
+                'google' => [
+                    'gemini-pro' => 'Gemini Pro',
+                    'gemini-pro-vision' => 'Gemini Pro Vision',
+                ]
+            ]
         ];
 
         return view('admin/tenant_button_form', $data);
+    }
+
+    public function storeButton($tenantId)
+    {
+        // Check if user is logged in and is superadmin
+        if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
+            return redirect()->to('/auth/login');
+        }
+
+        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->asArray()->first();
+        if (!$tenant) {
+            return redirect()->to('admin/tenants')->with('error', 'Tenant not found');
+        }
+
+        // Validate input
+        $rules = [
+            'name' => 'required|min_length[3]|max_length[255]',
+            'domain' => 'required|valid_url_strict[https]',
+            'provider' => 'required|in_list[openai,anthropic,mistral,cohere,deepseek,google]',
+            'model' => 'required',
+            'api_key' => 'required',
+            'system_prompt' => 'permit_empty'
+        ];
+
+        if (!$this->validate($rules)) {
+            return redirect()->back()
+                ->withInput()
+                ->with('errors', $this->validator->getErrors());
+        }
+
+        // Generate button ID using hash helper
+        helper('hash');
+        $buttonId = generate_hash_id('btn');
+
+        // Encrypt API key
+        $encrypter = \Config\Services::encrypter();
+        $encryptedKey = base64_encode($encrypter->encrypt($this->request->getPost('api_key')));
+
+        // Prepare button data
+        $buttonData = [
+            'button_id' => $buttonId,
+            'tenant_id' => $tenant['tenant_id'],
+            'name' => $this->request->getPost('name'),
+            'domain' => $this->request->getPost('domain'),
+            'provider' => $this->request->getPost('provider'),
+            'model' => $this->request->getPost('model'),
+            'api_key' => $encryptedKey,
+            'system_prompt' => $this->request->getPost('system_prompt'),
+            'active' => 1,
+            'created_at' => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s')
+        ];
+
+        // Insert button
+        if ($this->buttonsModel->insert($buttonData)) {
+            return redirect()->to('admin/tenants/' . $tenant['tenant_id'] . '/buttons')
+                ->with('success', 'Button created successfully');
+        }
+
+        return redirect()->back()
+            ->withInput()
+            ->with('error', 'Failed to create button. Please try again.');
     }
 
     public function editButton($tenantId, $buttonId)
@@ -674,13 +796,14 @@ class Admin extends BaseController
             return redirect()->to('/auth/login');
         }
 
-        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->first();
+        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->asArray()->first();
         if (!$tenant) {
             return redirect()->to('admin/tenants')->with('error', 'Tenant not found');
         }
 
         $button = $this->buttonsModel->where('tenant_id', $tenant['tenant_id'])
             ->where('button_id', $buttonId)
+            ->asArray()
             ->first();
 
         if (!$button) {
@@ -691,50 +814,157 @@ class Admin extends BaseController
         if ($this->request->getMethod() === 'post') {
             $rules = [
                 'name' => 'required|min_length[3]|max_length[255]',
-                'type' => 'required|in_list[standard,custom]',
-                'description' => 'permit_empty|max_length[1000]',
-                'prompt' => 'required|min_length[10]',
-                'system_prompt' => 'permit_empty|max_length[2000]',
-                'temperature' => 'permit_empty|decimal|greater_than_equal_to[0]|less_than_equal_to[2]',
-                'max_tokens' => 'permit_empty|integer|greater_than[0]|less_than[4096]',
-                'active' => 'required|in_list[0,1]'
+                'domain' => 'required|valid_domain',
+                'provider' => 'required|in_list[openai,anthropic,cohere,mistral,deepseek,google]',
+                'model' => 'required',
+                'api_key' => 'permit_empty|min_length[10]|max_length[255]',
+                'system_prompt' => 'permit_empty|max_length[2000]'
             ];
 
             if ($this->validate($rules)) {
-                $buttonData = [
-                    'name' => $this->request->getPost('name'),
-                    'type' => $this->request->getPost('type'),
-                    'description' => $this->request->getPost('description'),
-                    'prompt' => $this->request->getPost('prompt'),
-                    'system_prompt' => $this->request->getPost('system_prompt'),
-                    'temperature' => $this->request->getPost('temperature') ?: 0.7,
-                    'max_tokens' => $this->request->getPost('max_tokens') ?: 2048,
-                    'active' => $this->request->getPost('active')
-                ];
+                try {
+                    $updateData = [
+                        'name' => $this->request->getPost('name'),
+                        'domain' => $this->request->getPost('domain'),
+                        'provider' => $this->request->getPost('provider'),
+                        'model' => $this->request->getPost('model'),
+                        'system_prompt' => $this->request->getPost('system_prompt')
+                    ];
 
-                if ($this->buttonsModel->where('button_id', $buttonId)->set($buttonData)->update()) {
-                    return redirect()->to("admin/tenants/{$tenant['tenant_id']}/buttons")
+                    // Only update API key if a new one is provided
+                    $newApiKey = $this->request->getPost('api_key');
+                    if (!empty($newApiKey)) {
+                        $encrypter = \Config\Services::encrypter();
+                        $updateData['api_key'] = base64_encode($encrypter->encrypt($newApiKey));
+                    }
+
+                    $this->buttonsModel->where('button_id', $buttonId)
+                                     ->where('tenant_id', $tenant['tenant_id'])
+                                     ->set($updateData)
+                                     ->update();
+
+                    return redirect()->to('admin/tenants/' . $tenantId . '/buttons')
                         ->with('success', 'Button updated successfully');
+                } catch (\Exception $e) {
+                    log_message('error', 'Error updating button: ' . $e->getMessage());
+                    return redirect()->back()->with('error', 'Failed to update button. Please try again.');
                 }
-
-                return redirect()->back()
-                    ->with('error', 'Failed to update button')
-                    ->withInput();
             }
-
-            return redirect()->back()
-                ->with('errors', $this->validator->getErrors())
-                ->withInput();
         }
 
         $data = [
             'title' => 'Edit Button - ' . $tenant['name'],
             'tenant' => $tenant,
             'button' => $button,
-            'validation' => $this->validator
+            'providers' => [
+                'openai' => 'OpenAI',
+                'anthropic' => 'Anthropic Claude',
+                'mistral' => 'Mistral AI',
+                'cohere' => 'Cohere',
+                'deepseek' => 'DeepSeek',
+                'google' => 'Google Gemini'
+            ],
+            'models' => [
+                'openai' => [
+                    'gpt-3.5-turbo' => 'GPT-3.5 Turbo',
+                    'gpt-4-turbo' => 'GPT-4 Turbo',
+                    'gpt-4-vision' => 'GPT-4 Vision',
+                ],
+                'anthropic' => [
+                    'claude-3-opus-20240229' => 'Claude 3 Opus',
+                    'claude-3-sonnet-20240229' => 'Claude 3 Sonnet',
+                    'claude-3-haiku-20240307' => 'Claude 3 Haiku',
+                ],
+                'mistral' => [
+                    'mistral-small-latest' => 'Mistral Small',
+                    'mistral-medium-latest' => 'Mistral Medium',
+                    'mistral-large-latest' => 'Mistral Large',
+                ],
+                'cohere' => [
+                    'command' => 'Command',
+                    'command-light' => 'Command Light',
+                ],
+                'deepseek' => [
+                    'deepseek-chat' => 'DeepSeek Chat',
+                    'deepseek-coder' => 'DeepSeek Coder',
+                ],
+                'google' => [
+                    'gemini-pro' => 'Gemini Pro',
+                    'gemini-pro-vision' => 'Gemini Pro Vision',
+                ]
+            ]
         ];
 
-        return view('admin/tenant_button_form', $data);
+        // Use the tenant's edit view instead of admin view
+        return view('shared/buttons/edit', $data);
+    }
+
+    public function viewButton($tenantId, $buttonId)
+    {
+        // Check if user is logged in and is superadmin
+        if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
+            return redirect()->to('/auth/login');
+        }
+
+        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->asArray()->first();
+        if (!$tenant) {
+            return redirect()->to('admin/tenants')->with('error', 'Tenant not found');
+        }
+
+        $button = $this->buttonsModel->where('button_id', $buttonId)
+                                   ->where('tenant_id', $tenant['tenant_id'])
+                                   ->asArray()
+                                   ->first();
+        if (!$button) {
+            return redirect()->to('admin/tenants/' . $tenantId . '/buttons')
+                ->with('error', 'Button not found');
+        }
+
+        $data = [
+            'title' => 'View Button - ' . $tenant['name'],
+            'tenant' => $tenant,
+            'button' => $button,
+            'providers' => [
+                'openai' => 'OpenAI',
+                'anthropic' => 'Anthropic Claude',
+                'mistral' => 'Mistral AI',
+                'cohere' => 'Cohere',
+                'deepseek' => 'DeepSeek',
+                'google' => 'Google Gemini'
+            ],
+            'models' => [
+                'openai' => [
+                    'gpt-3.5-turbo' => 'GPT-3.5 Turbo',
+                    'gpt-4-turbo' => 'GPT-4 Turbo',
+                    'gpt-4-vision' => 'GPT-4 Vision',
+                ],
+                'anthropic' => [
+                    'claude-3-opus-20240229' => 'Claude 3 Opus',
+                    'claude-3-sonnet-20240229' => 'Claude 3 Sonnet',
+                    'claude-3-haiku-20240307' => 'Claude 3 Haiku',
+                ],
+                'mistral' => [
+                    'mistral-small-latest' => 'Mistral Small',
+                    'mistral-medium-latest' => 'Mistral Medium',
+                    'mistral-large-latest' => 'Mistral Large',
+                ],
+                'cohere' => [
+                    'command' => 'Command',
+                    'command-light' => 'Command Light',
+                ],
+                'deepseek' => [
+                    'deepseek-chat' => 'DeepSeek Chat',
+                    'deepseek-coder' => 'DeepSeek Coder',
+                ],
+                'google' => [
+                    'gemini-pro' => 'Gemini Pro',
+                    'gemini-pro-vision' => 'Gemini Pro Vision',
+                ]
+            ]
+        ];
+
+        // Use the tenant's view template instead of admin view
+        return view('shared/buttons/view', $data);
     }
 
     public function deleteButton($tenantId, $buttonId)
@@ -744,13 +974,14 @@ class Admin extends BaseController
             return redirect()->to('/auth/login');
         }
 
-        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->first();
+        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->asArray()->first();
         if (!$tenant) {
             return redirect()->to('admin/tenants')->with('error', 'Tenant not found');
         }
 
         $button = $this->buttonsModel->where('tenant_id', $tenant['tenant_id'])
             ->where('button_id', $buttonId)
+            ->asArray()
             ->first();
 
         if (!$button) {

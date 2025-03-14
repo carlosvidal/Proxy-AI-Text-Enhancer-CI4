@@ -103,7 +103,7 @@ class Usage extends Controller
         );
         $data['api_stats'] = $query->getResult();
 
-        return view('usage/index', $data);
+        return view('shared/usage/index', $data);
     }
 
     /**
@@ -135,7 +135,7 @@ class Usage extends Controller
         
         $data['logs'] = $query->getResult();
 
-        return view('usage/logs', $data);
+        return view('shared/usage/logs', $data);
     }
 
     /**
@@ -170,7 +170,7 @@ class Usage extends Controller
         
         $data['api_users'] = $query->getResult();
 
-        return view('usage/api', $data);
+        return view('shared/usage/api', $data);
     }
 
     /**
@@ -216,6 +216,6 @@ class Usage extends Controller
         
         $data['daily_stats'] = $query->getResult();
 
-        return view('usage/user', $data);
+        return view('shared/usage/user', $data);
     }
 }

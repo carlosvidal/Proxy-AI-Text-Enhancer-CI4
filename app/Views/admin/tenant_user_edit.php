@@ -4,20 +4,20 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <a href="<?= site_url('admin/tenants/users/' . $tenant['id']) ?>" class="btn btn-secondary btn-sm mb-2">
+        <a href="<?= site_url('admin/tenants/users/' . $tenant['tenant_id']) ?>" class="btn btn-secondary btn-sm mb-2">
             <i class="fas fa-arrow-left me-1"></i>Back to API Users
         </a>
-        <h2>Edit API User: <?= esc($user['name']) ?></h2>
+        <h2>Edit API User for <?= esc($tenant['name']) ?></h2>
     </div>
 </div>
 
 <div class="card">
     <div class="card-header">
         <i class="fas fa-user-edit me-1"></i>
-        API User Information
+        Edit API User
     </div>
     <div class="card-body">
-        <form action="<?= site_url('admin/tenants/users/' . $tenant['id'] . '/edit/' . $user['id']) ?>" method="post">
+        <form action="<?= site_url('admin/tenants/users/' . $tenant['tenant_id'] . '/edit/' . $user['user_id']) ?>" method="post">
             <?= csrf_field() ?>
 
             <div class="mb-3">

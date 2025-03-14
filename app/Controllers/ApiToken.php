@@ -38,7 +38,7 @@ class ApiToken extends Controller
         $userId = session()->get('id');
         $data['tokens'] = $this->apiTokenModel->getUserTokens($userId);
 
-        return view('api_tokens/index', $data);
+        return view('shared/api_tokens/index', $data);
     }
 
     /**
@@ -60,7 +60,7 @@ class ApiToken extends Controller
             $data['tenants'] = $this->tenantsModel->findAll();
         }
 
-        return view('api_tokens/create', $data);
+        return view('shared/api_tokens/create', $data);
     }
 
     /**

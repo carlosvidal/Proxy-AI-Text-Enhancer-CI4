@@ -93,7 +93,7 @@ class Buttons extends Controller
             'buttons' => $this->buttonsModel->getButtonsWithStatsByTenant($tenant_id)
         ];
 
-        return view('buttons/index', $data);
+        return view('shared/buttons/index', $data);
     }
 
     /**
@@ -129,24 +129,36 @@ class Buttons extends Controller
         if ($this->request->getMethod() === 'post') {
             $rules = [
                 'name' => 'required|min_length[3]|max_length[255]',
-                'domain' => 'required|min_length[3]|max_length[255]',
+                'domain' => 'required|valid_url_strict[https]',
                 'provider' => 'required|in_list[openai,anthropic,cohere,mistral,deepseek,google]',
                 'model' => 'required',
-                'api_key' => 'required'
+                'api_key' => 'required',
+                'system_prompt' => 'permit_empty'
             ];
 
             if ($this->validate($rules)) {
                 try {
+                    // Generate button ID using hash helper
+                    helper('hash');
+                    $buttonId = generate_hash_id('btn');
+
+                    // Encrypt API key
+                    $encrypter = \Config\Services::encrypter();
+                    $encryptedKey = base64_encode($encrypter->encrypt($this->request->getPost('api_key')));
+
                     // Create button data
                     $buttonData = [
+                        'button_id' => $buttonId,
                         'tenant_id' => $tenant_id,
                         'name' => $this->request->getPost('name'),
                         'domain' => $this->request->getPost('domain'),
                         'provider' => $this->request->getPost('provider'),
                         'model' => $this->request->getPost('model'),
-                        'api_key' => $this->request->getPost('api_key'),
+                        'api_key' => $encryptedKey,
                         'system_prompt' => $this->request->getPost('system_prompt'),
-                        'active' => 1
+                        'active' => 1,
+                        'created_at' => date('Y-m-d H:i:s'),
+                        'updated_at' => date('Y-m-d H:i:s')
                     ];
 
                     if ($this->buttonsModel->insert($buttonData)) {
@@ -154,10 +166,8 @@ class Buttons extends Controller
                             ->with('success', 'Button created successfully');
                     }
 
-                    // If we get here, there was a validation error
-                    $errors = $this->buttonsModel->errors();
                     return redirect()->back()
-                        ->with('error', 'Validation failed: ' . implode(', ', $errors))
+                        ->with('error', 'Failed to create button. Please try again.')
                         ->withInput();
 
                 } catch (\Exception $e) {
@@ -168,17 +178,99 @@ class Buttons extends Controller
                 }
             }
 
-            // If we get here, controller validation failed
             return redirect()->back()
-                ->with('error', 'Validation failed: ' . implode(', ', $this->validator->getErrors()))
-                ->withInput();
+                ->with('error', 'Please check the form for errors.')
+                ->withInput()
+                ->with('validation', $this->validator);
         }
 
         // Get available providers and models for dropdown
         $data['providers'] = $this->providers;
         $data['models'] = $this->models;
 
-        return view('buttons/create', $data);
+        return view('shared/buttons/create', $data);
+    }
+
+    /**
+     * Store a new button
+     */
+    public function store()
+    {
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
+        }
+
+        $tenant_id = session()->get('tenant_id');
+        if (!$tenant_id) {
+            return redirect()->to('/auth/login')
+                ->with('error', 'No tenant found');
+        }
+
+        // Get tenant information
+        $tenant = $this->tenantsModel->where('tenant_id', $tenant_id)
+            ->where('active', 1)
+            ->first();
+
+        if (!$tenant) {
+            return redirect()->to('/auth/login')
+                ->with('error', 'Tenant not found');
+        }
+
+        $rules = [
+            'name' => 'required|min_length[3]|max_length[255]',
+            'domain' => 'required|valid_url_strict[https]',
+            'provider' => 'required|in_list[openai,anthropic,cohere,mistral,deepseek,google]',
+            'model' => 'required',
+            'api_key' => 'required',
+            'system_prompt' => 'permit_empty'
+        ];
+
+        if (!$this->validate($rules)) {
+            return redirect()->back()
+                ->with('error', 'Please check the form for errors.')
+                ->withInput()
+                ->with('validation', $this->validator);
+        }
+
+        try {
+            // Generate button ID using hash helper
+            helper('hash');
+            $buttonId = generate_hash_id('btn');
+
+            // Encrypt API key
+            $encrypter = \Config\Services::encrypter();
+            $encryptedKey = base64_encode($encrypter->encrypt($this->request->getPost('api_key')));
+
+            // Create button data
+            $buttonData = [
+                'button_id' => $buttonId,
+                'tenant_id' => $tenant_id,
+                'name' => $this->request->getPost('name'),
+                'domain' => $this->request->getPost('domain'),
+                'provider' => $this->request->getPost('provider'),
+                'model' => $this->request->getPost('model'),
+                'api_key' => $encryptedKey,
+                'system_prompt' => $this->request->getPost('system_prompt'),
+                'active' => 1,
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s')
+            ];
+
+            if ($this->buttonsModel->insert($buttonData)) {
+                return redirect()->to('/buttons')
+                    ->with('success', 'Button created successfully');
+            }
+
+            return redirect()->back()
+                ->with('error', 'Failed to create button. Please try again.')
+                ->withInput();
+
+        } catch (\Exception $e) {
+            log_message('error', '[Button Creation] ' . $e->getMessage());
+            return redirect()->back()
+                ->with('error', 'Error creating button: ' . $e->getMessage())
+                ->withInput();
+        }
     }
 
     /**
@@ -207,7 +299,7 @@ class Buttons extends Controller
             'models' => $this->models
         ];
 
-        return view('buttons/view', $data);
+        return view('shared/buttons/view', $data);
     }
 
     /**
@@ -275,7 +367,7 @@ class Buttons extends Controller
             'models' => $this->models
         ];
 
-        return view('buttons/edit', $data);
+        return view('shared/buttons/edit', $data);
     }
 
     /**

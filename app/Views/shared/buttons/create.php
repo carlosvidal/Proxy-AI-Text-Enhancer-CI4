@@ -7,7 +7,7 @@
         <a href="<?= site_url('buttons') ?>" class="btn btn-secondary btn-sm mb-2">
             <i class="fas fa-arrow-left me-1"></i>Back to Buttons
         </a>
-        <h2>Create New Button for <?= esc($tenant['name']) ?></h2>
+        <h2>Create New Button</h2>
     </div>
 </div>
 
@@ -23,7 +23,7 @@
             </div>
         <?php endif; ?>
 
-        <form action="<?= site_url('buttons/create') ?>" method="post">
+        <form action="<?= site_url('buttons/store') ?>" method="post">
             <?= csrf_field() ?>
 
             <div class="row">

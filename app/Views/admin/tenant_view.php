@@ -280,15 +280,15 @@
                                 </td>
                                 <td>
                                     <div class="btn-group">
-                                        <a href="<?= site_url('admin/buttons/edit/' . $button['id']) ?>" 
-                                           class="btn btn-sm btn-outline-primary"
+                                        <a href="<?= site_url('admin/buttons/edit/' . $button['button_id']) ?>" 
+                                           class="btn btn-sm btn-warning text-white" 
                                            title="Edit Button">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <a href="<?= site_url('admin/buttons/delete/' . $button['id']) ?>" 
-                                           class="btn btn-sm btn-outline-danger"
-                                           onclick="return confirm('Are you sure you want to delete this button? This will also delete all associated usage logs.')"
-                                           title="Delete Button">
+                                        <a href="<?= site_url('admin/buttons/delete/' . $button['button_id']) ?>" 
+                                           class="btn btn-sm btn-danger" 
+                                           title="Delete Button"
+                                           onclick="return confirm('Are you sure you want to delete this button?')">
                                             <i class="fas fa-trash"></i>
                                         </a>
                                     </div>

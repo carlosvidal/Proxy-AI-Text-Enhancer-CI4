@@ -146,7 +146,7 @@ class TenantUsers extends Controller
             'tenant' => $tenant
         ];
 
-        return view('tenants/user_add', $data);
+        return view('tenants/add_user', $data);
     }
 
     /**
@@ -234,7 +234,7 @@ class TenantUsers extends Controller
             'user' => $user
         ];
 
-        return view('tenants/user_edit', $data);
+        return view('tenants/edit_user', $data);
     }
 
     /**

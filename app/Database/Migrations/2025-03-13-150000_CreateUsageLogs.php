@@ -22,6 +22,11 @@ class CreateUsageLogs extends Migration
                 'constraint' => 50,
                 'null' => false
             ],
+            'user_id' => [ // References tenant_users.user_id (format: usr-{timestamp}-{random})
+                'type' => 'VARCHAR',
+                'constraint' => 50,
+                'null' => false
+            ],
             'button_id' => [ // References buttons.button_id (format: btn-{timestamp}-{random})
                 'type' => 'VARCHAR',
                 'constraint' => 50,
@@ -48,6 +53,11 @@ class CreateUsageLogs extends Migration
                 'type' => 'FLOAT',
                 'null' => true
             ],
+            'tokens_used' => [
+                'type' => 'INT',
+                'unsigned' => true,
+                'null' => true
+            ],
             'status' => [
                 'type' => 'ENUM',
                 'constraint' => ['success', 'error'],
@@ -63,7 +73,7 @@ class CreateUsageLogs extends Migration
         ]);
 
         $this->forge->addPrimaryKey('id');
-        $this->forge->addKey(['tenant_id', 'button_id']);
+        $this->forge->addKey(['tenant_id', 'user_id', 'button_id']);
         $this->forge->addKey('request_timestamp');
         $this->forge->createTable('usage_logs');
     }
