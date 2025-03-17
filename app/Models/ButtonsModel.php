@@ -113,7 +113,7 @@ class ButtonsModel extends Model
     protected function decryptApiKey(array $data)
     {
         $encrypter = \Config\Services::encrypter();
-        
+
         // Handle single result
         if (isset($data['api_key'])) {
             try {
@@ -123,7 +123,7 @@ class ButtonsModel extends Model
                 log_message('error', 'Failed to decrypt API key: ' . $e->getMessage());
             }
         }
-        
+
         // Handle multiple results
         if (isset($data['data'])) {
             foreach ($data['data'] as &$row) {
@@ -137,7 +137,7 @@ class ButtonsModel extends Model
                 }
             }
         }
-        
+
         return $data;
     }
 
@@ -147,7 +147,7 @@ class ButtonsModel extends Model
     public function getButtonsWithStatsByTenant($tenant_id)
     {
         $buttons = $this->where('tenant_id', $tenant_id)->findAll();
-        
+
         // Get usage statistics for each button
         $db = \Config\Database::connect();
         foreach ($buttons as &$button) {
@@ -180,5 +180,17 @@ class ButtonsModel extends Model
         }
 
         return $buttons;
+    }
+
+    /**
+     * Get button configuration by domain
+     * 
+     * @param string $domain Domain name
+     * @return array|null Button configuration or null if not found
+     */
+    public function getButtonByDomain(string $domain)
+    {
+        return $this->where('domain', $domain)
+            ->first();
     }
 }
