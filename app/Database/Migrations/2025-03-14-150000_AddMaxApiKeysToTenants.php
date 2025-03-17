@@ -8,34 +8,34 @@ class AddMaxApiKeysToTenants extends Migration
 {
     public function up()
     {
-        // Verificar si la columna ya existe
-        $hasColumn = $this->db->fieldExists('max_api_keys', 'tenants');
+        // First check if the column already exists to avoid duplicate column errors
+        $fields = $this->db->getFieldData('tenants');
+        $columnExists = false;
+        foreach ($fields as $field) {
+            if ($field->name === 'max_api_keys') {
+                $columnExists = true;
+                break;
+            }
+        }
 
-        if (!$hasColumn) {
-            $fields = [
+        // Only add the column if it doesn't exist
+        if (!$columnExists) {
+            $this->forge->addColumn('tenants', [
                 'max_api_keys' => [
                     'type' => 'INT',
                     'constraint' => 11,
-                    'unsigned' => true,
                     'default' => 1,
                     'after' => 'max_domains'
                 ]
-            ];
-
-            $this->forge->addColumn('tenants', $fields);
-
-            // Actualizar tenants existentes basados en su plan
-            $this->db->query("UPDATE tenants SET max_api_keys = 1 WHERE plan_code = 'free'");
-            $this->db->query("UPDATE tenants SET max_api_keys = 5 WHERE plan_code = 'pro'");
-            $this->db->query("UPDATE tenants SET max_api_keys = 999 WHERE plan_code = 'enterprise'");
+            ]);
         }
+
+        // Set a default value for all tenants without checking plan_code
+        $this->db->query("UPDATE tenants SET max_api_keys = 1 WHERE max_api_keys IS NULL");
     }
 
     public function down()
     {
-        // Verificar si la columna existe antes de intentar eliminarla
-        if ($this->db->fieldExists('max_api_keys', 'tenants')) {
-            $this->forge->dropColumn('tenants', 'max_api_keys');
-        }
+        $this->forge->dropColumn('tenants', 'max_api_keys');
     }
 }
