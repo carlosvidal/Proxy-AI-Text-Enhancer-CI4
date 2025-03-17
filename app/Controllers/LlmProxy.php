@@ -31,7 +31,7 @@ class LlmProxy extends Controller
     public function __construct()
     {
         // Load necessary helpers
-        helper(['url', 'form', 'logger', 'jwt', 'api_key']);
+        helper(['url', 'form', 'logger', 'jwt', 'api_key', 'image_proxy']);
 
         // Initialize proxy model
         $this->llm_proxy_model = new LlmProxyModel();
@@ -157,6 +157,33 @@ class LlmProxy extends Controller
         ]);
 
         $has_image = isset($request_data['hasImage']) ? $request_data['hasImage'] : FALSE;
+
+        // middleware
+
+        // Procesar imágenes externas si es necesario
+        if (isset($request_data['hasImage']) && $request_data['hasImage'] === true && 
+        isset($request_data['isExternalImageUrl']) && $request_data['isExternalImageUrl'] === true) {
+
+        log_info('PROXY', 'Detectada imagen externa, procesando', [
+            'request_id' => $request_id
+        ]);
+
+        // Cargar el helper si aún no está cargado
+        if (!function_exists('process_external_images')) {
+            require_once APPPATH . 'Helpers/image_proxy_helper.php';
+        }
+
+        // Procesar imágenes externas
+        $request_data = process_external_images($request_data);
+
+        log_info('PROXY', 'Procesamiento de imágenes externas completado', [
+            'request_id' => $request_id,
+            'has_external_image_flag' => isset($request_data['isExternalImageUrl'])
+        ]);
+        }
+
+
+        // finish middleware
 
         // If we don't have tenant_id or user_id, can't proceed
         if (empty($tenant_id)) {
@@ -375,6 +402,8 @@ class LlmProxy extends Controller
                 ->setStatusCode(403)
                 ->setJSON(['error' => ['message' => 'Quota exceeded']]);
         }
+
+
 
         // Prepare payload based on provider
         $payload = $this->_prepare_payload($provider, $model, $messages, $temperature, $stream);
