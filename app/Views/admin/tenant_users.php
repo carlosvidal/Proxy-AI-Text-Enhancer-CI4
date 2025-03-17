@@ -5,12 +5,12 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <a href="<?= site_url('admin/tenants/view/' . $tenant['tenant_id']) ?>" class="btn btn-secondary btn-sm mb-2">
-            <i class="fas fa-arrow-left me-1"></i>Back to Tenant
+            <i class="fas fa-arrow-left me-1"></i><?= lang('App.tenant_users_back') ?>
         </a>
-        <h2>API Users for <?= esc($tenant['name']) ?></h2>
+        <h2><?= sprintf(lang('App.tenant_users_title'), esc($tenant['name'])) ?></h2>
     </div>
     <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/users/create') ?>" class="btn btn-primary">
-        <i class="fas fa-user-plus me-1"></i>Add API User
+        <i class="fas fa-user-plus me-1"></i><?= lang('App.tenant_users_add') ?>
     </a>
 </div>
 
@@ -25,18 +25,18 @@
 <div class="card">
     <div class="card-body">
         <?php if (empty($users)): ?>
-            <div class="alert alert-info">No API users found for this tenant.</div>
+            <div class="alert alert-info"><?= lang('App.tenant_users_none') ?></div>
         <?php else: ?>
             <div class="table-responsive">
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th>User ID</th>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Quota</th>
-                            <th>Status</th>
-                            <th>Actions</th>
+                            <th><?= lang('App.tenant_users_id') ?></th>
+                            <th><?= lang('App.tenant_users_name') ?></th>
+                            <th><?= lang('App.tenant_users_email') ?></th>
+                            <th><?= lang('App.tenant_users_quota') ?></th>
+                            <th><?= lang('App.tenant_users_status') ?></th>
+                            <th><?= lang('App.tenant_users_actions') ?></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -48,24 +48,24 @@
                                 <td><?= number_format($user['quota']) ?></td>
                                 <td>
                                     <?php if ($user['active']): ?>
-                                        <span class="badge bg-success">Active</span>
+                                        <span class="badge bg-success"><?= lang('App.tenant_users_active') ?></span>
                                     <?php else: ?>
-                                        <span class="badge bg-danger">Inactive</span>
+                                        <span class="badge bg-danger"><?= lang('App.tenant_users_inactive') ?></span>
                                     <?php endif; ?>
                                 </td>
                                 <td>
                                     <div class="btn-group" role="group">
                                         <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/users/' . $user['user_id'] . '/edit') ?>" 
-                                           class="btn btn-sm btn-outline-primary" title="Edit User">
+                                           class="btn btn-sm btn-outline-primary" title="<?= lang('App.tenant_users_edit') ?>">
                                             <i class="fas fa-edit"></i>
                                         </a>
                                         <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/users/' . $user['user_id'] . '/usage') ?>" 
-                                           class="btn btn-sm btn-outline-info" title="View Usage">
+                                           class="btn btn-sm btn-outline-info" title="<?= lang('App.tenant_users_usage') ?>">
                                             <i class="fas fa-chart-line"></i>
                                         </a>
                                         <button type="button" 
                                                 class="btn btn-sm btn-outline-danger"
-                                                title="Delete User"
+                                                title="<?= lang('App.tenant_users_delete') ?>"
                                                 onclick="confirmDelete('<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/users/' . $user['user_id'] . '/delete') ?>')">
                                             <i class="fas fa-trash"></i>
                                         </button>
@@ -82,7 +82,7 @@
 
 <script>
 function confirmDelete(url) {
-    if (confirm('Are you sure you want to delete this API user? This action cannot be undone.')) {
+    if (confirm('<?= lang('App.tenant_users_confirm_delete') ?>')) {
         window.location.href = url;
     }
 }

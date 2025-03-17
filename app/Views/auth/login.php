@@ -3,12 +3,12 @@ $currentUrl = current_url();
 $hasIndexPhp = strpos($currentUrl, 'index.php') !== false;
 ?>
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<?= service('request')->getLocale() ?>">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= isset($title) ? $title : 'Login - AI Text Enhancer Pro' ?></title>
+    <title><?= isset($title) ? $title : lang('App.auth_login_title') ?></title>
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -66,8 +66,8 @@ $hasIndexPhp = strpos($currentUrl, 'index.php') !== false;
                 <div class="logo">
                     <i class="fas fa-robot"></i>
                 </div>
-                <h3>AI Text Enhancer Pro</h3>
-                <p class="text-muted">Sign in to your account</p>
+                <h3><?= lang('App.auth_app_name') ?></h3>
+                <p class="text-muted"><?= lang('App.auth_sign_in') ?></p>
             </div>
 
             <?php if (session()->getFlashdata('error')): ?>
@@ -80,7 +80,7 @@ $hasIndexPhp = strpos($currentUrl, 'index.php') !== false;
                 <?= csrf_field() ?>
 
                 <div class="mb-3">
-                    <label for="username" class="form-label">Username or Email</label>
+                    <label for="username" class="form-label"><?= lang('App.auth_username_email') ?></label>
                     <div class="input-group">
                         <span class="input-group-text"><i class="fas fa-user"></i></span>
                         <input type="text" class="form-control" id="username" name="username" value="<?= old('username') ?>" required autofocus>
@@ -88,7 +88,7 @@ $hasIndexPhp = strpos($currentUrl, 'index.php') !== false;
                 </div>
 
                 <div class="mb-3">
-                    <label for="password" class="form-label">Password</label>
+                    <label for="password" class="form-label"><?= lang('App.auth_password') ?></label>
                     <div class="input-group">
                         <span class="input-group-text"><i class="fas fa-lock"></i></span>
                         <input type="password" class="form-control" id="password" name="password" required>
@@ -96,7 +96,7 @@ $hasIndexPhp = strpos($currentUrl, 'index.php') !== false;
                 </div>
 
                 <div class="d-grid gap-2 mt-4">
-                    <button type="submit" class="btn btn-primary">Sign In</button>
+                    <button type="submit" class="btn btn-primary"><?= lang('App.auth_sign_in_button') ?></button>
                 </div>
             </form>
         </div>

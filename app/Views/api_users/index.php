@@ -4,12 +4,12 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <h2>API Users</h2>
-        <p class="text-muted">Manage API users and their button access</p>
+        <h2><?= lang('App.api_users_title') ?></h2>
+        <p class="text-muted"><?= lang('App.api_users_subtitle') ?></p>
     </div>
     <div>
         <a href="<?= site_url('api-users/create') ?>" class="btn btn-primary">
-            <i class="fas fa-plus me-1"></i>Create API User
+            <i class="fas fa-plus me-1"></i><?= lang('App.api_users_create') ?>
         </a>
     </div>
 </div>
@@ -29,28 +29,28 @@
 <div class="card">
     <div class="card-header">
         <i class="fas fa-users me-1"></i>
-        API Users
+        <?= lang('App.api_users_title') ?>
     </div>
     <div class="card-body">
         <?php if (empty($users)): ?>
             <div class="alert alert-info">
-                No API users found. Create your first API user to start tracking usage.
+                <?= lang('App.api_users_empty') ?>
             </div>
         <?php else: ?>
             <div class="table-responsive">
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th>User ID</th>
-                            <th>Name</th>
-                            <th>Email</th>
-                            <th>Quota</th>
-                            <th>Usage This Month</th>
-                            <th>Total Usage</th>
-                            <th>Buttons</th>
-                            <th>Status</th>
-                            <th>Last Activity</th>
-                            <th>Actions</th>
+                            <th><?= lang('App.api_users_user_id') ?></th>
+                            <th><?= lang('App.api_users_name') ?></th>
+                            <th><?= lang('App.api_users_email') ?></th>
+                            <th><?= lang('App.api_users_quota') ?></th>
+                            <th><?= lang('App.api_users_usage_month') ?></th>
+                            <th><?= lang('App.api_users_usage_total') ?></th>
+                            <th><?= lang('App.api_users_buttons') ?></th>
+                            <th><?= lang('App.api_users_status') ?></th>
+                            <th><?= lang('App.api_users_last_activity') ?></th>
+                            <th><?= lang('App.api_users_actions') ?></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -142,17 +142,17 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Delete API User</h5>
+                <h5 class="modal-title"><?= lang('App.api_users_delete_title') ?></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                Are you sure you want to delete this API user? This action cannot be undone.
+                <?= lang('App.api_users_delete_message') ?>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><?= lang('App.cancel') ?></button>
                 <form action="" method="post" id="deleteForm" style="display: inline;">
                     <?= csrf_field() ?>
-                    <button type="submit" class="btn btn-danger">Delete</button>
+                    <button type="submit" class="btn btn-danger"><?= lang('App.delete') ?></button>
                 </form>
             </div>
         </div>
@@ -168,7 +168,7 @@ function confirmDelete(userId) {
 }
 
 function toggleStatus(userId, status) {
-    if (confirm(`Are you sure you want to ${status ? 'activate' : 'deactivate'} this API user?`)) {
+    if (confirm(`<?= lang('App.api_users_toggle_status_confirm') ?>`)) {
         fetch(`<?= site_url('api-users/toggle-status/') ?>${userId}`, {
             method: 'POST',
             headers: {
@@ -182,12 +182,12 @@ function toggleStatus(userId, status) {
             if (data.success) {
                 location.reload();
             } else {
-                alert('Error updating status: ' + data.message);
+                alert('<?= lang('App.error_updating_status') ?>: ' + data.message);
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('Error updating status. Please try again.');
+            alert('<?= lang('App.error_updating_status_try_again') ?>');
         });
     }
 }

@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="<?= service('request')->getLocale() ?>">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= isset($title) ? $title : 'AI Text Enhancer Pro'; ?></title>
+    <title><?= isset($title) ? $title : lang('App.auth_app_name'); ?></title>
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -40,7 +40,7 @@
         <div class="container">
             <a class="navbar-brand" href="/">
                 <i class="fas fa-robot"></i>
-                AI Text Enhancer Pro
+                <?= lang('App.auth_app_name') ?>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -51,36 +51,53 @@
                     <?php if (session()->get('isLoggedIn')): ?>
                         <?php if (session()->get('role') === 'superadmin'): ?>
                             <li class="nav-item">
-                                <a class="nav-link" href="<?= site_url('admin/dashboard') ?>">Admin Panel</a>
+                                <a class="nav-link" href="<?= site_url('admin/dashboard') ?>"><?= lang('App.nav_admin_panel') ?></a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="<?= site_url('admin/tenants') ?>">Tenants</a>
+                                <a class="nav-link" href="<?= site_url('admin/tenants') ?>"><?= lang('App.nav_tenants') ?></a>
                             </li>
                         <?php else: ?>
                             <li class="nav-item">
-                                <a class="nav-link" href="<?= site_url('usage') ?>">Usage</a>
+                                <a class="nav-link" href="<?= site_url('usage') ?>"><?= lang('App.nav_usage') ?></a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="<?= site_url('buttons') ?>">Buttons</a>
+                                <a class="nav-link" href="<?= site_url('buttons') ?>"><?= lang('App.nav_buttons') ?></a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="<?= site_url('api-users') ?>">API Users</a>
+                                <a class="nav-link" href="<?= site_url('domains') ?>"><?= lang('App.nav_domains') ?></a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="<?= site_url('api-keys') ?>"><?= lang('App.nav_api_keys') ?></a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="<?= site_url('api-users') ?>"><?= lang('App.nav_api_users') ?></a>
                             </li>
                         <?php endif; ?>
                         <li class="nav-item">
-                            <a class="nav-link" href="<?= site_url('auth/profile') ?>">My Profile</a>
+                            <a class="nav-link" href="<?= site_url('auth/profile') ?>"><?= lang('App.nav_my_profile') ?></a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="<?= site_url('auth/logout') ?>">Logout</a>
+                            <a class="nav-link" href="<?= site_url('auth/logout') ?>"><?= lang('App.nav_logout') ?></a>
                         </li>
                     <?php else: ?>
                         <li class="nav-item">
-                            <a class="nav-link" href="<?= site_url('auth/login') ?>">Login</a>
+                            <a class="nav-link" href="<?= site_url('auth/login') ?>"><?= lang('App.nav_login') ?></a>
                         </li>
                         <li class="nav-item">
-                            <a class="btn btn-primary btn-try-free" href="<?= site_url('auth/register') ?>">Try Free</a>
+                            <a class="btn btn-primary btn-try-free" href="<?= site_url('auth/register') ?>"><?= lang('App.nav_register') ?></a>
                         </li>
                     <?php endif; ?>
+                    
+                    <!-- Language Selector -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="languageDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <?= strtoupper(service('request')->getLocale()) ?>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="languageDropdown">
+                            <li><a class="dropdown-item <?= service('request')->getLocale() === 'en' ? 'active' : '' ?>" href="<?= site_url('language/en') ?>">English</a></li>
+                            <li><a class="dropdown-item <?= service('request')->getLocale() === 'es' ? 'active' : '' ?>" href="<?= site_url('language/es') ?>">Español</a></li>
+                        </ul>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -96,5 +113,15 @@
         <?php if (session()->getFlashdata('error')): ?>
             <div class="alert alert-danger">
                 <?= session()->getFlashdata('error') ?>
+            </div>
+        <?php endif; ?>
+        
+        <?php if (session()->getFlashdata('validation_error')): ?>
+            <div class="alert alert-danger">
+                <ul>
+                    <?php foreach (session()->getFlashdata('validation_error') as $field => $error): ?>
+                        <li><?= is_array($error) ? implode(', ', $error) : $error ?></li>
+                    <?php endforeach; ?>
+                </ul>
             </div>
         <?php endif; ?>

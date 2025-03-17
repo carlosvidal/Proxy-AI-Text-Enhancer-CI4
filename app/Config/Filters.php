@@ -29,6 +29,7 @@ class Filters extends BaseConfig
         'auth' => \App\Filters\AuthFilter::class,
         'jwt' => \App\Filters\JwtFilter::class, // Added JWT filter
         'compress' => \App\Filters\CompressionFilter::class, // Added compression filter
+        'language' => \App\Filters\LanguageFilter::class, // Added language filter
     ];
 
     /**
@@ -42,6 +43,7 @@ class Filters extends BaseConfig
             // 'csrf',
             'honeypot',
             'invalidchars',
+            'language', // Apply language filter to all requests
         ],
         'after' => [
             'toolbar',

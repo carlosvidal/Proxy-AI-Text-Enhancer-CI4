@@ -38,13 +38,34 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="domain" class="form-label">Domain</label>
-                        <input type="text" class="form-control <?= session('errors.domain') ? 'is-invalid' : '' ?>" 
-                               id="domain" name="domain" value="<?= old('domain') ?>" required>
-                        <?php if (session('errors.domain')): ?>
-                            <div class="invalid-feedback"><?= session('errors.domain') ?></div>
-                        <?php endif; ?>
-                        <div class="form-text">The domain where this button will be used (e.g., example.com)</div>
+                        <?php 
+                        // Obtener dominios del tenant actual
+                        $tenantsModel = new \App\Models\TenantsModel();
+                        $tenant = $tenantsModel->find(session('tenant_id'));
+                        $domains = $tenantsModel->getDomains(session('tenant_id'));
+                        
+                        if(empty($domains)): ?>
+                            <div class="alert alert-warning">
+                                No hay dominios configurados. Por favor, configure al menos un dominio.
+                            </div>
+                            <input type="text" class="form-control" name="domain" required 
+                                   placeholder="Ingrese un dominio para este botón">
+                        <?php else: ?>
+                            <label class="form-label">Dominio Permitido</label>
+                            <?php if(isset($tenant['max_domains']) && $tenant['max_domains'] > 1 && count($domains) > 1): ?>
+                                <select name="domain" class="form-select" required>
+                                    <?php foreach($domains as $domain): ?>
+                                        <option value="<?= $domain['domain'] ?>">
+                                            <?= $domain['domain'] ?>
+                                            <?= isset($domain['verified']) && $domain['verified'] ? '' : ' (Pendiente de Verificación)' ?>
+                                        </option>
+                                    <?php endforeach ?>
+                                </select>
+                            <?php else: ?>
+                                <input type="hidden" name="domain" value="<?= $domains[0]['domain'] ?>">
+                                <input type="text" class="form-control" value="<?= $domains[0]['domain'] ?>" disabled>
+                            <?php endif ?>
+                        <?php endif ?>
                     </div>
 
                     <div class="mb-3">
@@ -82,15 +103,26 @@
 
                 <div class="col-md-6">
                     <div class="mb-3">
-                        <label for="api_key" class="form-label">Provider API Key</label>
-                        <input type="password" class="form-control <?= session('errors.api_key') ? 'is-invalid' : '' ?>" 
-                               id="api_key" name="api_key" required>
-                        <?php if (session('errors.api_key')): ?>
-                            <div class="invalid-feedback"><?= session('errors.api_key') ?></div>
+                        <label for="api_key_id" class="form-label">API Key</label>
+                        <select class="form-select <?= session('errors.api_key_id') ? 'is-invalid' : '' ?>" 
+                               id="api_key_id" name="api_key_id" required>
+                            <option value="">Select API Key</option>
+                            <?php foreach ($apiKeys as $apiKey): ?>
+                                <?php if ($apiKey['active'] == 1): ?>
+                                    <option value="<?= $apiKey['api_key_id'] ?>" 
+                                            data-provider="<?= $apiKey['provider'] ?>"
+                                            <?= old('api_key_id') == $apiKey['api_key_id'] ? 'selected' : '' ?>>
+                                        <?= $apiKey['name'] ?> (<?= $providers[$apiKey['provider']] ?>)
+                                    </option>
+                                <?php endif; ?>
+                            <?php endforeach; ?>
+                        </select>
+                        <?php if (session('errors.api_key_id')): ?>
+                            <div class="invalid-feedback"><?= session('errors.api_key_id') ?></div>
                         <?php endif; ?>
                         <div class="form-text">
-                            Enter the API key obtained from the LLM provider.
-                            <strong>Note:</strong> This key will be securely stored and never displayed in full again.
+                            Select an API key from your configured keys.
+                            <a href="<?= site_url('api-keys/create') ?>">Add a new API key</a>
                         </div>
                     </div>
 
@@ -118,6 +150,7 @@
     document.addEventListener('DOMContentLoaded', function() {
         const providerSelect = document.getElementById('provider');
         const modelSelect = document.getElementById('model');
+        const apiKeySelect = document.getElementById('api_key_id');
         const modelGroups = document.querySelectorAll('.model-group');
 
         // Function to filter models based on selected provider
@@ -158,11 +191,63 @@
             }
         }
 
+        // Function to filter API keys based on selected provider
+        function filterApiKeys() {
+            const selectedProvider = providerSelect.value;
+            const apiKeyOptions = apiKeySelect.querySelectorAll('option');
+            
+            // First option is always "Select API Key"
+            let firstOption = apiKeyOptions[0];
+            
+            // Hide all API key options except the first one
+            apiKeyOptions.forEach(option => {
+                if (option !== firstOption) {
+                    const optionProvider = option.getAttribute('data-provider');
+                    if (selectedProvider && optionProvider !== selectedProvider) {
+                        option.style.display = 'none';
+                        option.disabled = true;
+                    } else {
+                        option.style.display = '';
+                        option.disabled = false;
+                    }
+                }
+            });
+            
+            // Reset selection if current selection is now hidden
+            const selectedOption = apiKeySelect.options[apiKeySelect.selectedIndex];
+            if (selectedOption && selectedOption !== firstOption && selectedOption.disabled) {
+                apiKeySelect.value = '';
+            }
+            
+            // If there's only one valid option (besides the placeholder), select it
+            let validOptions = Array.from(apiKeyOptions).filter(option => 
+                option !== firstOption && !option.disabled
+            );
+            
+            if (validOptions.length === 1) {
+                validOptions[0].selected = true;
+            }
+        }
+
         // Initial filter
         filterModels();
+        filterApiKeys();
 
         // Add event listener to provider select
-        providerSelect.addEventListener('change', filterModels);
+        providerSelect.addEventListener('change', function() {
+            filterModels();
+            filterApiKeys();
+        });
+        
+        // Add event listener to API key select to update provider
+        apiKeySelect.addEventListener('change', function() {
+            const selectedOption = apiKeySelect.options[apiKeySelect.selectedIndex];
+            if (selectedOption && selectedOption.getAttribute('data-provider')) {
+                const provider = selectedOption.getAttribute('data-provider');
+                providerSelect.value = provider;
+                filterModels();
+            }
+        });
     });
 </script>
 

@@ -11,7 +11,7 @@ class TenantsModel extends Model
     protected $useAutoIncrement = false;
     protected $returnType = 'array';
     protected $useSoftDeletes = false;
-    protected $allowedFields = ['name', 'email', 'quota', 'active', 'api_key', 'plan_code', 'subscription_status', 'trial_ends_at', 'subscription_ends_at', 'created_at', 'updated_at'];
+    protected $allowedFields = ['name', 'email', 'quota', 'active', 'api_key', 'plan_code', 'subscription_status', 'trial_ends_at', 'subscription_ends_at', 'created_at', 'updated_at', 'max_domains', 'max_api_keys'];
     protected $useTimestamps = true;
     protected $createdField = 'created_at';
     protected $updatedField = 'updated_at';
@@ -233,5 +233,31 @@ class TenantsModel extends Model
         $tenant['total_cost'] = $result ? $result->total_cost : 0;
 
         return $tenant;
+    }
+
+    /**
+     * Get domains for a tenant
+     * 
+     * @param string $tenantId Tenant ID
+     * @return array List of domains
+     */
+    public function getDomains($tenantId)
+    {
+        return $this->db->table('domains')
+            ->where('tenant_id', $tenantId)
+            ->get()
+            ->getResultArray();
+    }
+
+    /**
+     * Add a domain to the tenant
+     * 
+     * @param array $data Domain data
+     * @return int Domain ID
+     */
+    public function addDomain($data)
+    {
+        $this->db->table('domains')->insert($data);
+        return $this->db->insertID();
     }
 }

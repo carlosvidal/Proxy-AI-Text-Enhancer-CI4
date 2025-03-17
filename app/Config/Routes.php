@@ -33,6 +33,13 @@ $routes->get('/', 'Home::index');
 
 /*
  * --------------------------------------------------------------------
+ * Language Routes
+ * --------------------------------------------------------------------
+ */
+$routes->get('language/(:segment)', 'LanguageController::setLanguage/$1');
+
+/*
+ * --------------------------------------------------------------------
  * Authentication Routes (no auth required)
  * --------------------------------------------------------------------
  */
@@ -53,6 +60,13 @@ $routes->group('', ['filter' => 'auth'], function($routes) {
     $routes->get('usage', 'Usage::index');
     $routes->get('usage/logs', 'Usage::logs');
     $routes->get('usage/api', 'Usage::api');
+    
+    // Domain Management Routes
+    $routes->get('domains', 'Domains::index');
+    $routes->get('domains/create', 'Domains::create');
+    $routes->post('domains/store', 'Domains::store');
+    $routes->get('domains/verify/(:segment)', 'Domains::verify/$1');
+    $routes->get('domains/delete/(:segment)', 'Domains::delete/$1');
 });
 
 /*
@@ -81,6 +95,13 @@ $routes->group('', ['filter' => 'auth:tenant'], function($routes) {
     $routes->post('api-users/update/(:segment)', 'ApiUsers::update/$1');
     $routes->get('api-users/delete/(:segment)', 'ApiUsers::delete/$1');
     $routes->get('api-users/view/(:segment)', 'ApiUsers::view/$1');
+    
+    // API Keys Management
+    $routes->get('api-keys', 'ApiKeys::index');
+    $routes->get('api-keys/create', 'ApiKeys::create');
+    $routes->post('api-keys/store', 'ApiKeys::store');
+    $routes->get('api-keys/set-default/(:segment)', 'ApiKeys::setDefault/$1');
+    $routes->get('api-keys/delete/(:segment)', 'ApiKeys::delete/$1');
 });
 
 /*
@@ -117,6 +138,10 @@ $routes->group('admin', ['filter' => 'auth:superadmin'], function($routes) {
     $routes->get('tenants/(:segment)/buttons/(:segment)/edit', 'Admin::editButton/$1/$2');
     $routes->post('tenants/(:segment)/buttons/(:segment)/update', 'Admin::updateButton/$1/$2');
     $routes->get('tenants/(:segment)/buttons/(:segment)/delete', 'Admin::deleteButton/$1/$2');
+    
+    // Admin Domain Management Routes
+    $routes->get('tenants/(:segment)/domains', 'Domains::manageTenantDomains/$1');
+    $routes->post('tenants/(:segment)/domains/max', 'Domains::updateMaxDomains/$1');
 });
 
 /*
