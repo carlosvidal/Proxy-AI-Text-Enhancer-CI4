@@ -6,17 +6,18 @@ use CodeIgniter\Model;
 
 class ApiKeyModel extends Model
 {
-    protected $table = 'api_keys';
-    protected $primaryKey = 'api_key_id';
+    protected $table = 'tenant_api_keys';
+    protected $primaryKey = 'id'; // Changed to match the actual primary key
     protected $returnType = 'array';
     protected $useSoftDeletes = false;
 
     protected $allowedFields = [
         'api_key_id',
         'tenant_id',
-        'name',
         'provider',
+        'name',
         'api_key',
+        'is_default', // Added missing field
         'active',
         'created_at',
         'updated_at'
@@ -28,11 +29,12 @@ class ApiKeyModel extends Model
     protected $updatedField = 'updated_at';
 
     protected $validationRules = [
-        'api_key_id' => 'required|regex_match[/^key-[0-9a-f]{8}-[0-9a-f]{8}$/]',
+        'api_key_id' => 'required|regex_match[/^key-[0-9a-f]{8}-[0-9a-f]{8}$/]|is_unique[tenant_api_keys.api_key_id,id,{id}]',
         'tenant_id' => 'required|regex_match[/^ten-[0-9a-f]{8}-[0-9a-f]{8}$/]',
         'name' => 'required|min_length[3]|max_length[255]',
         'provider' => 'required|in_list[openai,anthropic,cohere,mistral,deepseek,google]',
         'api_key' => 'required',
+        'is_default' => 'permit_empty|in_list[0,1]',
         'active' => 'permit_empty|in_list[0,1]'
     ];
 

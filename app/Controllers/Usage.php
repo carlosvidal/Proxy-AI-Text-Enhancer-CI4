@@ -39,12 +39,13 @@ class Usage extends Controller
 
         $tenant_id = session()->get('tenant_id');
         $data['title'] = 'Usage Dashboard';
-        
+
         // Get usage statistics for the current tenant
         $db = db_connect();
-        
+
         // Get total tokens used
-        $query = $db->query("
+        $query = $db->query(
+            "
             SELECT SUM(tokens) as total_tokens, COUNT(*) as total_requests
             FROM usage_logs 
             WHERE tenant_id = ?
@@ -52,14 +53,15 @@ class Usage extends Controller
             [$tenant_id]
         );
         $result = $query->getRow();
-        
+
         $data['stats'] = [
             'total_tokens' => $result->total_tokens ?? 0,
             'total_requests' => $result->total_requests ?? 0
         ];
 
         // Get daily usage for the last 30 days
-        $query = $db->query("
+        $query = $db->query(
+            "
             SELECT date(created_at) as usage_date, 
                    SUM(tokens) as daily_tokens,
                    COUNT(*) as daily_requests
@@ -73,7 +75,8 @@ class Usage extends Controller
         $data['daily_stats'] = $query->getResult();
 
         // Get button usage statistics
-        $query = $db->query("
+        $query = $db->query(
+            "
             SELECT b.name as button_name,
                    COUNT(*) as use_count,
                    SUM(u.tokens) as total_tokens
@@ -88,16 +91,18 @@ class Usage extends Controller
         $data['button_stats'] = $query->getResult();
 
         // Get API user statistics
-        $query = $db->query("
+        $query = $db->query(
+            "
             SELECT tu.id,
                    tu.name,
+                   tu.quota,
                    COUNT(ul.id) as request_count,
                    COALESCE(SUM(ul.tokens), 0) as total_tokens
             FROM tenant_users tu
-            LEFT JOIN usage_logs ul ON CAST(tu.id as VARCHAR) = ul.api_user_id 
+            LEFT JOIN usage_logs ul ON tu.id = ul.user_id 
                 AND ul.created_at >= date('now', '-30 days')
             WHERE tu.tenant_id = ?
-            GROUP BY tu.id, tu.name
+            GROUP BY tu.id, tu.name, tu.quota
             ORDER BY total_tokens DESC",
             [$tenant_id]
         );
@@ -120,19 +125,20 @@ class Usage extends Controller
 
         // Get the latest 100 usage logs for the tenant
         $db = db_connect();
-        $query = $db->query("
+        $query = $db->query(
+            "
             SELECT ul.*,
                    b.name as button_name,
-                   tu.name as api_user_name
+                   tu.name as user_name
             FROM usage_logs ul
             LEFT JOIN buttons b ON ul.button_id = b.button_id
-            LEFT JOIN tenant_users tu ON CAST(tu.id as VARCHAR) = ul.api_user_id
+            LEFT JOIN tenant_users tu ON tu.id = ul.user_id
             WHERE ul.tenant_id = ?
             ORDER BY ul.created_at DESC
             LIMIT 100",
             [$tenant_id]
         );
-        
+
         $data['logs'] = $query->getResult();
 
         return view('shared/usage/logs', $data);
@@ -152,22 +158,24 @@ class Usage extends Controller
 
         // Get all API users with their usage statistics
         $db = db_connect();
-        $query = $db->query("
+        $query = $db->query(
+            "
             SELECT tu.id,
                    tu.name,
                    tu.email,
                    tu.active,
+                   tu.quota,
                    COUNT(ul.id) as request_count,
                    COALESCE(SUM(ul.tokens), 0) as total_tokens,
                    MAX(ul.created_at) as last_used
             FROM tenant_users tu
-            LEFT JOIN usage_logs ul ON CAST(tu.id as VARCHAR) = ul.api_user_id
+            LEFT JOIN usage_logs ul ON tu.id = ul.user_id
             WHERE tu.tenant_id = ?
-            GROUP BY tu.id, tu.name, tu.email, tu.active
+            GROUP BY tu.id, tu.name, tu.email, tu.active, tu.quota
             ORDER BY total_tokens DESC",
             [$tenant_id]
         );
-        
+
         $data['api_users'] = $query->getResult();
 
         return view('shared/usage/api', $data);
@@ -185,12 +193,12 @@ class Usage extends Controller
         }
 
         $tenant_id = session()->get('tenant_id');
-        
+
         // Get API user information
         $user = $this->tenantUsersModel->where('tenant_id', $tenant_id)
             ->where('id', $user_id)
             ->first();
-            
+
         if (!$user) {
             return redirect()->to('/usage/api')
                 ->with('error', 'API user not found');
@@ -201,19 +209,20 @@ class Usage extends Controller
 
         // Get daily usage for this API user
         $db = db_connect();
-        $query = $db->query("
+        $query = $db->query(
+            "
             SELECT date(created_at) as usage_date,
                    COUNT(*) as daily_requests,
                    SUM(tokens) as total_tokens
             FROM usage_logs
             WHERE tenant_id = ?
-            AND api_user_id = CAST(? as VARCHAR)
+            AND user_id = ?
             AND created_at >= date('now', '-30 days')
             GROUP BY date(created_at)
             ORDER BY usage_date DESC",
             [$tenant_id, $user_id]
         );
-        
+
         $data['daily_stats'] = $query->getResult();
 
         return view('shared/usage/user', $data);

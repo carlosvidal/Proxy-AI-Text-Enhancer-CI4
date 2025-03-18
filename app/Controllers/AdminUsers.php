@@ -12,7 +12,7 @@ class AdminUsers extends BaseController
 
     public function __construct()
     {
-        helper(['url', 'form']);
+        helper(['url', 'form', 'logger']); // Añadido 'logger' al array de helpers
         $this->tenantsModel = new TenantsModel();
         $this->usersModel = new UsersModel();
     }
@@ -90,7 +90,15 @@ class AdminUsers extends BaseController
             'active' => 'required|in_list[0,1]'
         ];
 
+        // Añadir logs antes de la validación
+        log_debug('USERS', 'Iniciando creación de usuario', [
+            'post_data' => $this->request->getPost()
+        ]);
+
         if (!$this->validate($rules)) {
+            log_error('USERS', 'Error de validación en creación', [
+                'errors' => $this->validator->getErrors()
+            ]);
             return redirect()->back()
                 ->withInput()
                 ->with('errors', $this->validator->getErrors());
@@ -100,7 +108,7 @@ class AdminUsers extends BaseController
         $userData = [
             'username' => $this->request->getPost('username'),
             'email' => $this->request->getPost('email'),
-            'password' => $this->request->getPost('password'),
+            'password' => password_hash($this->request->getPost('password'), PASSWORD_DEFAULT),
             'name' => $this->request->getPost('name'),
             'role' => $this->request->getPost('role'),
             'tenant_id' => $this->request->getPost('tenant_id'),
@@ -108,13 +116,27 @@ class AdminUsers extends BaseController
             'created_at' => date('Y-m-d H:i:s')
         ];
 
+        log_debug('USERS', 'Datos preparados para creación', [
+            'userData' => array_diff_key($userData, ['password' => '']) // Excluir password del log
+        ]);
+
         // Guardar usuario
         try {
-            $this->usersModel->insert($userData);
+            $result = $this->usersModel->insert($userData);
+
+            log_debug('USERS', 'Resultado de creación', [
+                'success' => $result !== false,
+                'user_id' => $this->usersModel->insertID(),
+                'affected_rows' => $this->usersModel->db->affectedRows()
+            ]);
+
             return redirect()->to('/admin/users')
                 ->with('success', 'Usuario creado exitosamente');
         } catch (\Exception $e) {
-            log_message('error', 'Error al crear usuario: ' . $e->getMessage());
+            log_error('USERS', 'Error al crear usuario', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return redirect()->back()
                 ->withInput()
                 ->with('error', 'Error al crear usuario: ' . $e->getMessage());
@@ -159,28 +181,20 @@ class AdminUsers extends BaseController
             return redirect()->to('/dashboard')->with('error', 'No tienes permisos para acceder a esta sección');
         }
 
-        // Obtener usuario
-        $user = $this->usersModel->find($id);
-        if (!$user) {
-            return redirect()->to('/admin/users')->with('error', 'Usuario no encontrado');
+        // Verificar si existe el usuario
+        $existingUser = $this->usersModel->find($id);
+        log_debug('USERS', 'Usuario existente', [
+            'user_id' => $id,
+            'exists' => !empty($existingUser),
+            'user_data' => $existingUser ?? null
+        ]);
+
+        if (!$existingUser) {
+            return redirect()->back()->with('error', 'Usuario no encontrado');
         }
 
-        // Validar formulario
-        $rules = [
-            'username' => 'required|min_length[3]|max_length[50]|is_unique[users.username,id,' . $id . ']',
-            'email' => 'required|valid_email|is_unique[users.email,id,' . $id . ']',
-            'password' => 'permit_empty|min_length[6]|max_length[255]',
-            'name' => 'required|min_length[3]|max_length[255]',
-            'role' => 'required|in_list[superadmin,tenant]',
-            'tenant_id' => 'permit_empty',
-            'active' => 'required|in_list[0,1]'
-        ];
-
-        if (!$this->validate($rules)) {
-            return redirect()->back()
-                ->withInput()
-                ->with('errors', $this->validator->getErrors());
-        }
+        // Establecer reglas de validación con el ID actual
+        $this->usersModel->setValidationRules($id);
 
         // Preparar datos
         $userData = [
@@ -193,18 +207,48 @@ class AdminUsers extends BaseController
             'updated_at' => date('Y-m-d H:i:s')
         ];
 
-        // Añadir contraseña solo si se proporciona
-        if (!empty($this->request->getPost('password'))) {
-            $userData['password'] = $this->request->getPost('password');
+        // Si se proporcionó una nueva contraseña, incluirla
+        if ($password = $this->request->getPost('password')) {
+            if (!empty($password)) {
+                $userData['password'] = $password;
+            }
         }
 
-        // Actualizar usuario
+        log_debug('USERS', 'Datos preparados para actualización', [
+            'user_id' => $id,
+            'userData' => $userData
+        ]);
+
         try {
-            $this->usersModel->update($id, $userData);
+            // Intentar actualizar
+            $result = $this->usersModel->update($id, $userData);
+
+            log_debug('USERS', 'Resultado de actualización', [
+                'user_id' => $id,
+                'success' => $result !== false,
+                'affected_rows' => $this->usersModel->db->affectedRows()
+            ]);
+
+            if ($result === false) {
+                $errors = $this->usersModel->errors();
+                log_error('USERS', 'Error de validación al actualizar', [
+                    'user_id' => $id,
+                    'validation_errors' => $errors
+                ]);
+                return redirect()->back()
+                    ->withInput()
+                    ->with('errors', $errors);
+            }
+
             return redirect()->to('/admin/users')
                 ->with('success', 'Usuario actualizado exitosamente');
         } catch (\Exception $e) {
-            log_message('error', 'Error al actualizar usuario: ' . $e->getMessage());
+            log_error('USERS', 'Excepción al actualizar usuario', [
+                'user_id' => $id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return redirect()->back()
                 ->withInput()
                 ->with('error', 'Error al actualizar usuario: ' . $e->getMessage());

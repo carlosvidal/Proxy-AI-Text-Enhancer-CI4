@@ -12,8 +12,13 @@ class TenantApiKeysModel extends Model
     protected $returnType = 'array';
     protected $useSoftDeletes = false;
     protected $allowedFields = [
-        'api_key_id', 'tenant_id', 'provider', 'name', 'api_key', 
-        'is_default', 'active'
+        'api_key_id',
+        'tenant_id',
+        'provider',
+        'name',
+        'api_key',
+        'is_default',
+        'active'
     ];
 
     // Dates
@@ -30,7 +35,7 @@ class TenantApiKeysModel extends Model
         'name' => 'required|min_length[3]|max_length[100]',
         'api_key' => 'required|min_length[10]'
     ];
-    
+
     protected $validationMessages = [
         'api_key_id' => [
             'required' => 'El ID de la API Key es obligatorio',
@@ -76,8 +81,8 @@ class TenantApiKeysModel extends Model
     public function getTenantApiKeys($tenant_id)
     {
         return $this->where('tenant_id', $tenant_id)
-                    ->where('active', 1)
-                    ->findAll();
+            ->where('active', 1)
+            ->findAll();
     }
 
     /**
@@ -90,9 +95,9 @@ class TenantApiKeysModel extends Model
     public function getTenantProviderApiKeys($tenant_id, $provider)
     {
         return $this->where('tenant_id', $tenant_id)
-                    ->where('provider', $provider)
-                    ->where('active', 1)
-                    ->findAll();
+            ->where('provider', $provider)
+            ->where('active', 1)
+            ->findAll();
     }
 
     /**
@@ -105,10 +110,10 @@ class TenantApiKeysModel extends Model
     public function getDefaultApiKey($tenant_id, $provider)
     {
         return $this->where('tenant_id', $tenant_id)
-                    ->where('provider', $provider)
-                    ->where('is_default', 1)
-                    ->where('active', 1)
-                    ->first();
+            ->where('provider', $provider)
+            ->where('is_default', 1)
+            ->where('active', 1)
+            ->first();
     }
 
     /**
@@ -123,16 +128,16 @@ class TenantApiKeysModel extends Model
     {
         // First, unset any existing default
         $this->where('tenant_id', $tenant_id)
-             ->where('provider', $provider)
-             ->where('is_default', 1)
-             ->set(['is_default' => 0])
-             ->update();
-        
+            ->where('provider', $provider)
+            ->where('is_default', 1)
+            ->set(['is_default' => 0])
+            ->update();
+
         // Then set the new default
         return $this->where('api_key_id', $api_key_id)
-                    ->where('tenant_id', $tenant_id)
-                    ->set(['is_default' => 1])
-                    ->update();
+            ->where('tenant_id', $tenant_id)
+            ->set(['is_default' => 1])
+            ->update();
     }
 
     /**
@@ -144,7 +149,7 @@ class TenantApiKeysModel extends Model
     public function countTenantApiKeys($tenant_id)
     {
         return $this->where('tenant_id', $tenant_id)
-                    ->where('active', 1)
-                    ->countAllResults();
+            ->where('active', 1)
+            ->countAllResults();
     }
 }
