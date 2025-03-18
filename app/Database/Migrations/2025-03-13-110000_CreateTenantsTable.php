@@ -10,6 +10,12 @@ class CreateTenantsTable extends Migration
     public function up()
     {
         $this->forge->addField([
+            'id' => [
+                'type' => 'INT',
+                'constraint' => 11,
+                'unsigned' => true,
+                'auto_increment' => true,
+            ],
             'tenant_id' => [  // Primary key using format: ten-{timestamp}-{random}
                 'type' => 'VARCHAR',
                 'constraint' => 50,
@@ -28,19 +34,28 @@ class CreateTenantsTable extends Migration
                 'type' => 'TEXT',
                 'null' => true
             ],
+            'quota' => [
+                'type' => 'INT',
+                'constraint' => 11,
+                'default' => 0,
+            ],
             'active' => [
-                'type' => 'BOOLEAN',
-                'default' => 1
+                'type' => 'TINYINT',
+                'constraint' => 1,
+                'default' => 1,
             ],
             'created_at' => [
-                'type' => 'DATETIME'
+                'type' => 'DATETIME',
+                'null' => true,
             ],
             'updated_at' => [
-                'type' => 'DATETIME'
+                'type' => 'DATETIME',
+                'null' => true,
             ]
         ]);
 
-        $this->forge->addPrimaryKey('tenant_id');
+        $this->forge->addKey('id', true);
+        $this->forge->addUniqueKey('tenant_id');
         $this->forge->createTable('tenants');
     }
 

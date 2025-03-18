@@ -51,16 +51,16 @@ $routes->get('auth/logout', 'Auth::logout');
  * Protected Routes (requires authentication)
  * --------------------------------------------------------------------
  */
-$routes->group('', ['filter' => 'auth'], function($routes) {
+$routes->group('', ['filter' => 'auth'], function ($routes) {
     // Common routes
     $routes->get('auth/profile', 'Auth::profile');
     $routes->post('auth/profile', 'Auth::updateProfile');
-    
+
     // Usage Statistics (main dashboard for tenants)
     $routes->get('usage', 'Usage::index');
     $routes->get('usage/logs', 'Usage::logs');
     $routes->get('usage/api', 'Usage::api');
-    
+
     // Domain Management Routes
     $routes->get('domains', 'Domains::index');
     $routes->get('domains/create', 'Domains::create');
@@ -74,10 +74,10 @@ $routes->group('', ['filter' => 'auth'], function($routes) {
  * Tenant Routes (requires tenant role)
  * --------------------------------------------------------------------
  */
-$routes->group('', ['filter' => 'auth:tenant'], function($routes) {
+$routes->group('', ['filter' => 'auth:tenant'], function ($routes) {
     // Redirect tenant root to usage dashboard
     $routes->get('/', 'Usage::index');
-    
+
     // Buttons Management
     $routes->get('buttons', 'Buttons::index');
     $routes->get('buttons/create', 'Buttons::create');
@@ -86,7 +86,7 @@ $routes->group('', ['filter' => 'auth:tenant'], function($routes) {
     $routes->post('buttons/update/(:segment)', 'Buttons::update/$1');
     $routes->get('buttons/delete/(:segment)', 'Buttons::delete/$1');
     $routes->get('buttons/view/(:segment)', 'Buttons::view/$1');
-    
+
     // API Users Management
     $routes->get('api-users', 'ApiUsers::index');
     $routes->get('api-users/create', 'ApiUsers::create');
@@ -95,7 +95,7 @@ $routes->group('', ['filter' => 'auth:tenant'], function($routes) {
     $routes->post('api-users/update/(:segment)', 'ApiUsers::update/$1');
     $routes->get('api-users/delete/(:segment)', 'ApiUsers::delete/$1');
     $routes->get('api-users/view/(:segment)', 'ApiUsers::view/$1');
-    
+
     // API Keys Management
     $routes->get('api-keys', 'ApiKeys::index');
     $routes->get('api-keys/create', 'ApiKeys::create');
@@ -109,10 +109,10 @@ $routes->group('', ['filter' => 'auth:tenant'], function($routes) {
  * Admin Routes (requires superadmin role)
  * --------------------------------------------------------------------
  */
-$routes->group('admin', ['filter' => 'auth:superadmin'], function($routes) {
+$routes->group('admin', ['filter' => 'auth:superadmin'], function ($routes) {
     // Admin dashboard
     $routes->get('dashboard', 'Admin::dashboard');
-    
+
     // Tenants Management
     $routes->get('tenants', 'Admin::tenants');
     $routes->get('tenants/view/(:segment)', 'Admin::viewTenant/$1');
@@ -121,7 +121,7 @@ $routes->group('admin', ['filter' => 'auth:superadmin'], function($routes) {
     $routes->get('tenants/edit/(:segment)', 'Admin::editTenant/$1');
     $routes->post('tenants/update/(:segment)', 'Admin::updateTenant/$1');
     $routes->get('tenants/delete/(:segment)', 'Admin::deleteTenant/$1');
-    
+
     // API Users Management (admin section)
     $routes->get('tenants/(:segment)/users', 'Admin::tenantApiUsers/$1');
     $routes->get('tenants/(:segment)/users/create', 'Admin::createApiUser/$1');
@@ -130,7 +130,7 @@ $routes->group('admin', ['filter' => 'auth:superadmin'], function($routes) {
     $routes->post('tenants/(:segment)/users/(:segment)/update', 'Admin::updateApiUser/$1/$2');
     $routes->get('tenants/(:segment)/users/(:segment)/delete', 'Admin::deleteApiUser/$1/$2');
     $routes->get('tenants/(:segment)/users/(:segment)/usage', 'Admin::apiUserUsage/$1/$2');
-    
+
     // Tenant button management
     $routes->get('tenants/(:segment)/buttons', 'Admin::tenantButtons/$1');
     $routes->get('tenants/(:segment)/buttons/create', 'Admin::createButton/$1');
@@ -138,10 +138,19 @@ $routes->group('admin', ['filter' => 'auth:superadmin'], function($routes) {
     $routes->get('tenants/(:segment)/buttons/(:segment)/edit', 'Admin::editButton/$1/$2');
     $routes->post('tenants/(:segment)/buttons/(:segment)/update', 'Admin::updateButton/$1/$2');
     $routes->get('tenants/(:segment)/buttons/(:segment)/delete', 'Admin::deleteButton/$1/$2');
-    
+
     // Admin Domain Management Routes
     $routes->get('tenants/(:segment)/domains', 'Domains::manageTenantDomains/$1');
     $routes->post('tenants/(:segment)/domains/max', 'Domains::updateMaxDomains/$1');
+
+    // Rutas de usuarios de autenticación
+    $routes->get('users', 'AdminUsers::index');
+    $routes->get('users/create', 'AdminUsers::create');
+    $routes->post('users/store', 'AdminUsers::store');
+    $routes->get('users/edit/(:num)', 'AdminUsers::edit/$1');
+    $routes->post('users/update/(:num)', 'AdminUsers::update/$1');
+    $routes->get('users/view/(:num)', 'AdminUsers::view/$1');
+    $routes->get('users/delete/(:num)', 'AdminUsers::delete/$1');
 });
 
 /*
@@ -149,7 +158,7 @@ $routes->group('admin', ['filter' => 'auth:superadmin'], function($routes) {
  * Migration Routes (protected, admin only)
  * --------------------------------------------------------------------
  */
-$routes->group('', ['filter' => 'auth:superadmin'], function($routes) {
+$routes->group('', ['filter' => 'auth:superadmin'], function ($routes) {
     $routes->get('migrate', 'Migrate::index');
     $routes->get('migrate/version/(:num)', 'Migrate::version/$1');
     $routes->get('migrate/reset', 'Migrate::reset');
@@ -161,10 +170,10 @@ $routes->group('', ['filter' => 'auth:superadmin'], function($routes) {
  * API Routes (requires JWT authentication)
  * --------------------------------------------------------------------
  */
-$routes->group('api', ['filter' => 'jwt'], function($routes) {
+$routes->group('api', ['filter' => 'jwt'], function ($routes) {
     // LLM Proxy endpoints
     $routes->post('enhance', 'Api::enhance');
-    
+
     // Button management endpoints
     $routes->get('buttons', 'Api::getButtons');
     $routes->post('buttons', 'Api::createButton');

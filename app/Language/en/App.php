@@ -13,7 +13,7 @@ return [
     'delete' => 'Delete',
     'back' => 'Back',
     'submit' => 'Submit',
-    
+
     // Navigation
     'nav_dashboard' => 'Dashboard',
     'nav_buttons' => 'Buttons',
@@ -28,7 +28,8 @@ return [
     'nav_admin_panel' => 'Admin Panel',
     'nav_tenants' => 'Tenants',
     'nav_my_profile' => 'My Profile',
-    
+    'nav_users' => 'Users',
+
     // Buttons
     'buttons_title' => 'Buttons Management',
     'buttons_create' => 'Create New Button',
@@ -57,7 +58,7 @@ return [
     'buttons_error_domain_not_allowed' => 'The selected domain is not allowed for your account',
     'buttons_error_api_key_invalid' => 'The selected API Key is not valid or does not belong to the selected provider',
     'buttons_error_no_domains' => 'No domains configured. Please configure at least one domain.',
-    
+
     // API Keys
     'api_keys_title' => 'API Keys Management',
     'api_keys_create' => 'Create New API Key',
@@ -80,7 +81,7 @@ return [
     'api_keys_error_limit_reached' => 'You have reached the maximum number of API Keys allowed for your plan.',
     'api_keys_limit_info' => 'Your current plan allows {0} API Keys.',
     'api_keys_add_new' => 'Add a new API Key',
-    
+
     // Auth
     'auth_login_title' => 'Login - AI Text Enhancer Pro',
     'auth_app_name' => 'AI Text Enhancer Pro',
@@ -111,7 +112,7 @@ return [
     'account_created' => 'Account Created',
     'not_available' => 'Not available',
     'security_reminder' => 'For security reasons, remember to use a strong password and change it periodically.',
-    
+
     // Admin Dashboard
     'admin_total_tenants' => 'Total Tenants',
     'admin_active_tenants' => '{0} active',
@@ -140,7 +141,7 @@ return [
     'admin_users' => 'users',
     'admin_subscription_statistics' => 'Subscription Statistics',
     'admin_tenants' => 'tenants',
-    
+
     // Tenants Management
     'tenants_manage' => 'Manage Tenants',
     'tenants_add' => 'Add Tenant',
@@ -169,7 +170,7 @@ return [
     'tenants_delete' => 'Delete',
     'tenants_delete_confirm' => 'Are you sure you want to delete this tenant? This will also delete all associated API users and data.',
     'tenants_no_tenants' => 'No tenants found',
-    
+
     // Tenant API Users
     'tenant_users_title' => 'API Users for {0}',
     'tenant_users_back' => 'Back to Tenant',
@@ -189,7 +190,7 @@ return [
     'tenant_users_delete_confirm' => 'Are you sure you want to delete this API user? This will also delete all associated usage data.',
     'tenant_users_confirm_delete' => 'Are you sure you want to delete this API user? This action cannot be undone.',
     'tenant_users_usage' => 'View Usage',
-    
+
     // Domains
     'domains_title' => 'Domains Management',
     'domains_create' => 'Add New Domain',
@@ -223,7 +224,7 @@ return [
     'domains_error_limit_reached' => 'You have reached the maximum number of domains allowed for your plan.',
     'domains_limit_info' => 'Your current plan allows {0} domains.',
     'domains_error_no_domains' => 'No domains configured. Please add at least one domain.',
-    
+
     // Domain Verification
     'domains_verification_title' => 'Domain Verification',
     'domains_verification_text' => 'To verify domain ownership, you must add a TXT record to your DNS with the following value:',
@@ -237,13 +238,13 @@ return [
     'domains_limits_premium_value' => '10 domains',
     'domains_limits_enterprise' => 'Enterprise Plan',
     'domains_limits_enterprise_value' => 'Unlimited domains',
-    
+
     // Domain Creation
     'domains_input_help' => 'Enter only the domain name without http:// or https://',
     'domains_verification_note' => 'After adding your domain, you will need to verify ownership by adding a TXT record to your DNS.',
     'domains_verification_time' => 'The verification process may take up to 24 hours to complete due to DNS propagation.',
     'domains_save' => 'Save Domain',
-    
+
     // API Users
     'api_users_title' => 'API Users',
     'api_users_subtitle' => 'Manage API users and their button access',
@@ -273,7 +274,7 @@ return [
     'error_updating_status_try_again' => 'Error updating status. Please try again.',
     'cancel' => 'Cancel',
     'delete' => 'Delete',
-    
+
     // General
     'general_note' => 'Note',
     'general_cancel' => 'Cancel',

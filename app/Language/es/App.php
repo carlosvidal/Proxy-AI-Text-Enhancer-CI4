@@ -13,7 +13,7 @@ return [
     'delete' => 'Eliminar',
     'back' => 'Volver',
     'submit' => 'Enviar',
-    
+
     // Navigation
     'nav_dashboard' => 'Panel',
     'nav_buttons' => 'Botones',
@@ -28,7 +28,8 @@ return [
     'nav_admin_panel' => 'Panel de Administración',
     'nav_tenants' => 'Inquilinos',
     'nav_my_profile' => 'Mi Perfil',
-    
+    'nav_users' => 'Usuarios',
+
     // Buttons
     'buttons_title' => 'Gestión de Botones',
     'buttons_create' => 'Crear Nuevo Botón',
@@ -57,7 +58,7 @@ return [
     'buttons_error_domain_not_allowed' => 'El dominio seleccionado no está permitido para tu cuenta',
     'buttons_error_api_key_invalid' => 'La Clave API seleccionada no es válida o no pertenece al proveedor seleccionado',
     'buttons_error_no_domains' => 'No hay dominios configurados. Por favor, configure al menos un dominio.',
-    
+
     // API Keys
     'api_keys_title' => 'Gestión de Claves API',
     'api_keys_create' => 'Crear Nueva Clave API',
@@ -80,7 +81,7 @@ return [
     'api_keys_error_limit_reached' => 'Has alcanzado el número máximo de Claves API permitidas para tu plan.',
     'api_keys_limit_info' => 'Tu plan actual permite {0} Claves API.',
     'api_keys_add_new' => 'Añadir una nueva Clave API',
-    
+
     // Auth
     'auth_login_title' => 'Iniciar Sesión - AI Text Enhancer Pro',
     'auth_app_name' => 'AI Text Enhancer Pro',
@@ -111,7 +112,7 @@ return [
     'account_created' => 'Cuenta Creada',
     'not_available' => 'No disponible',
     'security_reminder' => 'Por razones de seguridad, recuerda usar una contraseña fuerte y cambiarla periódicamente.',
-    
+
     // Admin Dashboard
     'admin_total_tenants' => 'Total de Inquilinos',
     'admin_active_tenants' => '{0} activos',
@@ -140,7 +141,7 @@ return [
     'admin_users' => 'usuarios',
     'admin_subscription_statistics' => 'Estadísticas de Suscripción',
     'admin_tenants' => 'inquilinos',
-    
+
     // Tenants Management
     'tenants_manage' => 'Gestionar Inquilinos',
     'tenants_add' => 'Añadir Inquilino',
@@ -169,7 +170,7 @@ return [
     'tenants_delete' => 'Eliminar',
     'tenants_delete_confirm' => '¿Estás seguro de que quieres eliminar este inquilino? Esto también eliminará todos los usuarios API asociados y sus datos.',
     'tenants_no_tenants' => 'No se encontraron inquilinos',
-    
+
     // Tenant API Users
     'tenant_users_title' => 'Usuarios API para {0}',
     'tenant_users_back' => 'Volver al Inquilino',
@@ -189,7 +190,7 @@ return [
     'tenant_users_delete_confirm' => '¿Estás seguro de que quieres eliminar este usuario API? Esto también eliminará todos los datos de uso asociados.',
     'tenant_users_confirm_delete' => '¿Estás seguro de que quieres eliminar este usuario API? Esta acción no se puede deshacer.',
     'tenant_users_usage' => 'Ver Uso',
-    
+
     // Domains
     'domains_title' => 'Gestión de Dominios',
     'domains_create' => 'Añadir Nuevo Dominio',
@@ -223,7 +224,7 @@ return [
     'domains_error_limit_reached' => 'Has alcanzado el número máximo de dominios permitidos para tu plan.',
     'domains_limit_info' => 'Tu plan actual permite {0} dominios.',
     'domains_error_no_domains' => 'No hay dominios configurados. Por favor, añade al menos un dominio.',
-    
+
     // Domain Verification
     'domains_verification_title' => 'Verificación de Dominios',
     'domains_verification_text' => 'Para verificar la propiedad de un dominio, debes agregar un registro TXT a tu DNS con el siguiente valor:',
@@ -237,13 +238,13 @@ return [
     'domains_limits_premium_value' => '10 dominios',
     'domains_limits_enterprise' => 'Plan Enterprise',
     'domains_limits_enterprise_value' => 'Dominios ilimitados',
-    
+
     // Domain Creation
     'domains_input_help' => 'Ingresa solo el nombre de dominio sin http:// o https://',
     'domains_verification_note' => 'Después de agregar tu dominio, deberás verificar la propiedad agregando un registro TXT a tu DNS.',
     'domains_verification_time' => 'El proceso de verificación puede tardar hasta 24 horas en completarse debido a la propagación DNS.',
     'domains_save' => 'Guardar Dominio',
-    
+
     // API Users
     'api_users_title' => 'Usuarios API',
     'api_users_subtitle' => 'Administra usuarios API y su acceso a botones',
@@ -273,7 +274,7 @@ return [
     'error_updating_status_try_again' => 'Error al actualizar el estado. Por favor, inténtalo de nuevo.',
     'cancel' => 'Cancelar',
     'delete' => 'Eliminar',
-    
+
     // General
     'general_note' => 'Nota',
     'general_cancel' => 'Cancelar',

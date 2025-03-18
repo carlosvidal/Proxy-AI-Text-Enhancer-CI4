@@ -56,6 +56,11 @@
                             <li class="nav-item">
                                 <a class="nav-link" href="<?= site_url('admin/tenants') ?>"><?= lang('App.nav_tenants') ?></a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="<?= site_url('admin/users') ?>">
+                                    <?= lang('App.nav_users') ?>
+                                </a>
+                            </li>
                         <?php else: ?>
                             <li class="nav-item">
                                 <a class="nav-link" href="<?= site_url('usage') ?>"><?= lang('App.nav_usage') ?></a>
@@ -87,7 +92,7 @@
                             <a class="btn btn-primary btn-try-free" href="<?= site_url('auth/register') ?>"><?= lang('App.nav_register') ?></a>
                         </li>
                     <?php endif; ?>
-                    
+
                     <!-- Language Selector -->
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="languageDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -115,7 +120,7 @@
                 <?= session()->getFlashdata('error') ?>
             </div>
         <?php endif; ?>
-        
+
         <?php if (session()->getFlashdata('validation_error')): ?>
             <div class="alert alert-danger">
                 <ul>
