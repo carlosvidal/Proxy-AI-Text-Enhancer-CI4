@@ -49,6 +49,14 @@
                         <label class="form-check-label" for="active">Active</label>
                     </div>
                 </div>
+                
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="auto_create_users" name="auto_create_users" value="1" <?= old('auto_create_users', $tenant['auto_create_users'] ?? 0) ? 'checked' : '' ?>>
+                        <label class="form-check-label" for="auto_create_users">Auto-create API Users</label>
+                        <div class="form-text">If enabled, API users will be created automatically if they don't exist</div>
+                    </div>
+                </div>
 
                 <button type="submit" class="btn btn-primary">Update Tenant</button>
                 <a href="<?= site_url('admin/tenants') ?>" class="btn btn-secondary">Cancel</a>

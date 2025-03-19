@@ -39,6 +39,16 @@
                     </div>
 
                     <div class="mb-3">
+                        <label for="external_id" class="form-label">External ID</label>
+                        <input type="text" class="form-control <?= session('errors.external_id') ? 'is-invalid' : '' ?>" 
+                               id="external_id" name="external_id" value="<?= old('external_id') ?>" required>
+                        <?php if (session('errors.external_id')): ?>
+                            <div class="invalid-feedback"><?= session('errors.external_id') ?></div>
+                        <?php endif; ?>
+                        <div class="form-text">Required: Unique identifier for this user (e.g. their user ID in your system)</div>
+                    </div>
+
+                    <div class="mb-3">
                         <label for="email" class="form-label">Email</label>
                         <input type="email" class="form-control <?= session('errors.email') ? 'is-invalid' : '' ?>" 
                                id="email" name="email" value="<?= old('email') ?>">

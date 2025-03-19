@@ -205,6 +205,9 @@ class LlmProxy extends Controller
                 ->setStatusCode(400)
                 ->setJSON(['error' => ['message' => 'Missing user ID']]);
         }
+        
+        // Verify API user exists or auto-create if enabled
+        $this->_verifyApiUser($tenant_id, $user_id, $domain);
 
         // Look up button configuration - prioritize button_id if provided
         $button = null;
@@ -965,6 +968,85 @@ class LlmProxy extends Controller
         }
 
         return strlen($data);
+    }
+
+    /**
+     * Verifies if an API user exists and creates it if auto-creation is enabled
+     * 
+     * @param string $tenant_id Tenant ID
+     * @param string $user_id External user ID
+     * @param string $domain Domain (used to assign button access)
+     * @return bool True if user exists or was created, false otherwise
+     */
+    private function _verifyApiUser(string $tenant_id, string $user_id, string $domain = null)
+    {
+        $apiUsersModel = new \App\Models\ApiUsersModel();
+        $tenantsModel = new \App\Models\TenantsModel();
+        
+        // Check if API user exists
+        $apiUser = $apiUsersModel->where('tenant_id', $tenant_id)
+                                ->where('external_id', $user_id)
+                                ->first();
+        
+        if ($apiUser) {
+            log_debug('API_USER', 'Found existing API user', [
+                'tenant_id' => $tenant_id,
+                'user_id' => $user_id
+            ]);
+            return true;
+        }
+        
+        // No user found - check if auto-creation is enabled
+        if (!$tenantsModel->isAutoCreateUsersEnabled($tenant_id)) {
+            log_debug('API_USER', 'Auto-creation disabled', [
+                'tenant_id' => $tenant_id
+            ]);
+            return false;
+        }
+        
+        // Auto-creation is enabled - get tenant and available buttons
+        $tenant = $tenantsModel->findByTenantId($tenant_id);
+        
+        if (!$tenant) {
+            log_error('API_USER', 'Tenant not found', [
+                'tenant_id' => $tenant_id
+            ]);
+            return false;
+        }
+        
+        // Prepare user data
+        $userData = [
+            'name' => 'Auto-created User',
+            'quota' => $tenant['quota'] ?? 100000
+        ];
+        
+        // If domain is provided, find buttons for this domain to grant access
+        if (!empty($domain)) {
+            $buttonsModel = new \App\Models\ButtonsModel();
+            $button = $buttonsModel->getButtonByDomain($domain, $tenant_id);
+            
+            if ($button) {
+                $userData['buttons'] = [$button['button_id']];
+                log_debug('API_USER', 'Auto-granting access to button', [
+                    'button_id' => $button['button_id'],
+                    'button_name' => $button['name']
+                ]);
+            }
+        }
+        
+        // Create the user
+        $user = $apiUsersModel->findOrCreateByExternalId($tenant_id, $user_id, $userData);
+        
+        if ($user) {
+            log_info('API_USER', 'Auto-created API user', [
+                'tenant_id' => $tenant_id,
+                'user_id' => $user_id,
+                'api_user_id' => $user['user_id']
+            ]);
+            return true;
+        }
+        
+        return false;
     }
 
     /**

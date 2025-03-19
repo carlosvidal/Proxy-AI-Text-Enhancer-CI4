@@ -6,6 +6,91 @@ use CodeIgniter\Model;
 
 class ApiUsersModel extends Model
 {
+    /**
+     * Find or create a user by external ID
+     * 
+     * @param string $tenant_id Tenant ID
+     * @param string $external_id External ID
+     * @param array $userData Optional additional user data
+     * @return array|null User data or null if not found/created
+     */
+    public function findOrCreateByExternalId(string $tenant_id, string $external_id, array $userData = []): ?array
+    {
+        // Try to find existing user
+        $user = $this->where('tenant_id', $tenant_id)
+                      ->where('external_id', $external_id)
+                      ->first();
+        
+        if ($user) {
+            log_message('debug', "Found existing API user: {$external_id} for tenant: {$tenant_id}");
+            return $user;
+        }
+        
+        // Check if auto-create is enabled for this tenant
+        $tenantsModel = new \App\Models\TenantsModel();
+        $tenant = $tenantsModel->findByTenantId($tenant_id);
+        
+        if (!$tenant) {
+            log_message('error', "Tenant not found: {$tenant_id}");
+            return null;
+        }
+        
+        // Check if auto-create is enabled
+        $autoCreate = $tenantsModel->isAutoCreateUsersEnabled();
+        if (!$autoCreate) {
+            log_message('debug', "Auto-create users is disabled for tenant: {$tenant_id}");
+            return null;
+        }
+        
+        // If we get here, auto-create is enabled - create the user
+        log_message('info', "Auto-creating API user for tenant: {$tenant_id}, external ID: {$external_id}");
+        
+        // Prepare user data
+        $newUserData = [
+            'tenant_id' => $tenant_id,
+            'external_id' => $external_id,
+            'name' => $userData['name'] ?? 'Auto-created User',
+            'email' => $userData['email'] ?? null,
+            'quota' => $userData['quota'] ?? $tenant['quota'] ?? 100000,
+            'active' => $userData['active'] ?? 1,
+            'created_at' => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s')
+        ];
+        
+        // Insert new user
+        try {
+            $this->insert($newUserData);
+            $user_id = $this->getInsertID();
+            
+            // Get user data
+            $user = $this->find($user_id);
+            
+            // If there are any buttons, grant access to them
+            if (isset($userData['buttons']) && is_array($userData['buttons'])) {
+                $db = \Config\Database::connect();
+                $buttonsTable = $db->table('api_user_buttons');
+                
+                $buttonData = [];
+                foreach ($userData['buttons'] as $button_id) {
+                    $buttonData[] = [
+                        'user_id' => $user['user_id'],
+                        'button_id' => $button_id,
+                        'created_at' => date('Y-m-d H:i:s')
+                    ];
+                }
+                
+                if (!empty($buttonData)) {
+                    $buttonsTable->insertBatch($buttonData);
+                }
+            }
+            
+            log_message('info', "API user auto-created successfully: {$user['user_id']}");
+            return $user;
+        } catch (\Exception $e) {
+            log_message('error', "Failed to auto-create API user: " . $e->getMessage());
+            return null;
+        }
+    }
     protected $table = 'api_users';
     protected $primaryKey = 'user_id';
     protected $useAutoIncrement = false;

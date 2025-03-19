@@ -6,12 +6,18 @@ use CodeIgniter\Model;
 
 class TenantsModel extends Model
 {
+    /**
+     * Flag to enable automatic user creation
+     * 
+     * @var bool
+     */
+    protected $autoCreateUsers = false;
     protected $table = 'tenants';
     protected $primaryKey = 'tenant_id';
     protected $useAutoIncrement = false;
     protected $returnType = 'array';
     protected $useSoftDeletes = false;
-    protected $allowedFields = ['name', 'email', 'quota', 'active', 'api_key', 'plan_code', 'subscription_status', 'trial_ends_at', 'subscription_ends_at', 'created_at', 'updated_at', 'max_domains', 'max_api_keys'];
+    protected $allowedFields = ['name', 'email', 'quota', 'active', 'api_key', 'plan_code', 'subscription_status', 'trial_ends_at', 'subscription_ends_at', 'created_at', 'updated_at', 'max_domains', 'max_api_keys', 'auto_create_users'];
     protected $useTimestamps = true;
     protected $createdField = 'created_at';
     protected $updatedField = 'updated_at';
@@ -161,6 +167,38 @@ class TenantsModel extends Model
     public function findByTenantId($tenant_id)
     {
         return $this->where('tenant_id', $tenant_id)->first();
+    }
+    
+    /**
+     * Enable or disable automatic user creation for this tenant
+     * 
+     * @param bool $enable Whether to enable or disable auto-creation
+     * @return void
+     */
+    public function setAutoCreateUsers(bool $enable = true): void
+    {
+        $this->autoCreateUsers = $enable;
+    }
+    
+    /**
+     * Check if automatic user creation is enabled for a specific tenant
+     * 
+     * @param string|null $tenant_id Tenant ID to check (optional)
+     * @return bool True if auto-creation is enabled
+     */
+    public function isAutoCreateUsersEnabled(string $tenant_id = null): bool
+    {
+        // If tenant_id is provided, check the database setting
+        if ($tenant_id !== null) {
+            $tenant = $this->findByTenantId($tenant_id);
+            if ($tenant) {
+                return (bool)($tenant['auto_create_users'] ?? false);
+            }
+            return false;
+        }
+        
+        // Otherwise use the instance property
+        return $this->autoCreateUsers;
     }
 
     /**

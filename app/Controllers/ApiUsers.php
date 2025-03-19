@@ -46,6 +46,13 @@ class ApiUsers extends BaseController
                     'max_length' => 'Name cannot exceed 255 characters'
                 ]
             ],
+            'external_id' => [
+                'rules' => 'required|max_length[255]',
+                'errors' => [
+                    'required' => 'External ID is required',
+                    'max_length' => 'External ID cannot exceed 255 characters'
+                ]
+            ],
             'email' => [
                 'rules' => 'permit_empty|valid_email',
                 'errors' => [
@@ -77,6 +84,7 @@ class ApiUsers extends BaseController
         // Create API user
         $userData = [
             'tenant_id' => $tenant_id,
+            'external_id' => $this->request->getPost('external_id'),
             'name' => $this->request->getPost('name'),
             'email' => $this->request->getPost('email'),
             'quota' => $this->request->getPost('quota'),
