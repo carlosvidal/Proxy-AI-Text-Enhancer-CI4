@@ -980,73 +980,131 @@ class LlmProxy extends Controller
      */
     private function _verifyApiUser(string $tenant_id, string $user_id, string $domain = null)
     {
-        $apiUsersModel = new \App\Models\ApiUsersModel();
-        $tenantsModel = new \App\Models\TenantsModel();
-        
-        // Check if API user exists
-        $apiUser = $apiUsersModel->where('tenant_id', $tenant_id)
-                                ->where('external_id', $user_id)
-                                ->first();
-        
-        if ($apiUser) {
-            log_debug('API_USER', 'Found existing API user', [
-                'tenant_id' => $tenant_id,
-                'user_id' => $user_id
-            ]);
-            return true;
-        }
-        
-        // No user found - check if auto-creation is enabled
-        if (!$tenantsModel->isAutoCreateUsersEnabled($tenant_id)) {
-            log_debug('API_USER', 'Auto-creation disabled', [
-                'tenant_id' => $tenant_id
-            ]);
-            return false;
-        }
-        
-        // Auto-creation is enabled - get tenant and available buttons
-        $tenant = $tenantsModel->findByTenantId($tenant_id);
-        
-        if (!$tenant) {
-            log_error('API_USER', 'Tenant not found', [
-                'tenant_id' => $tenant_id
-            ]);
-            return false;
-        }
-        
-        // Prepare user data
-        $userData = [
-            'name' => 'Auto-created User',
-            'quota' => $tenant['quota'] ?? 100000
-        ];
-        
-        // If domain is provided, find buttons for this domain to grant access
-        if (!empty($domain)) {
-            $buttonsModel = new \App\Models\ButtonsModel();
-            $button = $buttonsModel->getButtonByDomain($domain, $tenant_id);
+        try {
+            $db = db_connect();
             
-            if ($button) {
-                $userData['buttons'] = [$button['button_id']];
-                log_debug('API_USER', 'Auto-granting access to button', [
-                    'button_id' => $button['button_id'],
-                    'button_name' => $button['name']
+            // Try to directly check if user exists in the database
+            $query = $db->query(
+                "SELECT * FROM api_users WHERE tenant_id = ? AND external_id = ?",
+                [$tenant_id, $user_id]
+            );
+            
+            $apiUser = $query->getRowArray();
+            
+            if ($apiUser) {
+                log_debug('API_USER', 'Found existing API user', [
+                    'tenant_id' => $tenant_id,
+                    'user_id' => $user_id
                 ]);
+                return true;
             }
-        }
-        
-        // Create the user
-        $user = $apiUsersModel->findOrCreateByExternalId($tenant_id, $user_id, $userData);
-        
-        if ($user) {
+            
+            // No user found - check if auto-creation is enabled
+            $tenant = $db->query(
+                "SELECT * FROM tenants WHERE tenant_id = ?",
+                [$tenant_id]
+            )->getRowArray();
+            
+            if (!$tenant) {
+                log_error('API_USER', 'Tenant not found', [
+                    'tenant_id' => $tenant_id
+                ]);
+                return false;
+            }
+            
+            $autoCreateEnabled = isset($tenant['auto_create_users']) && $tenant['auto_create_users'] == 1;
+            
+            if (!$autoCreateEnabled) {
+                log_debug('API_USER', 'Auto-creation disabled', [
+                    'tenant_id' => $tenant_id
+                ]);
+                return false;
+            }
+            
+            // Auto-creation is enabled - create a new user
+            helper('hash');
+            $generatedUserId = generate_hash_id('usr');
+            
+            // Default quota from tenant
+            $quota = isset($tenant['quota']) ? $tenant['quota'] : 100000;
+            
+            // If domain is provided, find buttons for this domain to grant access
+            $buttons = [];
+            if (!empty($domain)) {
+                $buttonQuery = $db->query(
+                    "SELECT * FROM buttons WHERE tenant_id = ? AND domain = ? AND active = 1",
+                    [$tenant_id, $domain]
+                );
+                
+                $button = $buttonQuery->getRowArray();
+                
+                if ($button) {
+                    $buttons[] = $button['button_id'];
+                    log_debug('API_USER', 'Auto-granting access to button', [
+                        'button_id' => $button['button_id'],
+                        'button_name' => $button['name']
+                    ]);
+                }
+            }
+            
+            // Start transaction
+            $db->transStart();
+            
+            // Create the user
+            $db->query(
+                "INSERT INTO api_users (user_id, external_id, tenant_id, name, email, quota, active, created_at, updated_at) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [
+                    $generatedUserId,
+                    $user_id,
+                    $tenant_id,
+                    'Auto-created User',
+                    $user_id . '@auto.created',
+                    $quota,
+                    1,
+                    date('Y-m-d H:i:s'),
+                    date('Y-m-d H:i:s')
+                ]
+            );
+            
+            // Add button access if applicable
+            foreach ($buttons as $buttonId) {
+                $db->query(
+                    "INSERT INTO api_user_buttons (user_id, button_id, created_at) VALUES (?, ?, ?)",
+                    [
+                        $generatedUserId,
+                        $buttonId,
+                        date('Y-m-d H:i:s')
+                    ]
+                );
+            }
+            
+            $db->transComplete();
+            
+            if ($db->transStatus() === false) {
+                log_error('API_USER', 'Failed to auto-create API user', [
+                    'tenant_id' => $tenant_id,
+                    'user_id' => $user_id,
+                    'error' => $db->error()
+                ]);
+                return false;
+            }
+            
             log_info('API_USER', 'Auto-created API user', [
                 'tenant_id' => $tenant_id,
                 'user_id' => $user_id,
-                'api_user_id' => $user['user_id']
+                'api_user_id' => $generatedUserId
             ]);
             return true;
+            
+        } catch (\Exception $e) {
+            log_error('API_USER', 'Exception in _verifyApiUser', [
+                'tenant_id' => $tenant_id,
+                'user_id' => $user_id,
+                'error' => $e->getMessage()
+            ]);
+            return false;
         }
-        
-        return false;
     }
 
     /**
