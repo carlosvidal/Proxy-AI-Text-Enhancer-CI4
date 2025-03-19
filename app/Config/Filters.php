@@ -91,6 +91,11 @@ class Filters extends BaseConfig
                 'api/quota/secure',      // Example of a secured quota endpoint
             ]
         ],
+        'cors' => [
+            'before' => [
+                'api/*',  // Apply CORS to all API routes
+            ]
+        ],
         'compress' => [
             'after' => [
                 'api/llm-proxy/*',  // All LLM proxy endpoints

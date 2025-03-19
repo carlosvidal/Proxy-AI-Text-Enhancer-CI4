@@ -186,11 +186,17 @@ class ButtonsModel extends Model
      * Get button configuration by domain
      * 
      * @param string $domain Domain name
+     * @param string|null $tenant_id Optional tenant ID to filter by
      * @return array|null Button configuration or null if not found
      */
-    public function getButtonByDomain(string $domain)
+    public function getButtonByDomain(string $domain, string $tenant_id = null)
     {
-        return $this->where('domain', $domain)
-            ->first();
+        $query = $this->where('domain', $domain);
+        
+        if (!empty($tenant_id)) {
+            $query->where('tenant_id', $tenant_id);
+        }
+        
+        return $query->first();
     }
 }
