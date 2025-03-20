@@ -37,62 +37,43 @@ class AddExternalIdToUsageLogs extends Migration
                 'constraint' => 255,
                 'null' => false
             ],
-            'button_id' => [
+            'provider' => [
                 'type' => 'VARCHAR',
                 'constraint' => 50,
                 'null' => false
             ],
-            'request_timestamp' => [
-                'type' => 'DATETIME',
+            'model' => [
+                'type' => 'VARCHAR',
+                'constraint' => 50,
                 'null' => false
             ],
-            'request_ip' => [
-                'type' => 'VARCHAR',
-                'constraint' => 45,
-                'null' => true
+            'has_image' => [
+                'type' => 'TINYINT',
+                'constraint' => 1,
+                'default' => 0
             ],
-            'request_data' => [
-                'type' => 'TEXT',
-                'null' => true
-            ],
-            'response_data' => [
-                'type' => 'TEXT',
-                'null' => true
-            ],
-            'response_time' => [
-                'type' => 'FLOAT',
-                'null' => true
-            ],
-            'tokens_used' => [
+            'tokens' => [
                 'type' => 'INT',
                 'unsigned' => true,
                 'null' => true
             ],
-            'status' => [
-                'type' => 'VARCHAR',  // SQLite doesn't support ENUM
-                'constraint' => 10,
-                'default' => 'success'
-            ],
-            'error_message' => [
-                'type' => 'TEXT',
-                'null' => true
-            ],
-            'created_at' => [
-                'type' => 'DATETIME'
+            'usage_date' => [
+                'type' => 'DATETIME',
+                'null' => false
             ]
         ]);
 
         $this->forge->addPrimaryKey('id');
-        $this->forge->addKey(['tenant_id', 'user_id', 'button_id']);
+        $this->forge->addKey(['tenant_id', 'user_id']);
         $this->forge->addKey(['tenant_id', 'external_id']);
-        $this->forge->addKey('request_timestamp');
+        $this->forge->addKey('usage_date');
         
         // Create temporary table
         $this->forge->createTable('usage_logs_new');
 
         // Copy data from old table to new table, using user_id as external_id initially
-        $this->db->query('INSERT INTO usage_logs_new (id, tenant_id, user_id, external_id, button_id, request_timestamp, request_ip, request_data, response_data, response_time, tokens_used, status, error_message, created_at)
-                         SELECT id, tenant_id, user_id, user_id, button_id, request_timestamp, request_ip, request_data, response_data, response_time, tokens_used, status, error_message, created_at
+        $this->db->query('INSERT INTO usage_logs_new (id, tenant_id, user_id, external_id, provider, model, has_image, tokens, usage_date)
+                         SELECT id, tenant_id, user_id, user_id, provider, model, has_image, tokens, usage_date
                          FROM usage_logs');
 
         // Drop old table
@@ -123,61 +104,42 @@ class AddExternalIdToUsageLogs extends Migration
                 'constraint' => 50,
                 'null' => false
             ],
-            'button_id' => [
+            'provider' => [
                 'type' => 'VARCHAR',
                 'constraint' => 50,
                 'null' => false
             ],
-            'request_timestamp' => [
-                'type' => 'DATETIME',
+            'model' => [
+                'type' => 'VARCHAR',
+                'constraint' => 50,
                 'null' => false
             ],
-            'request_ip' => [
-                'type' => 'VARCHAR',
-                'constraint' => 45,
-                'null' => true
+            'has_image' => [
+                'type' => 'TINYINT',
+                'constraint' => 1,
+                'default' => 0
             ],
-            'request_data' => [
-                'type' => 'TEXT',
-                'null' => true
-            ],
-            'response_data' => [
-                'type' => 'TEXT',
-                'null' => true
-            ],
-            'response_time' => [
-                'type' => 'FLOAT',
-                'null' => true
-            ],
-            'tokens_used' => [
+            'tokens' => [
                 'type' => 'INT',
                 'unsigned' => true,
                 'null' => true
             ],
-            'status' => [
-                'type' => 'VARCHAR',
-                'constraint' => 10,
-                'default' => 'success'
-            ],
-            'error_message' => [
-                'type' => 'TEXT',
-                'null' => true
-            ],
-            'created_at' => [
-                'type' => 'DATETIME'
+            'usage_date' => [
+                'type' => 'DATETIME',
+                'null' => false
             ]
         ]);
 
         $this->forge->addPrimaryKey('id');
-        $this->forge->addKey(['tenant_id', 'user_id', 'button_id']);
-        $this->forge->addKey('request_timestamp');
+        $this->forge->addKey(['tenant_id', 'user_id']);
+        $this->forge->addKey('usage_date');
         
         // Create temporary table
         $this->forge->createTable('usage_logs_new');
 
         // Copy data from current table to new table
-        $this->db->query('INSERT INTO usage_logs_new (id, tenant_id, user_id, button_id, request_timestamp, request_ip, request_data, response_data, response_time, tokens_used, status, error_message, created_at)
-                         SELECT id, tenant_id, user_id, button_id, request_timestamp, request_ip, request_data, response_data, response_time, tokens_used, status, error_message, created_at
+        $this->db->query('INSERT INTO usage_logs_new (id, tenant_id, user_id, provider, model, has_image, tokens, usage_date)
+                         SELECT id, tenant_id, user_id, provider, model, has_image, tokens, usage_date
                          FROM usage_logs');
 
         // Drop old table
