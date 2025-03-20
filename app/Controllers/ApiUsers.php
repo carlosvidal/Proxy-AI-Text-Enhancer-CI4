@@ -13,6 +13,7 @@ class ApiUsers extends BaseController
     {
         $this->apiUsersModel = model('App\Models\ApiUsersModel');
         $this->tenantsModel = model('App\Models\TenantsModel');
+        helper('hash'); // Cargar el helper
     }
 
     public function index()
