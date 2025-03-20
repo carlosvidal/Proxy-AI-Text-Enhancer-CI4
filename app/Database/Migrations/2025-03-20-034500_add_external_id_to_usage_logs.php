@@ -8,6 +8,13 @@ class AddExternalIdToUsageLogs extends Migration
 {
     public function up()
     {
+        // First, clean up any leftover temporary tables from failed migrations
+        $tables = $this->db->query('SELECT name FROM sqlite_master WHERE type="table"')->getResultArray();
+        $table_names = array_column($tables, 'name');
+        if (in_array('usage_logs_new', $table_names)) {
+            $this->forge->dropTable('usage_logs_new', true);
+        }
+
         // For SQLite, we need to:
         // 1. Create a new table with the desired structure
         // 2. Copy data from old table to new table
@@ -77,7 +84,7 @@ class AddExternalIdToUsageLogs extends Migration
                          FROM usage_logs');
 
         // Drop old table
-        $this->forge->dropTable('usage_logs');
+        $this->forge->dropTable('usage_logs', true);
 
         // Rename new table to old name
         $this->db->query('ALTER TABLE usage_logs_new RENAME TO usage_logs');
@@ -85,6 +92,13 @@ class AddExternalIdToUsageLogs extends Migration
 
     public function down()
     {
+        // Clean up any leftover temporary tables first
+        $tables = $this->db->query('SELECT name FROM sqlite_master WHERE type="table"')->getResultArray();
+        $table_names = array_column($tables, 'name');
+        if (in_array('usage_logs_new', $table_names)) {
+            $this->forge->dropTable('usage_logs_new', true);
+        }
+
         // For down migration, we'll do the reverse process
         // Create temporary table without external_id
         $this->forge->addField([
@@ -143,7 +157,7 @@ class AddExternalIdToUsageLogs extends Migration
                          FROM usage_logs');
 
         // Drop old table
-        $this->forge->dropTable('usage_logs');
+        $this->forge->dropTable('usage_logs', true);
 
         // Rename new table to old name
         $this->db->query('ALTER TABLE usage_logs_new RENAME TO usage_logs');
