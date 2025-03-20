@@ -87,8 +87,8 @@ class ApiUsers extends BaseController
                 'name' => $this->request->getPost('name'),
                 'email' => $this->request->getPost('email'),
                 'quota' => $this->request->getPost('quota'),
-                'active' => 1,
-                'role' => 'user'
+                'daily_quota' => 10000, // Default daily quota
+                'active' => 1
             ];
 
             if (!$this->apiUsersModel->insert($data)) {
