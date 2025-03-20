@@ -475,6 +475,15 @@ class Admin extends BaseController
                 $pdo = new \PDO($dsn);
                 $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
                 
+                log_message('debug', 'Creating API user with data: ' . json_encode([
+                    'user_id' => $user_id,
+                    'external_id' => $this->request->getPost('external_id'),
+                    'tenant_id' => $tenant['tenant_id'],
+                    'name' => $this->request->getPost('name'),
+                    'email' => $this->request->getPost('email'),
+                    'quota' => $this->request->getPost('quota')
+                ]));
+
                 // Create API user with direct PDO query
                 $sql = "
                     INSERT INTO tenant_users (
@@ -486,7 +495,8 @@ class Admin extends BaseController
                         quota,
                         active,
                         created_at,
-                        updated_at
+                        updated_at,
+                        role
                     ) VALUES (
                         :user_id,
                         :external_id,
@@ -496,17 +506,20 @@ class Admin extends BaseController
                         :quota,
                         :active,
                         :created_at,
-                        :updated_at
+                        :updated_at,
+                        :role
                     )
                 ";
                 
                 try {
                     $stmt = $pdo->prepare($sql);
                     if (!$stmt) {
-                        throw new \Exception("Failed to prepare statement: " . print_r($pdo->errorInfo(), true));
+                        $error = $pdo->errorInfo();
+                        log_message('error', 'Failed to prepare statement: ' . json_encode($error));
+                        throw new \Exception("Failed to prepare statement: " . json_encode($error));
                     }
                     
-                    $result = $stmt->execute([
+                    $params = [
                         ':user_id' => $user_id,
                         ':external_id' => $this->request->getPost('external_id'),
                         ':tenant_id' => $tenant['tenant_id'],
@@ -515,15 +528,24 @@ class Admin extends BaseController
                         ':quota' => $this->request->getPost('quota'),
                         ':active' => 1,
                         ':created_at' => date('Y-m-d H:i:s'),
-                        ':updated_at' => date('Y-m-d H:i:s')
-                    ]);
+                        ':updated_at' => date('Y-m-d H:i:s'),
+                        ':role' => 'user'
+                    ];
+
+                    log_message('debug', 'Executing query with params: ' . json_encode($params));
+                    
+                    $result = $stmt->execute($params);
 
                     if (!$result) {
-                        throw new \Exception("Database insert failed: " . print_r($stmt->errorInfo(), true));
+                        $error = $stmt->errorInfo();
+                        log_message('error', 'Database insert failed: ' . json_encode($error));
+                        throw new \Exception("Database insert failed: " . json_encode($error));
                     }
+
+                    log_message('info', 'API user created successfully with ID: ' . $user_id);
                 } catch (\Exception $e) {
                     log_message('error', 'Error creating API user: ' . $e->getMessage());
-                    throw $e;
+                    throw new \Exception('Failed to create API user: ' . $e->getMessage());
                 }
                 
                 return redirect()->to('admin/tenants/' . $tenantId . '/users')
