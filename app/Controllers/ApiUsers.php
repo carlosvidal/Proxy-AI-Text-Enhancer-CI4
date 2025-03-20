@@ -42,10 +42,15 @@ class ApiUsers extends BaseController
             return redirect()->to('/api-users')->with('error', 'Maximum number of API users reached');
         }
 
+        // If admin, get list of tenants
         $data = [
             'title' => 'Create API User',
             'tenant_id' => $tenant_id
         ];
+
+        if (session()->get('is_admin')) {
+            $data['tenants'] = $this->tenantsModel->findAll();
+        }
 
         return view('shared/api_users/create', $data);
     }
@@ -57,63 +62,54 @@ class ApiUsers extends BaseController
             return redirect()->to('/dashboard')->with('error', 'No tenant selected');
         }
 
-        log_message('debug', '[ApiUsers::store] Starting API user creation. Session tenant_id: ' . $tenant_id);
-
-        // Get form data
-        $formData = $this->request->getPost();
-        log_message('debug', '[ApiUsers::store] Form data received: ' . json_encode($formData));
-
-        // Validation rules
+        // Validate input
         $rules = [
-            'tenant_id' => 'required',
-            'external_id' => 'required|max_length[255]|is_unique[api_users.external_id,tenant_id,{tenant_id}]',
+            'external_id' => 'required|min_length[3]|max_length[255]|is_unique[api_users.external_id,tenant_id,'.$tenant_id.']',
             'name' => 'required|min_length[3]|max_length[255]',
-            'email' => 'permit_empty|valid_email',
-            'quota' => 'required|integer|greater_than[0]'
+            'email' => 'permit_empty|valid_email|max_length[255]',
+            'quota' => 'required|is_natural_no_zero'
         ];
 
         if (!$this->validate($rules)) {
-            $errors = $this->validator->getErrors();
-            log_message('error', '[ApiUsers::store] Validation failed: ' . json_encode($errors));
             return redirect()->back()
-                           ->withInput()
-                           ->with('errors', $errors);
+                ->withInput()
+                ->with('errors', $this->validator->getErrors());
         }
 
-        // Prepare data for insertion
-        $data = [
-            'tenant_id' => $tenant_id,
-            'external_id' => $this->request->getPost('external_id'),
-            'name' => $this->request->getPost('name'),
-            'email' => $this->request->getPost('email'),
-            'quota' => $this->request->getPost('quota'),
-            'daily_quota' => $this->request->getPost('daily_quota') ?? 10000,
-            'active' => 1
-        ];
-
-        log_message('debug', '[ApiUsers::store] Attempting to insert API user with data: ' . json_encode($data));
-
         try {
-            $user_id = $this->apiUsersModel->insert($data);
-            if ($user_id) {
-                log_message('info', '[ApiUsers::store] API user created successfully with user_id: ' . $user_id);
-                return redirect()->to('/api-users')->with('success', 'API user created successfully');
-            }
+            $user_id = generate_hash_id('usr');
             
-            log_message('error', '[ApiUsers::store] Failed to insert API user. DB Error: ' . json_encode($this->apiUsersModel->errors()));
-            return redirect()->back()
-                           ->withInput()
-                           ->with('error', 'Failed to create API user');
+            $data = [
+                'user_id' => $user_id,
+                'external_id' => $this->request->getPost('external_id'),
+                'tenant_id' => $tenant_id,
+                'name' => $this->request->getPost('name'),
+                'email' => $this->request->getPost('email'),
+                'quota' => $this->request->getPost('quota'),
+                'active' => 1,
+                'role' => 'user'
+            ];
+
+            if (!$this->apiUsersModel->insert($data)) {
+                throw new \Exception('Failed to create API user');
+            }
+
+            return redirect()->to('api-users')
+                ->with('success', 'API user created successfully');
         } catch (\Exception $e) {
-            log_message('error', '[ApiUsers::store] Exception occurred: ' . $e->getMessage());
+            log_message('error', '[ApiUsers::store] Error: ' . $e->getMessage());
             return redirect()->back()
-                           ->withInput()
-                           ->with('error', 'Failed to create API user');
+                ->withInput()
+                ->with('error', 'Failed to create API user. Please try again.');
         }
     }
 
-    public function view($id)
+    public function view($id = null)
     {
+        if (!$id) {
+            return redirect()->to('api-users')->with('error', 'No API user specified');
+        }
+
         $tenant_id = session()->get('tenant_id');
         if (!$tenant_id) {
             return redirect()->to('/dashboard')->with('error', 'No tenant selected');
@@ -121,20 +117,8 @@ class ApiUsers extends BaseController
 
         $user = $this->apiUsersModel->getApiUserById($id);
         if (!$user || $user['tenant_id'] !== $tenant_id) {
-            return redirect()->to('/api-users')->with('error', 'API user not found');
+            return redirect()->to('api-users')->with('error', 'API user not found');
         }
-
-        // Get usage statistics
-        $usage = [
-            'total_requests' => 0,
-            'total_tokens' => 0,
-            'avg_tokens_per_request' => 0,
-            'daily_usage' => [],
-            'monthly_usage' => []
-        ];
-
-        // Add usage data to user array
-        $user['usage'] = $usage;
 
         $data = [
             'title' => 'View API User',
