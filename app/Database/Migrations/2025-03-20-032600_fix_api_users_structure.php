@@ -26,11 +26,6 @@ class FixApiUsersStructure extends Migration
                 'constraint' => 50,
                 'null' => false,
             ],
-            'external_id' => [
-                'type' => 'VARCHAR',
-                'constraint' => 255,
-                'null' => false,
-            ],
             'tenant_id' => [
                 'type' => 'VARCHAR',
                 'null' => false,
@@ -79,11 +74,10 @@ class FixApiUsersStructure extends Migration
         $this->forge->addKey('tenant_id');
         $this->forge->createTable('api_users');
 
-        // Restauramos los datos, generando user_id y external_id para los registros existentes
-        $this->db->query("INSERT INTO api_users (user_id, external_id, tenant_id, name, email, quota, daily_quota, active, last_activity, created_at, updated_at)
+        // Restauramos los datos, generando user_id para los registros existentes
+        $this->db->query("INSERT INTO api_users (user_id, tenant_id, name, email, quota, daily_quota, active, last_activity, created_at, updated_at)
             SELECT 
                 'usr-' || substr(hex(randomblob(4)), 1, 8) || '-' || substr(hex(randomblob(4)), 1, 8),
-                COALESCE(external_id, 'ext-' || substr(hex(randomblob(4)), 1, 8)),
                 tenant_id,
                 name,
                 NULL,
