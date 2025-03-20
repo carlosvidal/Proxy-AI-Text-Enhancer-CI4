@@ -24,7 +24,11 @@ class TenantsModel extends Model
 
     protected $validationRules = [
         'name' => 'required|min_length[3]|max_length[255]',
-        'email' => 'required|valid_email'
+        'email' => 'required|valid_email',
+        'quota' => 'required|integer|greater_than[0]',
+        'active' => 'required|in_list[0,1]',
+        'max_api_keys' => 'required|integer|greater_than_equal_to[0]',
+        'auto_create_users' => 'required|in_list[0,1]'
     ];
 
     protected $validationMessages = [
@@ -36,6 +40,24 @@ class TenantsModel extends Model
         'email' => [
             'required' => 'El email es requerido',
             'valid_email' => 'El email debe ser válido'
+        ],
+        'quota' => [
+            'required' => 'Quota is required',
+            'integer' => 'Quota must be a whole number',
+            'greater_than' => 'Quota must be greater than 0'
+        ],
+        'active' => [
+            'required' => 'Active status is required',
+            'in_list' => 'Active status must be either 0 or 1'
+        ],
+        'max_api_keys' => [
+            'required' => 'Maximum API keys is required',
+            'integer' => 'Maximum API keys must be a whole number',
+            'greater_than_equal_to' => 'Maximum API keys must be 0 or greater'
+        ],
+        'auto_create_users' => [
+            'required' => 'Auto-create users setting is required',
+            'in_list' => 'Auto-create users must be either 0 or 1'
         ]
     ];
 

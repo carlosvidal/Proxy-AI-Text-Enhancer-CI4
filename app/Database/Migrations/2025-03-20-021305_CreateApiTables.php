@@ -4,33 +4,26 @@ namespace App\Database\Migrations;
 
 use CodeIgniter\Database\Migration;
 
-class CreateApiUsersTable extends Migration
+class CreateApiTables extends Migration
 {
     public function up()
     {
-        // Drop existing tables if they exist
-        $this->forge->dropTable('api_user_buttons', true);
-        $this->forge->dropTable('api_users', true);
-
         // Create API users table
         $this->forge->addField([
-            'user_id' => [ // Format: usr-{timestamp}-{random}
+            'user_id' => [
                 'type' => 'VARCHAR',
                 'constraint' => 32,
                 'null' => false,
-                'comment' => 'Internal ID with format: usr-{timestamp}-{random}'
             ],
             'external_id' => [
                 'type' => 'VARCHAR',
                 'constraint' => 255,
                 'null' => false,
-                'comment' => 'External ID required for API consumption'
             ],
-            'tenant_id' => [ // Format: ten-{timestamp}-{random}
+            'tenant_id' => [
                 'type' => 'VARCHAR',
                 'constraint' => 32,
                 'null' => false,
-                'comment' => 'Tenant ID with format: ten-{timestamp}-{random}'
             ],
             'name' => [
                 'type' => 'VARCHAR',
@@ -49,6 +42,14 @@ class CreateApiUsersTable extends Migration
                 'null' => false,
                 'default' => 100000,
                 'comment' => 'Monthly token quota'
+            ],
+            'daily_quota' => [
+                'type' => 'INT',
+                'constraint' => 11,
+                'unsigned' => true,
+                'null' => false,
+                'default' => 10000,
+                'comment' => 'Daily token quota'
             ],
             'active' => [
                 'type' => 'TINYINT',
@@ -70,27 +71,22 @@ class CreateApiUsersTable extends Migration
             ],
         ]);
 
-        // Add primary key on user_id and indexes
         $this->forge->addKey('user_id', true);
-        $this->forge->addKey(['external_id', 'tenant_id']); // Composite index for uniqueness per tenant
+        $this->forge->addKey(['external_id', 'tenant_id']); 
         $this->forge->addKey('tenant_id');
-        
-        // Create the table
         $this->forge->createTable('api_users', true);
 
-        // Create API user buttons table for button access permissions
+        // Create API user buttons table
         $this->forge->addField([
-            'user_id' => [ // References api_users.user_id
+            'user_id' => [
                 'type' => 'VARCHAR',
                 'constraint' => 32,
                 'null' => false,
-                'comment' => 'API User ID'
             ],
-            'button_id' => [ // References buttons.button_id
+            'button_id' => [
                 'type' => 'VARCHAR',
                 'constraint' => 32,
                 'null' => false,
-                'comment' => 'Button ID'
             ],
             'created_at' => [
                 'type' => 'DATETIME',
@@ -98,16 +94,12 @@ class CreateApiUsersTable extends Migration
             ],
         ]);
 
-        // Add composite primary key on user_id and button_id
         $this->forge->addKey(['user_id', 'button_id'], true);
-
-        // Create the table
         $this->forge->createTable('api_user_buttons', true);
     }
 
     public function down()
     {
-        // Drop tables in reverse order
         $this->forge->dropTable('api_user_buttons', true);
         $this->forge->dropTable('api_users', true);
     }

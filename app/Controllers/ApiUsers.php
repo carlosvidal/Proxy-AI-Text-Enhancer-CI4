@@ -7,73 +7,182 @@ use App\Controllers\BaseController;
 class ApiUsers extends BaseController
 {
     protected $apiUsersModel;
-    protected $buttonsModel;
+    protected $tenantsModel;
 
     public function __construct()
     {
-        $this->apiUsersModel = model('ApiUsersModel');
-        $this->buttonsModel = model('ButtonsModel');
+        $this->apiUsersModel = model('App\Models\ApiUsersModel');
+        $this->tenantsModel = model('App\Models\TenantsModel');
     }
 
     public function index()
     {
         $tenant_id = session()->get('tenant_id');
+        if (!$tenant_id) {
+            return redirect()->to('/dashboard')->with('error', 'No tenant selected');
+        }
+
         $data = [
+            'title' => 'API Users',
             'users' => $this->apiUsersModel->getApiUsersByTenant($tenant_id)
         ];
+
         return view('shared/api_users/index', $data);
     }
 
     public function create()
     {
         $tenant_id = session()->get('tenant_id');
+        if (!$tenant_id) {
+            return redirect()->to('/dashboard')->with('error', 'No tenant selected');
+        }
+
+        // Check if tenant can create more API users
+        if (!$this->tenantsModel->canCreateApiUser($tenant_id)) {
+            return redirect()->to('/api-users')->with('error', 'Maximum number of API users reached');
+        }
+
         $data = [
-            'buttons' => $this->buttonsModel->where('tenant_id', $tenant_id)->findAll()
+            'title' => 'Create API User',
+            'tenant_id' => $tenant_id
         ];
+
         return view('shared/api_users/create', $data);
     }
 
     public function store()
     {
         $tenant_id = session()->get('tenant_id');
-        
-        // Validate input
+        if (!$tenant_id) {
+            return redirect()->to('/dashboard')->with('error', 'No tenant selected');
+        }
+
+        log_message('debug', '[ApiUsers::store] Starting API user creation. Session tenant_id: ' . $tenant_id);
+
+        // Get form data
+        $formData = $this->request->getPost();
+        log_message('debug', '[ApiUsers::store] Form data received: ' . json_encode($formData));
+
+        // Validation rules
         $rules = [
-            'name' => [
-                'rules' => 'permit_empty|min_length[3]|max_length[255]',
-                'errors' => [
-                    'min_length' => 'Name must be at least 3 characters long',
-                    'max_length' => 'Name cannot exceed 255 characters'
-                ]
-            ],
-            'external_id' => [
-                'rules' => 'required|max_length[255]|is_unique[api_users.external_id,tenant_id,' . $tenant_id . ']',
-                'errors' => [
-                    'required' => 'External ID is required',
-                    'max_length' => 'External ID cannot exceed 255 characters',
-                    'is_unique' => 'This External ID is already in use for this tenant'
-                ]
-            ],
-            'email' => [
-                'rules' => 'permit_empty|valid_email',
-                'errors' => [
-                    'valid_email' => 'Please enter a valid email address'
-                ]
-            ],
-            'quota' => [
-                'rules' => 'required|integer|greater_than[0]',
-                'errors' => [
-                    'required' => 'Monthly token quota is required',
-                    'integer' => 'Monthly token quota must be a whole number',
-                    'greater_than' => 'Monthly token quota must be greater than 0'
-                ]
-            ],
-            'buttons' => [
-                'rules' => 'required',
-                'errors' => [
-                    'required' => 'Please select at least one button'
-                ]
-            ]
+            'tenant_id' => 'required',
+            'external_id' => 'required|max_length[255]|is_unique[api_users.external_id,tenant_id,{tenant_id}]',
+            'name' => 'required|min_length[3]|max_length[255]',
+            'email' => 'permit_empty|valid_email',
+            'quota' => 'required|integer|greater_than[0]'
+        ];
+
+        if (!$this->validate($rules)) {
+            $errors = $this->validator->getErrors();
+            log_message('error', '[ApiUsers::store] Validation failed: ' . json_encode($errors));
+            return redirect()->back()
+                           ->withInput()
+                           ->with('errors', $errors);
+        }
+
+        // Prepare data for insertion
+        $data = [
+            'tenant_id' => $tenant_id,
+            'external_id' => $this->request->getPost('external_id'),
+            'name' => $this->request->getPost('name'),
+            'email' => $this->request->getPost('email'),
+            'quota' => $this->request->getPost('quota'),
+            'daily_quota' => $this->request->getPost('daily_quota') ?? 10000,
+            'active' => 1
+        ];
+
+        log_message('debug', '[ApiUsers::store] Attempting to insert API user with data: ' . json_encode($data));
+
+        try {
+            $user_id = $this->apiUsersModel->insert($data);
+            if ($user_id) {
+                log_message('info', '[ApiUsers::store] API user created successfully with user_id: ' . $user_id);
+                return redirect()->to('/api-users')->with('success', 'API user created successfully');
+            }
+            
+            log_message('error', '[ApiUsers::store] Failed to insert API user. DB Error: ' . json_encode($this->apiUsersModel->errors()));
+            return redirect()->back()
+                           ->withInput()
+                           ->with('error', 'Failed to create API user');
+        } catch (\Exception $e) {
+            log_message('error', '[ApiUsers::store] Exception occurred: ' . $e->getMessage());
+            return redirect()->back()
+                           ->withInput()
+                           ->with('error', 'Failed to create API user');
+        }
+    }
+
+    public function view($id)
+    {
+        $tenant_id = session()->get('tenant_id');
+        if (!$tenant_id) {
+            return redirect()->to('/dashboard')->with('error', 'No tenant selected');
+        }
+
+        $user = $this->apiUsersModel->getApiUserById($id);
+        if (!$user || $user['tenant_id'] !== $tenant_id) {
+            return redirect()->to('/api-users')->with('error', 'API user not found');
+        }
+
+        // Get usage statistics
+        $usage = [
+            'total_requests' => 0,
+            'total_tokens' => 0,
+            'avg_tokens_per_request' => 0,
+            'daily_usage' => [],
+            'monthly_usage' => []
+        ];
+
+        // Add usage data to user array
+        $user['usage'] = $usage;
+
+        $data = [
+            'title' => 'View API User',
+            'user' => $user
+        ];
+
+        return view('shared/api_users/view', $data);
+    }
+
+    public function edit($id)
+    {
+        $tenant_id = session()->get('tenant_id');
+        if (!$tenant_id) {
+            return redirect()->to('/dashboard')->with('error', 'No tenant selected');
+        }
+
+        $user = $this->apiUsersModel->getApiUserById($id);
+        if (!$user || $user['tenant_id'] !== $tenant_id) {
+            return redirect()->to('/api-users')->with('error', 'API user not found');
+        }
+
+        $data = [
+            'title' => 'Edit API User',
+            'user' => $user
+        ];
+
+        return view('shared/api_users/edit', $data);
+    }
+
+    public function update($id)
+    {
+        $tenant_id = session()->get('tenant_id');
+        if (!$tenant_id) {
+            return redirect()->to('/dashboard')->with('error', 'No tenant selected');
+        }
+
+        $user = $this->apiUsersModel->getApiUserById($id);
+        if (!$user || $user['tenant_id'] !== $tenant_id) {
+            return redirect()->to('/api-users')->with('error', 'API user not found');
+        }
+
+        // Validation rules
+        $rules = [
+            'name' => 'required|min_length[3]|max_length[255]',
+            'email' => 'permit_empty|valid_email',
+            'quota' => 'required|integer|greater_than[0]',
+            'daily_quota' => 'required|integer|greater_than[0]',
+            'active' => 'required|in_list[0,1]'
         ];
 
         if (!$this->validate($rules)) {
@@ -82,173 +191,47 @@ class ApiUsers extends BaseController
                            ->with('errors', $this->validator->getErrors());
         }
 
-        // Get the external_id (required)
-        $external_id = $this->request->getPost('external_id');
-        if (empty($external_id)) {
-            return redirect()->back()
-                           ->withInput()
-                           ->with('error', 'External ID is required');
-        }
-        
-        // Create API user
-        $userData = [
-            'tenant_id' => $tenant_id,
-            'external_id' => $external_id,
+        $data = [
             'name' => $this->request->getPost('name'),
             'email' => $this->request->getPost('email'),
             'quota' => $this->request->getPost('quota'),
-            'active' => 1,
-            'created_at' => date('Y-m-d H:i:s'),
-            'updated_at' => date('Y-m-d H:i:s')
+            'daily_quota' => $this->request->getPost('daily_quota'),
+            'active' => $this->request->getPost('active')
         ];
 
-        $db = \Config\Database::connect();
-        $db->transStart();
-
-        try {
-            // Make sure we include the external_id field
-            if (!isset($userData['external_id']) || empty($userData['external_id'])) {
-                log_message('error', 'External ID is required but was not provided');
-                throw new \Exception('External ID is required');
-            }
-            
-            // Insert API user (user_id will be auto-generated by the model)
-            $this->apiUsersModel->insert($userData);
-            $user_id = $this->apiUsersModel->getInsertID();
-
-            // Insert button access
-            $buttons = $this->request->getPost('buttons');
-            if (!is_array($buttons)) {
-                throw new \Exception('Invalid button selection');
-            }
-
-            $buttonData = [];
-            foreach ($buttons as $button_id) {
-                // Verify button belongs to tenant
-                $button = $this->buttonsModel->where('tenant_id', $tenant_id)
-                                           ->where('button_id', $button_id)
-                                           ->first();
-                if (!$button) {
-                    throw new \Exception('Invalid button selection');
-                }
-
-                $buttonData[] = [
-                    'user_id' => $user_id,
-                    'button_id' => $button_id,
-                    'created_at' => date('Y-m-d H:i:s')
-                ];
-            }
-
-            if (!empty($buttonData)) {
-                $db->table('api_user_buttons')->insertBatch($buttonData);
-            }
-
-            $db->transComplete();
-
-            if ($db->transStatus() === false) {
-                throw new \Exception('Failed to create API user');
-            }
-
-            return redirect()->to('api-users')
-                           ->with('success', 'API user created successfully');
-        } catch (\Exception $e) {
-            log_message('error', 'Failed to create API user: ' . $e->getMessage());
-            return redirect()->back()
-                           ->withInput()
-                           ->with('error', 'Failed to create API user. Please try again.');
+        if ($this->apiUsersModel->update($id, $data)) {
+            return redirect()->to('/api-users')->with('success', 'API user updated successfully');
         }
+
+        return redirect()->back()
+                       ->withInput()
+                       ->with('error', 'Failed to update API user');
     }
 
-    public function view($user_id)
+    public function delete($id)
     {
-        $tenant_id = session()->get('tenant_id');
-        $user = $this->apiUsersModel->where('tenant_id', $tenant_id)
-                                   ->where('user_id', $user_id)
-                                   ->first();
-
-        if (!$user) {
-            return redirect()->to('api-users')
-                           ->with('error', 'API user not found');
+        if (!$this->request->isAJAX() && !$this->request->getMethod() === 'post') {
+            return redirect()->back()->with('error', 'Invalid request method');
         }
 
-        // Get user's button access and usage statistics
-        $users = $this->apiUsersModel->getApiUsersByTenant($tenant_id);
-        foreach ($users as $u) {
-            if ($u['user_id'] === $user_id) {
-                $user = $u;
-                break;
-            }
+        $tenant_id = session()->get('tenant_id');
+        if (!$tenant_id) {
+            return redirect()->to('/dashboard')->with('error', 'No tenant selected');
         }
 
-        $data = [
-            'user' => $user,
-            'buttons' => $this->buttonsModel->where('tenant_id', $tenant_id)->findAll()
-        ];
-
-        return view('shared/api_users/view', $data);
-    }
-
-    public function toggleStatus($user_id)
-    {
-        $tenant_id = session()->get('tenant_id');
-        
-        // Validate user belongs to tenant
-        $user = $this->apiUsersModel->where('tenant_id', $tenant_id)
-                                   ->where('user_id', $user_id)
-                                   ->first();
-
-        if (!$user) {
-            return $this->response->setJSON([
-                'success' => false,
-                'message' => 'API user not found'
-            ]);
+        $user = $this->apiUsersModel->getApiUserById($id);
+        if (!$user || $user['tenant_id'] !== $tenant_id) {
+            return redirect()->to('/api-users')->with('error', 'API user not found');
         }
 
         try {
-            // Toggle status
-            $newStatus = $this->request->getJSON()->active;
-            $this->apiUsersModel->update($user_id, [
-                'active' => $newStatus,
-                'updated_at' => date('Y-m-d H:i:s')
-            ]);
-
-            return $this->response->setJSON([
-                'success' => true,
-                'message' => 'Status updated successfully'
-            ]);
+            if ($this->apiUsersModel->delete($id)) {
+                return redirect()->to('/api-users')->with('success', 'API user deleted successfully');
+            }
+            return redirect()->to('/api-users')->with('error', 'Failed to delete API user');
         } catch (\Exception $e) {
-            log_message('error', 'Failed to update API user status: ' . $e->getMessage());
-            return $this->response->setJSON([
-                'success' => false,
-                'message' => 'Failed to update status'
-            ]);
-        }
-    }
-
-    public function delete($user_id)
-    {
-        $tenant_id = session()->get('tenant_id');
-        
-        // Validate user belongs to tenant
-        $user = $this->apiUsersModel->where('tenant_id', $tenant_id)
-                                   ->where('user_id', $user_id)
-                                   ->first();
-
-        if (!$user) {
-            return redirect()->to('api-users')
-                           ->with('error', 'API user not found');
-        }
-
-        try {
-            // Delete API user (cascades to api_user_buttons)
-            $this->apiUsersModel->delete($user_id);
-
-            return redirect()->to('api-users')
-                           ->with('success', 'API user deleted successfully');
-        } catch (\Exception $e) {
-            log_message('error', 'Failed to delete API user: ' . $e->getMessage());
-            return redirect()->to('api-users')
-                           ->with('error', 'Failed to delete API user');
+            log_message('error', '[ApiUsers::delete] Exception occurred: ' . $e->getMessage());
+            return redirect()->to('/api-users')->with('error', 'Failed to delete API user');
         }
     }
 }
