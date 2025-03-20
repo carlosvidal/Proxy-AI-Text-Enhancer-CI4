@@ -333,22 +333,21 @@ class TenantsModel extends Model
             // Get tenant details
             $tenant = $this->find($tenantId);
             if (!$tenant) {
+                log_message('error', '[TenantsModel::canCreateApiUser] Tenant not found: ' . $tenantId);
                 return false;
             }
 
-            // If max_api_keys is 0, there's no limit
-            if ($tenant['max_api_keys'] === 0) {
-                return true;
-            }
+            $maxUsers = $tenant['max_api_keys'] ?? 1;
 
-            // Count current API users
+            // Get current count of API users
             $db = \Config\Database::connect();
             $currentCount = $db->table('tenant_users')
                 ->where('tenant_id', $tenantId)
                 ->countAllResults();
 
-            // Check if under limit
-            return $currentCount < $tenant['max_api_keys'];
+            log_message('debug', '[TenantsModel::canCreateApiUser] Tenant: ' . $tenantId . ', Max: ' . $maxUsers . ', Current: ' . $currentCount);
+
+            return $currentCount < $maxUsers;
         } catch (\Exception $e) {
             log_message('error', '[TenantsModel::canCreateApiUser] Error: ' . $e->getMessage());
             return false;
