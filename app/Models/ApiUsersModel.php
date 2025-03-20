@@ -60,14 +60,44 @@ class ApiUsersModel extends Model
      */
     public function getApiUsersByTenant($tenant_id)
     {
-        $users = $this->where('tenant_id', $tenant_id)->findAll();
+        $db = \Config\Database::connect();
         
-        // Add monthly and daily usage data and format last_activity
+        // Get base user data with all required fields
+        $users = $this->select('api_users.*, COALESCE(api_users.daily_quota, 10000) as daily_quota')
+            ->where('tenant_id', $tenant_id)
+            ->findAll();
+        
+        // Get current month's first day
+        $firstDayOfMonth = date('Y-m-01 00:00:00');
+        $today = date('Y-m-d 00:00:00');
+        
         foreach ($users as &$user) {
-            $user['monthly_usage'] = 0; // We'll implement actual usage tracking later
-            $user['daily_usage'] = 0; // We'll implement actual usage tracking later
-            $user['daily_quota'] = $user['daily_quota'] ?? 10000; // Default if not set
-            $user['last_activity'] = $user['last_activity'] ?? null;
+            // Ensure numeric fields are properly typed
+            $user['quota'] = (int)($user['quota'] ?? 0);
+            $user['daily_quota'] = (int)$user['daily_quota'];
+            $user['active'] = (int)($user['active'] ?? 0);
+
+            // Get monthly usage
+            $monthlyUsage = $db->table('usage_logs')
+                ->selectSum('tokens')
+                ->where('tenant_id', $tenant_id)
+                ->where('external_id', $user['external_id'])
+                ->where('created_at >=', $firstDayOfMonth)
+                ->get()
+                ->getRowArray();
+
+            // Get daily usage
+            $dailyUsage = $db->table('usage_logs')
+                ->selectSum('tokens')
+                ->where('tenant_id', $tenant_id)
+                ->where('external_id', $user['external_id'])
+                ->where('created_at >=', $today)
+                ->get()
+                ->getRowArray();
+
+            // Set usage data with defaults if null
+            $user['monthly_usage'] = (int)($monthlyUsage['tokens'] ?? 0);
+            $user['daily_usage'] = (int)($dailyUsage['tokens'] ?? 0);
         }
         
         return $users;

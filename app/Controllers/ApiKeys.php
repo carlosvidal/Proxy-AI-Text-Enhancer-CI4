@@ -4,7 +4,7 @@ namespace App\Controllers;
 
 use CodeIgniter\Controller;
 use App\Models\TenantsModel;
-use App\Models\TenantApiKeysModel;
+use App\Models\ApiKeysModel;
 
 class ApiKeys extends BaseController
 {
@@ -22,7 +22,7 @@ class ApiKeys extends BaseController
     public function __construct()
     {
         $this->tenantsModel = new TenantsModel();
-        $this->apiKeysModel = new TenantApiKeysModel();
+        $this->apiKeysModel = new ApiKeysModel();
         
         helper(['form', 'url', 'hash', 'api_key']);
     }

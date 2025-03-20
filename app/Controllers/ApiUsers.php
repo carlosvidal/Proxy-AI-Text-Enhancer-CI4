@@ -174,6 +174,26 @@ class ApiUsers extends BaseController
             return redirect()->to('api-users')->with('error', 'API user not found');
         }
 
+        // Obtener estadísticas de uso
+        $db = \Config\Database::connect();
+        $usage = $db->table('usage_logs')
+            ->select([
+                'COUNT(*) as total_requests',
+                'COALESCE(SUM(tokens), 0) as total_tokens',
+                'COALESCE(AVG(tokens), 0) as avg_tokens_per_request'
+            ])
+            ->where('tenant_id', $tenant_id)
+            ->where('external_id', $user['external_id'])
+            ->get()
+            ->getRowArray();
+
+        // Agregar estadísticas al array del usuario
+        $user['usage'] = [
+            'total_requests' => (int)$usage['total_requests'],
+            'total_tokens' => (int)$usage['total_tokens'],
+            'avg_tokens_per_request' => (float)$usage['avg_tokens_per_request']
+        ];
+
         $data = [
             'title' => 'View API User',
             'user' => $user
