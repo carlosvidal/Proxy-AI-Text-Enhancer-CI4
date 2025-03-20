@@ -61,7 +61,7 @@ class ApiUsersModel extends Model
     public function getApiUsersByTenant($tenant_id)
     {
         $users = $this->where('tenant_id', $tenant_id)->findAll();
-        
+
         // Add monthly and daily usage data and format last_activity
         foreach ($users as &$user) {
             $user['monthly_usage'] = 0; // We'll implement actual usage tracking later
@@ -69,7 +69,7 @@ class ApiUsersModel extends Model
             $user['daily_quota'] = $user['daily_quota'] ?? 10000; // Default if not set
             $user['last_activity'] = $user['last_activity'] ?? null;
         }
-        
+
         return $users;
     }
 
