@@ -105,9 +105,9 @@ class AddDomainToButtons extends Migration
                          SELECT id, button_id, tenant_id, name, description, 
                                 '*' as domain,
                                 prompt,
-                                COALESCE(provider, 'openai') as provider,
-                                COALESCE(model, 'gpt-3.5-turbo') as model,
-                                status,
+                                'openai' as provider,
+                                'gpt-3.5-turbo' as model,
+                                'active' as status,
                                 created_at,
                                 updated_at
                          FROM buttons");
@@ -132,10 +132,10 @@ class AddDomainToButtons extends Migration
 
     public function down()
     {
-        // Since we're just adding a column with default value, down migration is not critical
+        // Since we're just adding columns with default values, down migration is not critical
         // But we'll provide it for completeness
         
-        // Create temporary table without the new field
+        // Create temporary table without the new fields
         $fields = [
             'id' => [
                 'type' => 'INT',
@@ -167,18 +167,6 @@ class AddDomainToButtons extends Migration
                 'type' => 'TEXT',
                 'null' => true,
                 'default' => NULL
-            ],
-            'provider' => [
-                'type' => 'VARCHAR',
-                'constraint' => 50,
-                'null' => false,
-                'default' => 'openai'
-            ],
-            'model' => [
-                'type' => 'VARCHAR',
-                'constraint' => 50,
-                'null' => false,
-                'default' => 'gpt-3.5-turbo'
             ],
             'status' => [
                 'type' => 'VARCHAR',
@@ -214,9 +202,9 @@ class AddDomainToButtons extends Migration
         // Create temporary table
         $this->forge->createTable('buttons_new');
 
-        // Copy data excluding the new field
-        $this->db->query("INSERT INTO buttons_new (id, button_id, tenant_id, name, description, prompt, provider, model, status, created_at, updated_at)
-                         SELECT id, button_id, tenant_id, name, description, prompt, provider, model, status, created_at, updated_at
+        // Copy data excluding the new fields
+        $this->db->query("INSERT INTO buttons_new (id, button_id, tenant_id, name, description, prompt, status, created_at, updated_at)
+                         SELECT id, button_id, tenant_id, name, description, prompt, status, created_at, updated_at
                          FROM buttons");
 
         // Drop old table and its indices
