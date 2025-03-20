@@ -72,7 +72,7 @@ class AddProviderFieldsToUsageLogs extends Migration
                 'unsigned' => true,
                 'null' => true
             ],
-            'usage_date' => [
+            'created_at' => [
                 'type' => 'DATETIME',
                 'null' => false
             ]
@@ -85,12 +85,12 @@ class AddProviderFieldsToUsageLogs extends Migration
         $this->forge->createTable('usage_logs_new');
 
         // Copy existing data
-        $this->db->query("INSERT INTO usage_logs_new (id, tenant_id, user_id, external_id, provider, model, has_image, tokens, usage_date)
+        $this->db->query("INSERT INTO usage_logs_new (id, tenant_id, user_id, external_id, provider, model, has_image, tokens, created_at)
                          SELECT id, tenant_id, user_id, external_id, 
                                 'unknown' as provider,
                                 'unknown' as model,
                                 0 as has_image,
-                                tokens, usage_date
+                                tokens, created_at
                          FROM usage_logs");
 
         // Drop old table and its indices
@@ -107,7 +107,7 @@ class AddProviderFieldsToUsageLogs extends Migration
         $timestamp = date('YmdHis');
         $this->db->query('CREATE INDEX idx_usage_logs_tenant_user_' . $timestamp . ' ON usage_logs(tenant_id, user_id)');
         $this->db->query('CREATE INDEX idx_usage_logs_tenant_external_' . $timestamp . ' ON usage_logs(tenant_id, external_id)');
-        $this->db->query('CREATE INDEX idx_usage_logs_usage_date_' . $timestamp . ' ON usage_logs(usage_date)');
+        $this->db->query('CREATE INDEX idx_usage_logs_created_at_' . $timestamp . ' ON usage_logs(created_at)');
     }
 
     public function down()
@@ -143,7 +143,7 @@ class AddProviderFieldsToUsageLogs extends Migration
                 'unsigned' => true,
                 'null' => true
             ],
-            'usage_date' => [
+            'created_at' => [
                 'type' => 'DATETIME',
                 'null' => false
             ]
@@ -168,8 +168,8 @@ class AddProviderFieldsToUsageLogs extends Migration
         $this->forge->createTable('usage_logs_new');
 
         // Copy data excluding the new fields
-        $this->db->query("INSERT INTO usage_logs_new (id, tenant_id, user_id, external_id, tokens, usage_date)
-                         SELECT id, tenant_id, user_id, external_id, tokens, usage_date
+        $this->db->query("INSERT INTO usage_logs_new (id, tenant_id, user_id, external_id, tokens, created_at)
+                         SELECT id, tenant_id, user_id, external_id, tokens, created_at
                          FROM usage_logs");
 
         // Drop old table and its indices
@@ -186,6 +186,6 @@ class AddProviderFieldsToUsageLogs extends Migration
         $timestamp = date('YmdHis');
         $this->db->query('CREATE INDEX idx_usage_logs_tenant_user_' . $timestamp . ' ON usage_logs(tenant_id, user_id)');
         $this->db->query('CREATE INDEX idx_usage_logs_tenant_external_' . $timestamp . ' ON usage_logs(tenant_id, external_id)');
-        $this->db->query('CREATE INDEX idx_usage_logs_usage_date_' . $timestamp . ' ON usage_logs(usage_date)');
+        $this->db->query('CREATE INDEX idx_usage_logs_created_at_' . $timestamp . ' ON usage_logs(created_at)');
     }
 }
