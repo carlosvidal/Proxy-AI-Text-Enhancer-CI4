@@ -3,16 +3,21 @@
 namespace App\Controllers;
 
 use App\Controllers\BaseController;
+use App\Models\ApiUsersModel;
+use App\Models\TenantsModel;
+use App\Models\UsageLogsModel;
 
 class ApiUsers extends BaseController
 {
     protected $apiUsersModel;
     protected $tenantsModel;
+    protected $usageLogsModel;
 
     public function __construct()
     {
         $this->apiUsersModel = model('App\Models\ApiUsersModel');
         $this->tenantsModel = model('App\Models\TenantsModel');
+        $this->usageLogsModel = model('App\Models\UsageLogsModel');
         helper('hash'); // Cargar el helper
     }
 
@@ -158,10 +163,10 @@ class ApiUsers extends BaseController
         }
     }
 
-    public function view($id = null)
+    public function view($external_id = null)
     {
-        if (!$id) {
-            return redirect()->to('api-users')->with('error', 'No API user specified');
+        if (!$external_id) {
+            return redirect()->to('/api-users')->with('error', 'No API user specified');
         }
 
         $tenant_id = session()->get('tenant_id');
@@ -169,29 +174,64 @@ class ApiUsers extends BaseController
             return redirect()->to('/dashboard')->with('error', 'No tenant selected');
         }
 
-        $user = $this->apiUsersModel->getApiUserById($id);
+        $user = $this->apiUsersModel->where('external_id', $external_id)->first();
         if (!$user || $user['tenant_id'] !== $tenant_id) {
-            return redirect()->to('api-users')->with('error', 'API user not found');
+            return redirect()->to('/api-users')->with('error', 'API user not found');
         }
 
-        // Obtener estadísticas de uso
-        $db = \Config\Database::connect();
-        $usage = $db->table('usage_logs')
+        // Get usage statistics
+        $monthly_usage = [];
+        $daily_usage = [];
+
+        // Get total usage statistics
+        $total_stats = $this->usageLogsModel
             ->select([
                 'COUNT(*) as total_requests',
                 'COALESCE(SUM(tokens), 0) as total_tokens',
                 'COALESCE(AVG(tokens), 0) as avg_tokens_per_request'
             ])
-            ->where('tenant_id', $tenant_id)
-            ->where('external_id', $user['external_id'])
-            ->get()
-            ->getRowArray();
+            ->where('external_id', $external_id)
+            ->first();
 
-        // Agregar estadísticas al array del usuario
+        // Get monthly usage for the last 6 months
+        $start_date = date('Y-m-d H:i:s', strtotime('-6 months'));
+        $monthly_stats = $this->usageLogsModel
+            ->select("strftime('%Y-%m', created_at) as month, SUM(tokens) as total_tokens")
+            ->where('external_id', $external_id)
+            ->where('created_at >=', $start_date)
+            ->groupBy("strftime('%Y-%m', created_at)")
+            ->orderBy("month", "ASC")
+            ->findAll();
+
+        // Format monthly data
+        foreach ($monthly_stats as $stat) {
+            $month = date('M Y', strtotime($stat['month'] . '-01'));
+            $monthly_usage[$month] = (int)$stat['total_tokens'];
+        }
+
+        // Get daily usage for the last 30 days
+        $start_date = date('Y-m-d H:i:s', strtotime('-30 days'));
+        $daily_stats = $this->usageLogsModel
+            ->select("strftime('%Y-%m-%d', created_at) as date, SUM(tokens) as total_tokens")
+            ->where('external_id', $external_id)
+            ->where('created_at >=', $start_date)
+            ->groupBy("strftime('%Y-%m-%d', created_at)")
+            ->orderBy("date", "ASC")
+            ->findAll();
+
+        // Format daily data
+        foreach ($daily_stats as $stat) {
+            $date = date('d M', strtotime($stat['date']));
+            $daily_usage[$date] = (int)$stat['total_tokens'];
+        }
+
+        // Add usage data to user array
         $user['usage'] = [
-            'total_requests' => (int)$usage['total_requests'],
-            'total_tokens' => (int)$usage['total_tokens'],
-            'avg_tokens_per_request' => (float)$usage['avg_tokens_per_request']
+            'monthly_usage' => $monthly_usage,
+            'daily_usage' => $daily_usage,
+            'total_tokens' => (int)$total_stats['total_tokens'],
+            'total_requests' => (int)$total_stats['total_requests'],
+            'avg_tokens_per_request' => round((float)$total_stats['avg_tokens_per_request'], 1)
         ];
 
         $data = [
