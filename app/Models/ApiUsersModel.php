@@ -10,17 +10,7 @@ class ApiUsersModel extends Model
     protected $primaryKey = 'user_id';
     protected $useAutoIncrement = false;
     protected $returnType = 'array';
-    protected $allowedFields = [
-        'user_id',
-        'external_id',
-        'tenant_id',
-        'name',
-        'email',
-        'quota',
-        'daily_quota',
-        'active',
-        'last_activity'
-    ];
+    protected $allowedFields = ['tenant_id', 'user_id', 'external_id', 'name', 'email', 'quota', 'daily_quota', 'active', 'created_at', 'updated_at', 'last_activity'];
     protected $useTimestamps = true;
     protected $createdField = 'created_at';
     protected $updatedField = 'updated_at';
@@ -65,55 +55,6 @@ class ApiUsersModel extends Model
         return false;
     }
 
-    protected $validationRules = [
-        'user_id' => 'required|is_unique[api_users.user_id]',
-        'external_id' => 'required|min_length[3]|max_length[255]|is_unique[api_users.external_id,tenant_id,{tenant_id}]',
-        'tenant_id' => 'required|regex_match[/^ten-[a-f0-9]{8}-[a-f0-9]{8}$/]',
-        'name' => 'required|min_length[3]|max_length[255]',
-        'email' => 'permit_empty|valid_email',
-        'quota' => 'required|integer|greater_than[0]',
-        'daily_quota' => 'permit_empty|integer|greater_than[0]',
-        'active' => 'required|in_list[0,1]'
-    ];
-
-    protected $validationMessages = [
-        'user_id' => [
-            'required' => 'User ID is required',
-            'is_unique' => 'This User ID is already taken'
-        ],
-        'external_id' => [
-            'required' => 'External ID is required',
-            'min_length' => 'External ID must be at least 3 characters long',
-            'max_length' => 'External ID cannot exceed 255 characters',
-            'is_unique' => 'This External ID is already in use for this tenant'
-        ],
-        'tenant_id' => [
-            'required' => 'Tenant ID is required',
-            'regex_match' => 'Invalid tenant ID format'
-        ],
-        'name' => [
-            'required' => 'Name is required',
-            'min_length' => 'Name must be at least 3 characters long',
-            'max_length' => 'Name cannot exceed 255 characters'
-        ],
-        'email' => [
-            'valid_email' => 'Please enter a valid email address'
-        ],
-        'quota' => [
-            'required' => 'Monthly quota is required',
-            'integer' => 'Monthly quota must be a whole number',
-            'greater_than' => 'Monthly quota must be greater than 0'
-        ],
-        'daily_quota' => [
-            'integer' => 'Daily quota must be a whole number',
-            'greater_than' => 'Daily quota must be greater than 0'
-        ],
-        'active' => [
-            'required' => 'Status is required',
-            'in_list' => 'Invalid status value'
-        ]
-    ];
-
     /**
      * Get API users for a specific tenant with usage data
      */
@@ -155,4 +96,48 @@ class ApiUsersModel extends Model
         }
         return $user;
     }
+
+    // Validation rules
+    protected $validationRules = [
+        'tenant_id' => 'required|regex_match[/^ten-[a-f0-9]{8}-[a-f0-9]{8}$/]',
+        'external_id' => 'required|max_length[255]|is_unique[api_users.external_id,tenant_id,{tenant_id}]',
+        'name' => 'required|min_length[3]|max_length[255]',
+        'email' => 'permit_empty|valid_email',
+        'quota' => 'required|integer|greater_than[0]',
+        'daily_quota' => 'permit_empty|integer|greater_than[0]',
+        'active' => 'required|in_list[0,1]'
+    ];
+
+    protected $validationMessages = [
+        'tenant_id' => [
+            'required' => 'Tenant ID is required',
+            'regex_match' => 'Invalid tenant ID format'
+        ],
+        'external_id' => [
+            'required' => 'External ID is required',
+            'max_length' => 'External ID cannot exceed 255 characters',
+            'is_unique' => 'This External ID is already in use for this tenant'
+        ],
+        'name' => [
+            'required' => 'Name is required',
+            'min_length' => 'Name must be at least 3 characters long',
+            'max_length' => 'Name cannot exceed 255 characters'
+        ],
+        'email' => [
+            'valid_email' => 'Please enter a valid email address'
+        ],
+        'quota' => [
+            'required' => 'Monthly quota is required',
+            'integer' => 'Monthly quota must be a whole number',
+            'greater_than' => 'Monthly quota must be greater than 0'
+        ],
+        'daily_quota' => [
+            'integer' => 'Daily quota must be a whole number',
+            'greater_than' => 'Daily quota must be greater than 0'
+        ],
+        'active' => [
+            'required' => 'Status is required',
+            'in_list' => 'Invalid status value'
+        ]
+    ];
 }
