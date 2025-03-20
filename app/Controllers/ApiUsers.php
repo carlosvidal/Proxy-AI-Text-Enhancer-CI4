@@ -91,7 +91,32 @@ class ApiUsers extends BaseController
                 'active' => 1
             ];
 
-            if (!$this->apiUsersModel->insert($data)) {
+            // Log the data being inserted
+            log_message('debug', '[ApiUsers::store] Inserting data: ' . json_encode($data));
+
+            // Get the database connection
+            $db = \Config\Database::connect();
+            
+            // Start transaction
+            $db->transStart();
+
+            // Insert manually
+            $sql = "INSERT INTO api_users (user_id, external_id, tenant_id, name, email, quota, daily_quota, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))";
+            $db->query($sql, [
+                $data['user_id'],
+                $data['external_id'],
+                $data['tenant_id'],
+                $data['name'],
+                $data['email'],
+                $data['quota'],
+                $data['daily_quota'],
+                $data['active']
+            ]);
+
+            // Complete transaction
+            $db->transComplete();
+
+            if ($db->transStatus() === false) {
                 throw new \Exception('Failed to create API user');
             }
 
