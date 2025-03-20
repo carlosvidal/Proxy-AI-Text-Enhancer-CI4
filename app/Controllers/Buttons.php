@@ -147,11 +147,7 @@ class Buttons extends Controller
             return redirect()->back()->withInput()->with('error', 'Invalid model selected for the provider.');
         }
 
-        // Generar button_id usando el helper
-        $button_id = generate_hash_id('btn');
-
         $data = [
-            'button_id' => $button_id,
             'tenant_id' => $tenant_id,
             'name' => $this->request->getPost('name'),
             'description' => $this->request->getPost('description'),
@@ -159,11 +155,14 @@ class Buttons extends Controller
             'provider' => $provider,
             'model' => $model,
             'prompt' => $this->request->getPost('prompt'),
+            'api_key_id' => $api_key_id,
             'status' => 'active'
         ];
 
         try {
-            $this->buttonsModel->insert($data);
+            log_message('debug', 'Creating button with data: ' . json_encode($data));
+            $result = $this->buttonsModel->insert($data);
+            log_message('debug', 'Button created with ID: ' . $result);
             return redirect()->to('/buttons')->with('success', 'Button created successfully.');
         } catch (\Exception $e) {
             log_message('error', 'Error creating button: ' . $e->getMessage());
@@ -187,11 +186,18 @@ class Buttons extends Controller
             return redirect()->to('/buttons')->with('error', 'Button not found.');
         }
 
-        // Get API key for the button's provider
+        // Get API key for the button
         $apiKey = $this->apiKeysModel->where('tenant_id', $tenant_id)
-            ->where('provider', $button['provider'])
-            ->where('is_default', 1)
+            ->where('api_key_id', $button['api_key_id'])
             ->first();
+
+        // If no custom API key, get default one for provider
+        if (!$apiKey) {
+            $apiKey = $this->apiKeysModel->where('tenant_id', $tenant_id)
+                ->where('provider', $button['provider'])
+                ->where('is_default', 1)
+                ->first();
+        }
 
         return view('shared/buttons/view', [
             'title' => 'View Button',
@@ -273,13 +279,20 @@ class Buttons extends Controller
             return redirect()->to('/buttons')->with('error', 'Button not found.');
         }
 
-        $provider = $this->request->getPost('provider');
+        // Obtener el API key seleccionado
+        $api_key_id = $this->request->getPost('api_key_id');
+        $apiKey = $this->apiKeysModel->where('tenant_id', $tenant_id)
+            ->where('api_key_id', $api_key_id)
+            ->first();
+
+        if (!$apiKey) {
+            return redirect()->back()->withInput()->with('error', 'Invalid API key selected.');
+        }
+
+        $provider = $apiKey['provider'];
         $model = $this->request->getPost('model');
 
-        // Validate provider and model
-        if (!isset($this->providers[$provider])) {
-            return redirect()->back()->withInput()->with('error', 'Invalid provider selected.');
-        }
+        // Validar que el modelo exista para el provider del API key
         if (!isset($this->models[$provider][$model])) {
             return redirect()->back()->withInput()->with('error', 'Invalid model selected for the provider.');
         }
@@ -291,7 +304,7 @@ class Buttons extends Controller
             'provider' => $provider,
             'model' => $model,
             'prompt' => $this->request->getPost('prompt'),
-            'status' => $this->request->getPost('status')
+            'status' => 'active'
         ];
 
         try {

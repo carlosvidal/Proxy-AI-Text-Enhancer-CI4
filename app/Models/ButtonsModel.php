@@ -20,6 +20,7 @@ class ButtonsModel extends Model
         'prompt',
         'provider',
         'model',
+        'api_key_id',
         'status',
         'created_at',
         'updated_at'
@@ -31,24 +32,19 @@ class ButtonsModel extends Model
     protected $updatedField = 'updated_at';
 
     protected $validationRules = [
-        'button_id' => 'required|regex_match[/^btn-[0-9a-f]{8}-[0-9a-f]{8}$/]',
-        'tenant_id' => 'required|regex_match[/^ten-[0-9a-f]{8}-[0-9a-f]{8}$/]',
+        'tenant_id' => 'required',
         'name' => 'required|min_length[3]|max_length[255]',
-        'domain' => 'required|valid_url_strict[https]',
-        'provider' => 'required|in_list[openai,anthropic,cohere,mistral,deepseek,google]',
+        'domain' => 'required',
+        'prompt' => 'required',
+        'provider' => 'required|in_list[openai,anthropic,google,azure]',
         'model' => 'required',
-        'prompt' => 'permit_empty',
-        'status' => 'permit_empty|in_list[active,inactive,deleted]'
+        'api_key_id' => 'required',
+        'status' => 'required|in_list[active,inactive]'
     ];
 
     protected $validationMessages = [
-        'button_id' => [
-            'required' => 'Button ID is required',
-            'regex_match' => 'Invalid button ID format'
-        ],
         'tenant_id' => [
             'required' => 'Tenant ID is required',
-            'regex_match' => 'Invalid tenant ID format'
         ],
         'name' => [
             'required' => 'Button name is required',
@@ -57,7 +53,9 @@ class ButtonsModel extends Model
         ],
         'domain' => [
             'required' => 'Domain is required',
-            'valid_url_strict' => 'Invalid domain URL'
+        ],
+        'prompt' => [
+            'required' => 'Prompt is required',
         ],
         'provider' => [
             'required' => 'Provider is required',
@@ -66,24 +64,27 @@ class ButtonsModel extends Model
         'model' => [
             'required' => 'Model is required'
         ],
+        'api_key_id' => [
+            'required' => 'API Key ID is required',
+        ],
         'status' => [
+            'required' => 'Status is required',
             'in_list' => 'Invalid status'
         ]
     ];
 
-    protected $beforeInsert = ['generateButtonId', 'setDefaultStatus'];
-    protected $beforeUpdate = [];
+    protected $beforeInsert = ['generateButtonId', 'setDefaultStatus', 'formatDomain'];
+    protected $beforeUpdate = ['formatDomain'];
+    protected $beforeDelete = ['checkUsageAndCleanup'];
 
     /**
      * Generate a unique button ID using the format btn-{timestamp}-{random}
-     * Following the established ID format pattern from the system
      */
     protected function generateButtonId(array $data)
     {
-        if (!isset($data['data']['button_id'])) {
-            helper('hash');
-            $data['data']['button_id'] = generate_hash_id('btn');
-        }
+        helper('hash');
+        $data['data']['button_id'] = generate_hash_id('btn');
+        log_message('debug', 'Generated button_id: ' . $data['data']['button_id']);
         return $data;
     }
 
@@ -99,11 +100,70 @@ class ButtonsModel extends Model
     }
 
     /**
+     * Format domain to ensure it has https:// prefix
+     */
+    protected function formatDomain(array $data)
+    {
+        if (isset($data['data']['domain'])) {
+            $domain = $data['data']['domain'];
+            if (!preg_match('~^(?:f|ht)tps?://~i', $domain)) {
+                $data['data']['domain'] = 'https://' . $domain;
+            }
+            log_message('debug', 'Formatted domain: ' . $data['data']['domain']);
+        }
+        return $data;
+    }
+
+    /**
+     * Check for usage logs and clean them up before deleting a button
+     */
+    protected function checkUsageAndCleanup(array $data)
+    {
+        $buttonId = $data['id'];
+        $db = \Config\Database::connect();
+
+        // Delete usage logs directly
+        $db->table('usage_logs')
+           ->where('button_id', $buttonId)
+           ->delete();
+
+        return $data;
+    }
+
+    /**
+     * Override insert method to add debug logging
+     */
+    public function insert($data = null, bool $returnID = true)
+    {
+        log_message('debug', 'ButtonsModel::insert - Data before hooks: ' . json_encode($data));
+        
+        // Run hooks manually to ensure they execute in order
+        $data = $this->trigger('beforeInsert', ['data' => $data]);
+        log_message('debug', 'ButtonsModel::insert - Data after hooks: ' . json_encode($data));
+        
+        $result = parent::insert($data['data'], $returnID);
+        log_message('debug', 'ButtonsModel::insert - Result: ' . json_encode($result));
+        
+        if (!$result) {
+            log_message('error', 'ButtonsModel::insert - Validation errors: ' . json_encode($this->errors()));
+            log_message('error', 'ButtonsModel::insert - Last query: ' . $this->db->getLastQuery());
+        }
+        return $result;
+    }
+
+    /**
      * Get all buttons for a tenant with usage statistics
      */
     public function getButtonsWithStatsByTenant($tenant_id)
     {
-        $buttons = $this->where('tenant_id', $tenant_id)->findAll();
+        log_message('debug', 'Getting buttons for tenant: ' . $tenant_id);
+        
+        $buttons = $this->where('tenant_id', $tenant_id)
+                       ->where('status', 'active')
+                       ->findAll();
+
+        log_message('debug', 'Found ' . count($buttons) . ' buttons');
+        log_message('debug', 'SQL: ' . $this->getLastQuery()->getQuery());
 
         // Get usage statistics for each button
         $db = \Config\Database::connect();
