@@ -320,4 +320,49 @@ class TenantsModel extends Model
         $this->db->table('domains')->insert($data);
         return $this->db->insertID();
     }
+
+    /**
+     * Check if a tenant can create more API users
+     *
+     * @param string $tenantId The tenant ID to check
+     * @return bool True if the tenant can create more API users, false otherwise
+     */
+    public function canCreateApiUser(string $tenantId): bool
+    {
+        try {
+            // Get tenant details
+            $tenant = $this->find($tenantId);
+            if (!$tenant) {
+                return false;
+            }
+
+            // If max_api_keys is 0, there's no limit
+            if ($tenant['max_api_keys'] === 0) {
+                return true;
+            }
+
+            // Count current API users
+            $db = \Config\Database::connect();
+            $currentCount = $db->table('tenant_users')
+                ->where('tenant_id', $tenantId)
+                ->countAllResults();
+
+            // Check if under limit
+            return $currentCount < $tenant['max_api_keys'];
+        } catch (\Exception $e) {
+            log_message('error', '[TenantsModel::canCreateApiUser] Error: ' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Get tenant by ID
+     *
+     * @param string $tenantId
+     * @return array|null
+     */
+    public function getTenantById(string $tenantId)
+    {
+        return $this->find($tenantId);
+    }
 }
