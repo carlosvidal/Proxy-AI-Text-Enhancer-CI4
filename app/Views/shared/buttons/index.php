@@ -47,7 +47,7 @@
                                     <span class="badge badge-model"><?= esc($button['model']) ?></span>
                                 </td>
                                 <td>
-                                    <?php if ($button['active']): ?>
+                                    <?php if ($button['status'] === 'active'): ?>
                                         <span class="badge bg-success">Active</span>
                                     <?php else: ?>
                                         <span class="badge bg-danger">Inactive</span>
