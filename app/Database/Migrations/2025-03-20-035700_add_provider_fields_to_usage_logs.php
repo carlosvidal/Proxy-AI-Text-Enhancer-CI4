@@ -79,9 +79,10 @@ class AddProviderFieldsToUsageLogs extends Migration
         ];
 
         $this->forge->addField($fields);
+        $this->forge->addPrimaryKey('id');
         
-        // Create temporary table without indices first
-        $this->forge->createTable('usage_logs_new', true, ['WITHOUT ROWID' => false]);
+        // Create temporary table
+        $this->forge->createTable('usage_logs_new');
 
         // Copy existing data
         $this->db->query("INSERT INTO usage_logs_new (id, tenant_id, user_id, external_id, provider, model, has_image, tokens, usage_date)
@@ -103,9 +104,10 @@ class AddProviderFieldsToUsageLogs extends Migration
         $this->db->query('ALTER TABLE usage_logs_new RENAME TO usage_logs');
 
         // Add indices with unique names after renaming
-        $this->db->query('CREATE INDEX IF NOT EXISTS idx_usage_logs_tenant_user_' . time() . ' ON usage_logs(tenant_id, user_id)');
-        $this->db->query('CREATE INDEX IF NOT EXISTS idx_usage_logs_tenant_external_' . time() . ' ON usage_logs(tenant_id, external_id)');
-        $this->db->query('CREATE INDEX IF NOT EXISTS idx_usage_logs_usage_date_' . time() . ' ON usage_logs(usage_date)');
+        $timestamp = date('YmdHis');
+        $this->db->query('CREATE INDEX idx_usage_logs_tenant_user_' . $timestamp . ' ON usage_logs(tenant_id, user_id)');
+        $this->db->query('CREATE INDEX idx_usage_logs_tenant_external_' . $timestamp . ' ON usage_logs(tenant_id, external_id)');
+        $this->db->query('CREATE INDEX idx_usage_logs_usage_date_' . $timestamp . ' ON usage_logs(usage_date)');
     }
 
     public function down()
@@ -148,6 +150,7 @@ class AddProviderFieldsToUsageLogs extends Migration
         ];
 
         $this->forge->addField($fields);
+        $this->forge->addPrimaryKey('id');
 
         // Drop any leftover temporary table and its indices
         $tables = $this->db->query('SELECT name FROM sqlite_master WHERE type="table"')->getResultArray();
@@ -161,8 +164,8 @@ class AddProviderFieldsToUsageLogs extends Migration
             $this->forge->dropTable('usage_logs_new', true);
         }
         
-        // Create temporary table without indices first
-        $this->forge->createTable('usage_logs_new', true, ['WITHOUT ROWID' => false]);
+        // Create temporary table
+        $this->forge->createTable('usage_logs_new');
 
         // Copy data excluding the new fields
         $this->db->query("INSERT INTO usage_logs_new (id, tenant_id, user_id, external_id, tokens, usage_date)
@@ -180,8 +183,9 @@ class AddProviderFieldsToUsageLogs extends Migration
         $this->db->query('ALTER TABLE usage_logs_new RENAME TO usage_logs');
 
         // Add indices with unique names after renaming
-        $this->db->query('CREATE INDEX IF NOT EXISTS idx_usage_logs_tenant_user_' . time() . ' ON usage_logs(tenant_id, user_id)');
-        $this->db->query('CREATE INDEX IF NOT EXISTS idx_usage_logs_tenant_external_' . time() . ' ON usage_logs(tenant_id, external_id)');
-        $this->db->query('CREATE INDEX IF NOT EXISTS idx_usage_logs_usage_date_' . time() . ' ON usage_logs(usage_date)');
+        $timestamp = date('YmdHis');
+        $this->db->query('CREATE INDEX idx_usage_logs_tenant_user_' . $timestamp . ' ON usage_logs(tenant_id, user_id)');
+        $this->db->query('CREATE INDEX idx_usage_logs_tenant_external_' . $timestamp . ' ON usage_logs(tenant_id, external_id)');
+        $this->db->query('CREATE INDEX idx_usage_logs_usage_date_' . $timestamp . ' ON usage_logs(usage_date)');
     }
 }
