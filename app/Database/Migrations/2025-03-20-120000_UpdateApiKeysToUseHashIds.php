@@ -28,6 +28,7 @@ class UpdateApiKeysToUseHashIds extends Migration
             'tenant_id' => [
                 'type' => 'VARCHAR',
                 'constraint' => 32,
+                'null' => false,
             ],
             'name' => [
                 'type' => 'VARCHAR',
@@ -60,7 +61,14 @@ class UpdateApiKeysToUseHashIds extends Migration
             ]
         ]);
         
+        // Add primary and foreign keys
         $this->forge->addKey('api_key_id', true);
+        $this->forge->addForeignKey('tenant_id', 'tenants', 'tenant_id', 'CASCADE', 'CASCADE');
+        
+        // Enable foreign key constraints in SQLite
+        $this->db->query('PRAGMA foreign_keys = ON');
+        
+        // Create the table
         $this->forge->createTable('api_keys');
 
         // If we had existing data, migrate it to the new structure
@@ -96,11 +104,6 @@ class UpdateApiKeysToUseHashIds extends Migration
                 $this->db->table('api_keys')->insert($data);
             }
         }
-
-        // Now that we have all the data migrated, add the foreign key constraint
-        $this->forge->addForeignKey('tenant_id', 'tenants', 'tenant_id', 'CASCADE', 'CASCADE');
-        $sql = "ALTER TABLE api_keys ADD CONSTRAINT fk_api_keys_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id) ON DELETE CASCADE ON UPDATE CASCADE";
-        $this->db->query($sql);
     }
 
     public function down()
