@@ -111,7 +111,7 @@ class LlmProxyModel extends Model
                 $builder->selectSum('tokens', 'used_tokens');
                 $builder->where('tenant_id', $tenant_id);
                 $builder->where('external_id', $user_id);  // user_id from tenant is our external_id
-                $builder->where('usage_date >=', $thirty_days_ago);
+                $builder->where('created_at >=', $thirty_days_ago);
                 $usage_query = $builder->get();
 
                 $usage_row = $usage_query->getRow();
@@ -211,15 +211,21 @@ class LlmProxyModel extends Model
             // Insertar registro de uso
             $data = [
                 'tenant_id' => $tenant_id,
+                'user_id' => $user_id,
                 'external_id' => $user_id,  // user_id from tenant is our external_id
                 'provider' => $provider,
                 'model' => $model,
                 'has_image' => $has_image ? 1 : 0,
                 'tokens' => $tokens,
-                'usage_date' => date('Y-m-d H:i:s')
+                'created_at' => date('Y-m-d H:i:s')
             ];
 
-            return $db->table('usage_logs')->insert($data);
+            try {
+                return $db->table('usage_logs')->insert($data);
+            } catch (\Exception $e) {
+                log_message('error', 'Error al insertar registro de uso: ' . $e->getMessage());
+                return FALSE;
+            }
         } else {
             // Si no hay tabla de uso, solo registrar en log
             $this->_log_usage($tenant_id, $user_id, $provider, $model, $has_image, $tokens);
