@@ -19,7 +19,10 @@ class AddExternalIdToUsageLogs extends Migration
         $table_info = $this->db->query("PRAGMA table_info('usage_logs')")->getResultArray();
         $existing_columns = array_column($table_info, 'name');
 
-        // Create the new table
+        // Log the existing columns for debugging
+        log_message('debug', 'Existing columns in usage_logs: ' . implode(', ', $existing_columns));
+
+        // Create the new table with minimal structure
         $this->forge->addField([
             'id' => [
                 'type' => 'INT',
@@ -47,7 +50,7 @@ class AddExternalIdToUsageLogs extends Migration
                 'unsigned' => true,
                 'null' => true
             ],
-            'usage_date' => [
+            'created_at' => [
                 'type' => 'DATETIME',
                 'null' => false
             ]
@@ -56,13 +59,13 @@ class AddExternalIdToUsageLogs extends Migration
         $this->forge->addPrimaryKey('id');
         $this->forge->addKey(['tenant_id', 'user_id']);
         $this->forge->addKey(['tenant_id', 'external_id']);
-        $this->forge->addKey('usage_date');
+        $this->forge->addKey('created_at');
         
         // Create temporary table
         $this->forge->createTable('usage_logs_new');
 
         // Build the column list for the INSERT based on existing columns
-        $copy_columns = ['id', 'tenant_id', 'user_id', 'tokens', 'usage_date'];
+        $copy_columns = array_intersect(['id', 'tenant_id', 'user_id', 'tokens', 'created_at'], $existing_columns);
         $select_columns = implode(', ', $copy_columns);
 
         // Copy data from old table to new table, using user_id as external_id initially
@@ -109,7 +112,7 @@ class AddExternalIdToUsageLogs extends Migration
                 'unsigned' => true,
                 'null' => true
             ],
-            'usage_date' => [
+            'created_at' => [
                 'type' => 'DATETIME',
                 'null' => false
             ]
@@ -117,14 +120,14 @@ class AddExternalIdToUsageLogs extends Migration
 
         $this->forge->addPrimaryKey('id');
         $this->forge->addKey(['tenant_id', 'user_id']);
-        $this->forge->addKey('usage_date');
+        $this->forge->addKey('created_at');
         
         // Create temporary table
         $this->forge->createTable('usage_logs_new');
 
         // Copy data from current table to new table
-        $this->db->query('INSERT INTO usage_logs_new (id, tenant_id, user_id, tokens, usage_date)
-                         SELECT id, tenant_id, user_id, tokens, usage_date
+        $this->db->query('INSERT INTO usage_logs_new (id, tenant_id, user_id, tokens, created_at)
+                         SELECT id, tenant_id, user_id, tokens, created_at
                          FROM usage_logs');
 
         // Drop old table
