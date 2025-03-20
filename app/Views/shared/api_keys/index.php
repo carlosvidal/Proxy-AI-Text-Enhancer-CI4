@@ -63,47 +63,43 @@
                                     <?php if ($key['is_default']): ?>
                                         <span class="badge bg-success"><i class="fas fa-check me-1"></i>Predeterminada</span>
                                     <?php else: ?>
-                                        <a href="<?= site_url('api-keys/set-default/' . $key['api_key_id']) ?>" class="btn btn-sm btn-outline-primary">
+                                        <a href="<?= site_url('api-keys/set-default/' . $key['id']) ?>" class="btn btn-sm btn-outline-primary">
                                             Establecer como predeterminada
                                         </a>
                                     <?php endif; ?>
                                 </td>
                                 <td><?= date('d/m/Y', strtotime($key['created_at'])) ?></td>
-                                <td>
-                                    <div class="btn-group" role="group">
-                                        <button type="button" class="btn btn-sm btn-danger" 
-                                                data-bs-toggle="modal" data-bs-target="#deleteModal<?= $key['id'] ?>">
-                                            <i class="fas fa-trash"></i>
-                                        </button>
-                                    </div>
-                                    
-                                    <!-- Delete Modal -->
-                                    <div class="modal fade" id="deleteModal<?= $key['id'] ?>" tabindex="-1" aria-labelledby="deleteModalLabel<?= $key['id'] ?>" aria-hidden="true">
-                                        <div class="modal-dialog">
-                                            <div class="modal-content">
-                                                <div class="modal-header">
-                                                    <h5 class="modal-title" id="deleteModalLabel<?= $key['id'] ?>">Confirmar eliminación</h5>
-                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                </div>
-                                                <div class="modal-body">
-                                                    <p>¿Estás seguro de que deseas eliminar la API Key <strong><?= esc($key['name']) ?></strong>?</p>
-                                                    <?php if ($key['is_default']): ?>
-                                                    <div class="alert alert-warning">
-                                                        <i class="fas fa-exclamation-triangle me-1"></i>
-                                                        Esta es la API Key predeterminada para <?= esc($providers[$key['provider']]) ?>. 
-                                                        Si la eliminas, se establecerá otra como predeterminada si está disponible.
-                                                    </div>
-                                                    <?php endif; ?>
-                                                </div>
-                                                <div class="modal-footer">
-                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                                    <a href="<?= site_url('api-keys/delete/' . $key['api_key_id']) ?>" class="btn btn-danger">Eliminar</a>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
+                                <td class="text-end">
+                                    <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal<?= $key['id'] ?>">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
                                 </td>
                             </tr>
+                            <!-- Delete Modal -->
+                            <div class="modal fade" id="deleteModal<?= $key['id'] ?>" tabindex="-1" aria-labelledby="deleteModalLabel<?= $key['id'] ?>" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title" id="deleteModalLabel<?= $key['id'] ?>">Confirmar eliminación</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <p>¿Estás seguro de que deseas eliminar esta API Key?</p>
+                                            <?php if ($key['is_default']): ?>
+                                            <div class="alert alert-warning">
+                                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                                Esta es la API Key predeterminada para <?= esc($providers[$key['provider']]) ?>. 
+                                                Si la eliminas, se establecerá otra como predeterminada si está disponible.
+                                            </div>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                            <a href="<?= site_url('api-keys/delete/' . $key['id']) ?>" class="btn btn-danger">Eliminar</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         <?php endforeach; ?>
                     </tbody>
                 </table>
