@@ -8,33 +8,37 @@ class AddMaxApiUsersToTenants extends Migration
 {
     public function up()
     {
-        try {
-            // Add column if it doesn't exist
-            $this->forge->addColumn('tenants', [
+        // En SQLite no podemos agregar una columna NOT NULL sin valor por defecto
+        // así que primero la agregamos como NULL
+        $this->forge->addColumn('tenants', [
+            'max_api_users' => [
+                'type' => 'INT',
+                'constraint' => 11,
+                'null' => true,
+                'after' => 'name'
+            ]
+        ]);
+
+        // Luego actualizamos todos los registros con el valor por defecto
+        $this->db->query("UPDATE tenants SET max_api_users = 1 WHERE max_api_users IS NULL");
+
+        // Y finalmente cambiamos la columna a NOT NULL
+        if ($this->db->DBDriver !== 'SQLite3') {
+            // SQLite no soporta ALTER COLUMN, así que solo lo hacemos para otros motores
+            $this->forge->modifyColumn('tenants', [
                 'max_api_users' => [
                     'type' => 'INT',
                     'constraint' => 11,
-                    'null' => false,
-                    'default' => 1,
-                    'after' => 'name'
+                    'null' => false
                 ]
             ]);
-        } catch (\Exception $e) {
-            // Column might already exist, that's okay
-            log_message('info', 'Column max_api_users might already exist: ' . $e->getMessage());
         }
-
-        // Update existing tenants to have a default value
-        $this->db->query("UPDATE tenants SET max_api_users = 1 WHERE max_api_users IS NULL");
     }
 
     public function down()
     {
-        try {
+        if ($this->db->fieldExists('max_api_users', 'tenants')) {
             $this->forge->dropColumn('tenants', 'max_api_users');
-        } catch (\Exception $e) {
-            // Column might not exist, that's okay
-            log_message('info', 'Column max_api_users might not exist: ' . $e->getMessage());
         }
     }
 }
