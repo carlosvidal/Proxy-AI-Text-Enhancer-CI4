@@ -92,17 +92,16 @@
                                         $isCurrentProvider = ($apiKey['provider'] == $button['provider']);
 
                                         // For old buttons that don't have api_key_id, we'll select based on provider
-                                        $selected = old('api_key_id') == $apiKey['id'] ||
-                                            (!old('api_key_id') && $isCurrentProvider && !$currentApiKeyFound);
+                                        $selected = old('api_key_id') == $apiKey['api_key_id'] || (!old('api_key_id') && $isCurrentProvider && !$currentApiKeyFound);
 
                                         if ($selected && $isCurrentProvider) {
                                             $currentApiKeyFound = true;
-                                            $currentApiKeyId = $apiKey['id'];
+                                            $currentApiKeyId = $apiKey['api_key_id'];
                                         }
                             ?>
-                                        <option value="<?= $apiKey['id'] ?>"
-                                            data-provider="<?= $apiKey['provider'] ?>"
-                                            <?= $selected ? 'selected' : '' ?>>
+                                        <option value="<?= $apiKey['api_key_id'] ?>" 
+                                                data-provider="<?= $apiKey['provider'] ?>"
+                                                <?= $selected ? 'selected' : '' ?>>
                                             <?= $apiKey['name'] ?> (<?= $providers[$apiKey['provider']] ?>)
                                         </option>
                                     <?php endif; ?>

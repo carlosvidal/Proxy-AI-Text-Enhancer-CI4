@@ -76,9 +76,9 @@
                             <option value="">Select API Key</option>
                             <?php foreach ($apiKeys as $apiKey): ?>
                                 <?php if ($apiKey['active'] == 1): ?>
-                                    <option value="<?= $apiKey['id'] ?>" 
+                                    <option value="<?= $apiKey['api_key_id'] ?>" 
                                             data-provider="<?= $apiKey['provider'] ?>"
-                                            <?= old('api_key_id') == $apiKey['id'] ? 'selected' : '' ?>>
+                                            <?= old('api_key_id') == $apiKey['api_key_id'] ? 'selected' : '' ?>>
                                         <?= $apiKey['name'] ?> (<?= $providers[$apiKey['provider']] ?>)
                                     </option>
                                 <?php endif; ?>

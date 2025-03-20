@@ -126,29 +126,32 @@ class Buttons extends Controller
      */
     public function store()
     {
+        helper('hash');
         $tenant_id = session()->get('tenant_id');
-        $provider = $this->request->getPost('provider');
+
+        // Obtener el API key seleccionado
+        $api_key_id = $this->request->getPost('api_key_id');
+        $apiKey = $this->apiKeysModel->where('tenant_id', $tenant_id)
+            ->where('api_key_id', $api_key_id)
+            ->first();
+
+        if (!$apiKey) {
+            return redirect()->back()->withInput()->with('error', 'Invalid API key selected.');
+        }
+
+        $provider = $apiKey['provider'];
         $model = $this->request->getPost('model');
 
-        // Validate provider and model
-        if (!isset($this->providers[$provider])) {
-            return redirect()->back()->withInput()->with('error', 'Invalid provider selected.');
-        }
+        // Validar modelo para el provider
         if (!isset($this->models[$provider][$model])) {
             return redirect()->back()->withInput()->with('error', 'Invalid model selected for the provider.');
         }
 
-        // Get default API key for the provider
-        $apiKey = $this->apiKeysModel->where('tenant_id', $tenant_id)
-            ->where('provider', $provider)
-            ->where('is_default', 1)
-            ->first();
-
-        if (!$apiKey) {
-            return redirect()->back()->withInput()->with('error', 'No default API key found for the selected provider.');
-        }
+        // Generar button_id usando el helper
+        $button_id = generate_hash_id('btn');
 
         $data = [
+            'button_id' => $button_id,
             'tenant_id' => $tenant_id,
             'name' => $this->request->getPost('name'),
             'description' => $this->request->getPost('description'),
@@ -196,7 +199,8 @@ class Buttons extends Controller
             'tenant' => $this->tenantsModel->find($tenant_id),
             'provider_name' => $this->providers[$button['provider']] ?? $button['provider'],
             'model_name' => $this->models[$button['provider']][$button['model']] ?? $button['model'],
-            'api_key' => $apiKey
+            'api_key' => $apiKey,
+            'providers' => $this->providers
         ]);
     }
 
@@ -318,7 +322,7 @@ class Buttons extends Controller
         }
 
         try {
-            $this->buttonsModel->update($button['id'], ['status' => 'deleted']);
+            $this->buttonsModel->where('button_id', $button_id)->delete();
             return redirect()->to('/buttons')->with('success', 'Button deleted successfully.');
         } catch (\Exception $e) {
             log_message('error', 'Error deleting button: ' . $e->getMessage());
