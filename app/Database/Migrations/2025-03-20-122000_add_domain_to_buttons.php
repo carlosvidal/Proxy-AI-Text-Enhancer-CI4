@@ -15,15 +15,10 @@ class AddDomainToButtons extends Migration
         // Log the existing columns for debugging
         log_message('debug', 'Existing columns in buttons: ' . implode(', ', $existing_columns));
 
-        // Drop any leftover temporary table and its indices
+        // Drop any leftover temporary table
         $tables = $this->db->query('SELECT name FROM sqlite_master WHERE type="table"')->getResultArray();
         $table_names = array_column($tables, 'name');
         if (in_array('buttons_new', $table_names)) {
-            // Drop all indices on the temporary table first
-            $indices = $this->db->query("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='buttons_new'")->getResultArray();
-            foreach ($indices as $index) {
-                $this->db->query('DROP INDEX IF EXISTS ' . $index['name']);
-            }
             $this->forge->dropTable('buttons_new', true);
         }
 
@@ -112,11 +107,7 @@ class AddDomainToButtons extends Migration
                                 updated_at
                          FROM buttons");
 
-        // Drop old table and its indices
-        $indices = $this->db->query("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='buttons'")->getResultArray();
-        foreach ($indices as $index) {
-            $this->db->query('DROP INDEX IF EXISTS ' . $index['name']);
-        }
+        // Drop old table
         $this->forge->dropTable('buttons', true);
 
         // Rename new table to old name
@@ -187,15 +178,10 @@ class AddDomainToButtons extends Migration
         $this->forge->addField($fields);
         $this->forge->addPrimaryKey('id');
 
-        // Drop any leftover temporary table and its indices
+        // Drop any leftover temporary table
         $tables = $this->db->query('SELECT name FROM sqlite_master WHERE type="table"')->getResultArray();
         $table_names = array_column($tables, 'name');
         if (in_array('buttons_new', $table_names)) {
-            // Drop all indices on the temporary table first
-            $indices = $this->db->query("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='buttons_new'")->getResultArray();
-            foreach ($indices as $index) {
-                $this->db->query('DROP INDEX IF EXISTS ' . $index['name']);
-            }
             $this->forge->dropTable('buttons_new', true);
         }
         
@@ -207,11 +193,7 @@ class AddDomainToButtons extends Migration
                          SELECT id, button_id, tenant_id, name, description, prompt, status, created_at, updated_at
                          FROM buttons");
 
-        // Drop old table and its indices
-        $indices = $this->db->query("SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='buttons'")->getResultArray();
-        foreach ($indices as $index) {
-            $this->db->query('DROP INDEX IF EXISTS ' . $index['name']);
-        }
+        // Drop old table
         $this->forge->dropTable('buttons', true);
 
         // Rename new table to old name
