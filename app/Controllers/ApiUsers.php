@@ -100,33 +100,61 @@ class ApiUsers extends BaseController
             // Start transaction
             $db->transStart();
 
-            // Insert manually
-            $sql = "INSERT INTO api_users (user_id, external_id, tenant_id, name, email, quota, daily_quota, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))";
-            $db->query($sql, [
-                $data['user_id'],
-                $data['external_id'],
-                $data['tenant_id'],
-                $data['name'],
-                $data['email'],
-                $data['quota'],
-                $data['daily_quota'],
-                $data['active']
-            ]);
+            try {
+                // Insert manually
+                $sql = "INSERT INTO api_users (user_id, external_id, tenant_id, name, email, quota, daily_quota, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))";
+                
+                // Log the SQL and parameters
+                log_message('debug', '[ApiUsers::store] SQL: ' . $sql);
+                log_message('debug', '[ApiUsers::store] Params: ' . json_encode([
+                    $data['user_id'],
+                    $data['external_id'],
+                    $data['tenant_id'],
+                    $data['name'],
+                    $data['email'],
+                    $data['quota'],
+                    $data['daily_quota'],
+                    $data['active']
+                ]));
+
+                $result = $db->query($sql, [
+                    $data['user_id'],
+                    $data['external_id'],
+                    $data['tenant_id'],
+                    $data['name'],
+                    $data['email'],
+                    $data['quota'],
+                    $data['daily_quota'],
+                    $data['active']
+                ]);
+
+                // Log the query result
+                log_message('debug', '[ApiUsers::store] Query result: ' . json_encode($result));
+                
+                // Log any database errors
+                if ($db->error()) {
+                    log_message('error', '[ApiUsers::store] Database error: ' . json_encode($db->error()));
+                }
+            } catch (\Exception $e) {
+                log_message('error', '[ApiUsers::store] Query error: ' . $e->getMessage());
+                throw $e;
+            }
 
             // Complete transaction
             $db->transComplete();
 
             if ($db->transStatus() === false) {
-                throw new \Exception('Failed to create API user');
+                throw new \Exception('Failed to create API user - Transaction failed');
             }
 
             return redirect()->to('api-users')
                 ->with('success', 'API user created successfully');
         } catch (\Exception $e) {
             log_message('error', '[ApiUsers::store] Error: ' . $e->getMessage());
+            log_message('error', '[ApiUsers::store] Stack trace: ' . $e->getTraceAsString());
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'Failed to create API user. Please try again.');
+                ->with('error', 'Failed to create API user: ' . $e->getMessage());
         }
     }
 
