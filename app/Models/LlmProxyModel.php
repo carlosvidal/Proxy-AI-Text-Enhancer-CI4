@@ -24,7 +24,7 @@ class LlmProxyModel extends Model
      * Verifica la cuota disponible para un tenant/usuario (Versión SQLite)
      * 
      * @param string $tenant_id ID del tenant
-     * @param string $user_id ID del usuario
+     * @param string $user_id ID externo del usuario (proporcionado por el tenant)
      * @return array Información sobre la cuota
      */
     public function check_quota($tenant_id, $user_id)
@@ -41,26 +41,26 @@ class LlmProxyModel extends Model
 
         // Verificar si la tabla existe antes de hacer consultas
         $tables = $db->listTables();
-        if (in_array('user_quotas', $tables) && in_array('tenant_users', $tables)) {
-            log_debug('QUOTA', 'Tablas user_quotas y tenant_users existen');
+        if (in_array('user_quotas', $tables) && in_array('api_users', $tables)) {
+            log_debug('QUOTA', 'Tablas user_quotas y api_users existen');
 
-            // Primero verificar si hay una cuota definida en tenant_users
-            $builder = $db->table('tenant_users');
+            // Primero verificar si hay una cuota definida en api_users
+            $builder = $db->table('api_users');
             $builder->where('tenant_id', $tenant_id);
-            $builder->where('user_id', $user_id);
+            $builder->where('external_id', $user_id);  // user_id from tenant is our external_id
             $query = $builder->get();
 
             $tenant_quota = 0;
             if ($query->getNumRows() > 0) {
                 $row = $query->getRowArray();
                 $tenant_quota = $row['quota'] ?? 0;
-                log_debug('QUOTA', 'Cuota encontrada en tenant_users', ['quota' => $tenant_quota]);
+                log_debug('QUOTA', 'Cuota encontrada en api_users', ['quota' => $tenant_quota]);
             }
 
             // Ahora verificar si existe el usuario en user_quotas
             $builder = $db->table('user_quotas');
             $builder->where('tenant_id', $tenant_id);
-            $builder->where('user_id', $user_id);
+            $builder->where('external_id', $user_id);  // user_id from tenant is our external_id
             $query = $builder->get();
 
             if ($query->getNumRows() == 0) {
@@ -69,7 +69,7 @@ class LlmProxyModel extends Model
                 // Si no existe, crear registro con cuota del tenant
                 $data = [
                     'tenant_id' => $tenant_id,
-                    'user_id' => $user_id,
+                    'external_id' => $user_id,  // user_id from tenant is our external_id
                     'total_quota' => $tenant_quota > 0 ? $tenant_quota : env('DEFAULT_QUOTA', 100000),
                     'created_at' => date('Y-m-d H:i:s')
                 ];
@@ -89,16 +89,16 @@ class LlmProxyModel extends Model
                 $row = $query->getRowArray();
                 $total_quota = $row['total_quota'];
 
-                // Si la cuota en user_quotas no coincide con tenant_users, actualizar
+                // Si la cuota en user_quotas no coincide con api_users, actualizar
                 if ($tenant_quota > 0 && $total_quota != $tenant_quota) {
-                    log_info('QUOTA', 'Sincronizando cuota con tenant_users', [
+                    log_info('QUOTA', 'Sincronizando cuota con api_users', [
                         'old_quota' => $total_quota,
                         'new_quota' => $tenant_quota
                     ]);
 
                     $db->table('user_quotas')
                         ->where('tenant_id', $tenant_id)
-                        ->where('user_id', $user_id)
+                        ->where('external_id', $user_id)  // user_id from tenant is our external_id
                         ->update(['total_quota' => $tenant_quota]);
 
                     $total_quota = $tenant_quota;
@@ -110,7 +110,7 @@ class LlmProxyModel extends Model
                 $builder = $db->table('usage_logs');
                 $builder->selectSum('tokens', 'used_tokens');
                 $builder->where('tenant_id', $tenant_id);
-                $builder->where('user_id', $user_id);
+                $builder->where('external_id', $user_id);  // user_id from tenant is our external_id
                 $builder->where('usage_date >=', $thirty_days_ago);
                 $usage_query = $builder->get();
 
@@ -145,7 +145,7 @@ class LlmProxyModel extends Model
      * Registra el uso de la API
      * 
      * @param string $tenant_id ID del tenant
-     * @param string $user_id ID del usuario
+     * @param string $user_id ID externo del usuario (proporcionado por el tenant)
      * @param string $provider Proveedor LLM
      * @param string $model Modelo utilizado
      * @param bool $has_image Si la petición incluía imágenes
@@ -211,7 +211,7 @@ class LlmProxyModel extends Model
             // Insertar registro de uso
             $data = [
                 'tenant_id' => $tenant_id,
-                'user_id' => $user_id,
+                'external_id' => $user_id,  // user_id from tenant is our external_id
                 'provider' => $provider,
                 'model' => $model,
                 'has_image' => $has_image ? 1 : 0,

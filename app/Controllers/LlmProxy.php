@@ -124,19 +124,19 @@ class LlmProxy extends Controller
         // Extract tenant and user information
         // Use JWT data for tenant/user if available, otherwise use from request
         $tenant_id = '';
-        $user_id = '';
+        $external_id = '';  // This is the user_id that tenants send us
 
         if ($jwtData && isset($jwtData->tenant_id) && isset($jwtData->user_id)) {
             $tenant_id = $jwtData->tenant_id;
-            $user_id = $jwtData->user_id;
+            $external_id = $jwtData->user_id;  // JWT's user_id is actually the external_id
             log_info('PROXY', 'Using JWT tenant/user data', [
                 'request_id' => $request_id,
                 'tenant_id' => $tenant_id,
-                'user_id' => $user_id
+                'external_id' => $external_id
             ]);
         } else {
             $tenant_id = isset($request_data['tenantId']) ? $request_data['tenantId'] : '';
-            $user_id = isset($request_data['userId']) ? $request_data['userId'] : '';
+            $external_id = isset($request_data['userId']) ? $request_data['userId'] : '';  // tenant's userId is our external_id
         }
 
         // Get button_id if provided
@@ -185,7 +185,7 @@ class LlmProxy extends Controller
 
         // finish middleware
 
-        // If we don't have tenant_id or user_id, can't proceed
+        // If we don't have tenant_id or external_id, can't proceed
         if (empty($tenant_id)) {
             log_error('PROXY', 'Missing tenant ID', [
                 'request_id' => $request_id
@@ -196,7 +196,7 @@ class LlmProxy extends Controller
                 ->setJSON(['error' => ['message' => 'Missing tenant ID']]);
         }
 
-        if (empty($user_id)) {
+        if (empty($external_id)) {
             log_error('PROXY', 'Missing user ID', [
                 'request_id' => $request_id
             ]);
@@ -207,7 +207,7 @@ class LlmProxy extends Controller
         }
         
         // Verify API user exists or auto-create if enabled
-        $this->_verifyApiUser($tenant_id, $user_id, $domain);
+        $this->_ensure_user_exists($tenant_id, $external_id, $domain);
 
         // Look up button configuration - prioritize button_id if provided
         $button = null;
@@ -358,13 +358,13 @@ class LlmProxy extends Controller
             'provider' => $provider,
             'model' => $model,
             'tenant_id' => $tenant_id,
-            'user_id' => $user_id,
+            'external_id' => $external_id,
             'domain' => $domain,
             'stream' => $stream ? 'true' : 'false'
         ]);
 
         // Auto-create user if it doesn't exist
-        $this->_ensure_user_exists($tenant_id, $user_id);
+        $this->_ensure_user_exists($tenant_id, $external_id);
 
         // API key verification
         if (!isset($this->api_keys[$provider]) || empty($this->api_keys[$provider])) {
@@ -386,7 +386,7 @@ class LlmProxy extends Controller
         ]);
 
         // Check quota
-        $quota = $this->llm_proxy_model->check_quota($tenant_id, $user_id);
+        $quota = $this->llm_proxy_model->check_quota($tenant_id, $external_id);
         log_info('PROXY', 'Quota check', [
             'request_id' => $request_id,
             'quota' => $quota
@@ -396,7 +396,7 @@ class LlmProxy extends Controller
             log_error('PROXY', 'Quota exceeded', [
                 'request_id' => $request_id,
                 'tenant_id' => $tenant_id,
-                'user_id' => $user_id,
+                'external_id' => $external_id,
                 'quota' => $quota
             ]);
 
@@ -423,7 +423,7 @@ class LlmProxy extends Controller
                 'model' => $model
             ]);
 
-            return $this->_make_request($provider, $payload, $stream, $tenant_id, $user_id, $model, $has_image);
+            return $this->_make_request($provider, $payload, $stream, $tenant_id, $external_id, $model, $has_image);
         } catch (\Exception $e) {
             log_error('PROXY', 'Error processing request', [
                 'request_id' => $request_id,
@@ -443,78 +443,59 @@ class LlmProxy extends Controller
      * Ensures a user exists for a tenant, creating them if needed
      * 
      * @param string $tenant_id The tenant ID
-     * @param string $user_id The user ID
+     * @param string $external_id The external user ID
+     * @param string $domain Domain (used to assign button access)
      * @return bool True if user exists or was created, false on error
      */
-    private function _ensure_user_exists($tenant_id, $user_id)
+    private function _ensure_user_exists($tenant_id, $external_id, $domain = null)
     {
         $db = db_connect();
 
-        // Check if tenant exists
-        $tenantsModel = new \App\Models\TenantsModel();
-        $tenant = $tenantsModel->where('tenant_id', $tenant_id)->first();
-
-        if (!$tenant) {
-            log_error('PROXY', 'Tenant does not exist', [
-                'tenant_id' => $tenant_id
-            ]);
-            return false;
-        }
-
-        // Check if user exists
-        $builder = $db->table('tenant_users');
+        // Verify API user exists
+        $builder = $db->table('api_users');
         $builder->where('tenant_id', $tenant_id);
-        $builder->where('user_id', $user_id);
-        $existingUser = $builder->get()->getRow();
+        $builder->where('external_id', $external_id);
+        $query = $builder->get();
 
-        if (!$existingUser) {
-            log_info('PROXY', 'Auto-creating user', [
+        if ($query->getNumRows() == 0) {
+            log_info('PROXY', 'API user not found, attempting to create', [
                 'tenant_id' => $tenant_id,
-                'user_id' => $user_id
+                'external_id' => $external_id
             ]);
 
-            // Create the user in tenant_users
+            // Create the user in api_users
             $userData = [
                 'tenant_id' => $tenant_id,
-                'user_id' => $user_id,
-                'name' => 'Auto-created User',
-                'email' => $user_id . '@auto.created',
-                'quota' => $tenant['quota'], // Use tenant's default quota
+                'external_id' => $external_id,
+                'name' => $external_id,
+                'email' => $external_id . '@auto.created',
+                'quota' => env('DEFAULT_QUOTA', 100000),
+                'daily_quota' => env('DEFAULT_DAILY_QUOTA', 10000),
                 'active' => 1,
                 'created_at' => date('Y-m-d H:i:s'),
                 'updated_at' => date('Y-m-d H:i:s')
             ];
 
-            $result = $db->table('tenant_users')->insert($userData);
-
-            if (!$result) {
-                log_error('PROXY', 'Failed to auto-create user', [
+            try {
+                $result = $db->table('api_users')->insert($userData);
+                log_info('PROXY', 'API user created', [
                     'tenant_id' => $tenant_id,
-                    'user_id' => $user_id
+                    'external_id' => $external_id
                 ]);
-                return false;
+            } catch (\Exception $e) {
+                log_error('PROXY', 'Failed to create API user', [
+                    'tenant_id' => $tenant_id,
+                    'external_id' => $external_id,
+                    'error' => $e->getMessage()
+                ]);
+                return FALSE;
             }
-
-            // Also create in user_quotas
-            $quotaData = [
+        } else {
+            log_info('PROXY', 'API user found', [
                 'tenant_id' => $tenant_id,
-                'user_id' => $user_id,
-                'total_quota' => $tenant['quota'], // Use tenant's default quota
-                'reset_period' => 'monthly',
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s')
-            ];
-
-            $db->table('user_quotas')->insert($quotaData);
-
-            log_info('PROXY', 'User auto-created successfully', [
-                'tenant_id' => $tenant_id,
-                'user_id' => $user_id,
-                'quota' => $tenant['quota']
+                'external_id' => $external_id
             ]);
         }
-
-        return true;
     }
 
     /**
@@ -565,7 +546,7 @@ class LlmProxy extends Controller
     /**
      * Realiza la petición al proveedor LLM
      */
-    private function _make_request($provider, $payload, $stream, $tenant_id, $user_id, $model, $has_image)
+    private function _make_request($provider, $payload, $stream, $tenant_id, $external_id, $model, $has_image)
     {
         log_debug('API_REQUEST', 'Iniciando solicitud', [
             'provider' => $provider,
@@ -669,7 +650,7 @@ class LlmProxy extends Controller
                 // Configuración especial para streaming
                 $token_count = 0; // Variable para rastrear tokens en streaming
 
-                curl_setopt($curl, CURLOPT_WRITEFUNCTION, function ($curl, $data) use (&$token_count, $tenant_id, $user_id, $provider, $model, $has_image) {
+                curl_setopt($curl, CURLOPT_WRITEFUNCTION, function ($curl, $data) use (&$token_count, $tenant_id, $external_id, $provider, $model, $has_image) {
                     // El resto del código actual para _handle_stream_chunk
 
                     // Intentar contar tokens aquí (esto es aproximado para streaming)
@@ -677,7 +658,7 @@ class LlmProxy extends Controller
                     // Esto es sólo una aproximación mientras llega el final del stream
                     $token_count += ceil(mb_strlen($data) / 4);
 
-                    return $this->_handle_stream_chunk($data, $tenant_id, $user_id, $provider, $model, $has_image);
+                    return $this->_handle_stream_chunk($data, $tenant_id, $external_id, $provider, $model, $has_image);
                 });
 
                 curl_setopt($curl, CURLOPT_VERBOSE, true);
@@ -728,7 +709,7 @@ class LlmProxy extends Controller
                     'estimated_tokens' => $estimated_tokens
                 ]);
 
-                $this->llm_proxy_model->record_usage($tenant_id, $user_id, $provider, $model, $has_image, $estimated_tokens);
+                $this->llm_proxy_model->record_usage($tenant_id, $external_id, $provider, $model, $has_image, $estimated_tokens);
 
                 exit; // Terminar la ejecución después del streaming
             }
@@ -834,10 +815,10 @@ class LlmProxy extends Controller
                         'total_tokens' => $total_tokens
                     ]);
 
-                    $this->llm_proxy_model->record_usage($tenant_id, $user_id, $provider, $model, $has_image, $total_tokens);
+                    $this->llm_proxy_model->record_usage($tenant_id, $external_id, $provider, $model, $has_image, $total_tokens);
                 } else {
                     // Si no se pudo obtener información de tokens, usar estimación como respaldo
-                    $this->llm_proxy_model->record_usage($tenant_id, $user_id, $provider, $model, $has_image);
+                    $this->llm_proxy_model->record_usage($tenant_id, $external_id, $provider, $model, $has_image);
                 }
 
                 // Estructurar la respuesta similar a OpenAI para consistencia
@@ -875,7 +856,7 @@ class LlmProxy extends Controller
     /**
      * Procesa y reenvía cada fragmento de datos recibidos en streaming
      */
-    private function _handle_stream_chunk($data, $tenant_id, $user_id, $provider, $model, $has_image)
+    private function _handle_stream_chunk($data, $tenant_id, $external_id, $provider, $model, $has_image)
     {
         static $buffer = '';
 
@@ -974,11 +955,11 @@ class LlmProxy extends Controller
      * Verifies if an API user exists and creates it if auto-creation is enabled
      * 
      * @param string $tenant_id Tenant ID
-     * @param string $user_id External user ID
+     * @param string $external_id External user ID
      * @param string $domain Domain (used to assign button access)
      * @return bool True if user exists or was created, false otherwise
      */
-    private function _verifyApiUser(string $tenant_id, string $user_id, string $domain = null)
+    private function _verifyApiUser(string $tenant_id, string $external_id, string $domain = null)
     {
         try {
             $db = db_connect();
@@ -986,7 +967,7 @@ class LlmProxy extends Controller
             // Try to directly check if user exists in the database
             $query = $db->query(
                 "SELECT * FROM api_users WHERE tenant_id = ? AND external_id = ?",
-                [$tenant_id, $user_id]
+                [$tenant_id, $external_id]
             );
             
             $apiUser = $query->getRowArray();
@@ -994,7 +975,7 @@ class LlmProxy extends Controller
             if ($apiUser) {
                 log_debug('API_USER', 'Found existing API user', [
                     'tenant_id' => $tenant_id,
-                    'user_id' => $user_id
+                    'external_id' => $external_id
                 ]);
                 return true;
             }
@@ -1056,10 +1037,10 @@ class LlmProxy extends Controller
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 [
                     $generatedUserId,
-                    $user_id,
+                    $external_id,
                     $tenant_id,
                     'Auto-created User',
-                    $user_id . '@auto.created',
+                    $external_id . '@auto.created',
                     $quota,
                     1,
                     date('Y-m-d H:i:s'),
@@ -1084,7 +1065,7 @@ class LlmProxy extends Controller
             if ($db->transStatus() === false) {
                 log_error('API_USER', 'Failed to auto-create API user', [
                     'tenant_id' => $tenant_id,
-                    'user_id' => $user_id,
+                    'external_id' => $external_id,
                     'error' => $db->error()
                 ]);
                 return false;
@@ -1092,7 +1073,7 @@ class LlmProxy extends Controller
             
             log_info('API_USER', 'Auto-created API user', [
                 'tenant_id' => $tenant_id,
-                'user_id' => $user_id,
+                'external_id' => $external_id,
                 'api_user_id' => $generatedUserId
             ]);
             return true;
@@ -1100,7 +1081,7 @@ class LlmProxy extends Controller
         } catch (\Exception $e) {
             log_error('API_USER', 'Exception in _verifyApiUser', [
                 'tenant_id' => $tenant_id,
-                'user_id' => $user_id,
+                'external_id' => $external_id,
                 'error' => $e->getMessage()
             ]);
             return false;
@@ -1110,20 +1091,20 @@ class LlmProxy extends Controller
     /**
      * Checks and updates quota for a tenant/user
      */
-    private function _check_and_update_quota($tenant_id, $user_id, $tokens_in = 0, $tokens_out = 0, $provider = '', $model = '')
+    private function _check_and_update_quota($tenant_id, $external_id, $tokens_in = 0, $tokens_out = 0, $provider = '', $model = '')
     {
         $request_id = uniqid('quota_update_');
         log_info('QUOTA', 'Checking and updating quota', [
             'request_id' => $request_id,
             'tenant_id' => $tenant_id,
-            'user_id' => $user_id,
+            'external_id' => $external_id,
             'tokens_in' => $tokens_in,
             'tokens_out' => $tokens_out
         ]);
 
         try {
             // Get current quota
-            $quota = $this->llm_proxy_model->check_quota($tenant_id, $user_id);
+            $quota = $this->llm_proxy_model->check_quota($tenant_id, $external_id);
 
             log_debug('QUOTA', 'Current quota status', [
                 'request_id' => $request_id,
@@ -1139,7 +1120,7 @@ class LlmProxy extends Controller
                 log_warning('QUOTA', 'Quota exceeded', [
                     'request_id' => $request_id,
                     'tenant_id' => $tenant_id,
-                    'user_id' => $user_id,
+                    'external_id' => $external_id,
                     'tokens_requested' => $total_tokens,
                     'tokens_remaining' => $quota['remaining']
                 ]);
@@ -1147,11 +1128,11 @@ class LlmProxy extends Controller
             }
 
             // Update quota usage
-            $this->llm_proxy_model->update_quota_usage($tenant_id, $user_id, $total_tokens);
+            $this->llm_proxy_model->update_quota_usage($tenant_id, $external_id, $total_tokens);
 
             // Log usage
             $cost = $this->_calculate_request_cost($provider, $model, $tokens_in, $tokens_out);
-            $this->llm_proxy_model->log_usage($tenant_id, $user_id, [
+            $this->llm_proxy_model->log_usage($tenant_id, $external_id, [
                 'provider' => $provider,
                 'model' => $model,
                 'tokens_in' => $tokens_in,
@@ -1162,7 +1143,7 @@ class LlmProxy extends Controller
             log_info('QUOTA', 'Usage logged successfully', [
                 'request_id' => $request_id,
                 'tenant_id' => $tenant_id,
-                'user_id' => $user_id,
+                'external_id' => $external_id,
                 'provider' => $provider,
                 'model' => $model,
                 'total_tokens' => $total_tokens,
@@ -1178,7 +1159,7 @@ class LlmProxy extends Controller
             log_error('QUOTA', 'Error updating quota', [
                 'request_id' => $request_id,
                 'tenant_id' => $tenant_id,
-                'user_id' => $user_id,
+                'external_id' => $external_id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -1248,9 +1229,9 @@ class LlmProxy extends Controller
 
         // Obtener parámetros
         $tenant_id = $this->request->getGet('tenantId');
-        $user_id = $this->request->getGet('userId');
+        $external_id = $this->request->getGet('userId');
 
-        if (empty($tenant_id) || empty($user_id)) {
+        if (empty($tenant_id) || empty($external_id)) {
             return $this->response
                 ->setContentType('application/json')
                 ->setStatusCode(400)
@@ -1264,18 +1245,18 @@ class LlmProxy extends Controller
             $tokenData = validate_jwt($token);
             if ($tokenData && isset($tokenData->data)) {
                 $tenant_id = $tokenData->data->tenant_id;
-                $user_id = $tokenData->data->user_id;
+                $external_id = $tokenData->data->external_id;
             }
         }
 
         // Get quota and usage data
-        $quota = $this->llm_proxy_model->check_quota($tenant_id, $user_id);
-        $usage = $this->llm_proxy_model->get_usage_stats($tenant_id, $user_id);
+        $quota = $this->llm_proxy_model->check_quota($tenant_id, $external_id);
+        $usage = $this->llm_proxy_model->get_usage_stats($tenant_id, $external_id);
 
         // Generate ETag based on quota and usage data
         $etagData = [
             'tenant_id' => $tenant_id,
-            'user_id' => $user_id,
+            'external_id' => $external_id,
             'quota' => $quota,
             'usage' => [
                 'total_requests' => $usage['total_requests'] ?? 0,
