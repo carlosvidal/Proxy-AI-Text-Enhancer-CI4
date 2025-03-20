@@ -51,7 +51,8 @@ class AddStatusToButtons extends Migration
             ],
             'prompt' => [
                 'type' => 'TEXT',
-                'null' => false
+                'null' => true,  
+                'default' => NULL
             ],
             'status' => [
                 'type' => 'VARCHAR',
@@ -128,7 +129,8 @@ class AddStatusToButtons extends Migration
             ],
             'prompt' => [
                 'type' => 'TEXT',
-                'null' => false
+                'null' => true,  
+                'default' => NULL
             ],
             'created_at' => [
                 'type' => 'DATETIME',
