@@ -8,6 +8,7 @@ use App\Models\UsersModel;
 use App\Models\ButtonsModel;
 use App\Models\UsageLogsModel;
 use App\Models\TenantUsersModel;
+use App\Models\ApiUsersModel;
 
 class Admin extends BaseController
 {
@@ -16,6 +17,7 @@ class Admin extends BaseController
     protected $buttonsModel;
     protected $usageLogsModel;
     protected $tenantUsersModel;
+    protected $apiUsersModel;
 
     public function __construct()
     {
@@ -25,6 +27,7 @@ class Admin extends BaseController
         $this->buttonsModel = new ButtonsModel();
         $this->usageLogsModel = new UsageLogsModel();
         $this->tenantUsersModel = new TenantUsersModel();
+        $this->apiUsersModel = new ApiUsersModel();
     }
 
     public function index()
@@ -394,7 +397,7 @@ class Admin extends BaseController
         }
 
         // Get API users (not system users) and convert to array
-        $users = $this->tenantUsersModel
+        $users = $this->apiUsersModel
             ->where('tenant_id', $tenant['tenant_id'])
             ->asArray()
             ->findAll();
@@ -451,7 +454,7 @@ class Admin extends BaseController
         ];
         
         // Check if external_id already exists for this tenant
-        $existingUser = $this->tenantUsersModel
+        $existingUser = $this->apiUsersModel
             ->where('tenant_id', $tenant['tenant_id'])
             ->where('external_id', $this->request->getPost('external_id'))
             ->first();
@@ -476,7 +479,7 @@ class Admin extends BaseController
                     'updated_at' => date('Y-m-d H:i:s')
                 ];
 
-                $this->tenantUsersModel->insert($userData);
+                $this->apiUsersModel->insert($userData);
 
                 return redirect()->to('admin/tenants/' . $tenantId . '/users')
                     ->with('success', 'API user created successfully');
@@ -507,10 +510,10 @@ class Admin extends BaseController
         }
 
         // Get API user details
-        $user = $this->tenantUsersModel->where('user_id', $userId)
-                                      ->where('tenant_id', $tenant['tenant_id'])
-                                      ->asArray()
-                                      ->first();
+        $user = $this->apiUsersModel->where('user_id', $userId)
+                                   ->where('tenant_id', $tenant['tenant_id'])
+                                   ->asArray()
+                                   ->first();
         if (!$user) {
             return redirect()->to('admin/tenants/' . $tenantId . '/users')
                 ->with('error', 'API user not found');
@@ -527,7 +530,7 @@ class Admin extends BaseController
 
             if ($this->validate($rules)) {
                 // Update API user
-                $this->tenantUsersModel->where('user_id', $userId)->set([
+                $this->apiUsersModel->where('user_id', $userId)->set([
                     'name' => $this->request->getPost('name'),
                     'email' => $this->request->getPost('email'),
                     'quota' => $this->request->getPost('quota'),
@@ -565,17 +568,17 @@ class Admin extends BaseController
         }
 
         // Get API user details
-        $user = $this->tenantUsersModel->where('user_id', $userId)
-                                      ->where('tenant_id', $tenant['tenant_id'])
-                                      ->asArray()
-                                      ->first();
+        $user = $this->apiUsersModel->where('user_id', $userId)
+                                   ->where('tenant_id', $tenant['tenant_id'])
+                                   ->asArray()
+                                   ->first();
         if (!$user) {
             return redirect()->to('admin/tenants/' . $tenantId . '/users')
                 ->with('error', 'API user not found');
         }
 
         // Delete API user
-        $this->tenantUsersModel->where('user_id', $userId)->delete();
+        $this->apiUsersModel->where('user_id', $userId)->delete();
 
         return redirect()->to('admin/tenants/' . $tenantId . '/users')
             ->with('success', 'API user deleted successfully');
@@ -595,10 +598,10 @@ class Admin extends BaseController
         }
 
         // Get API user details
-        $user = $this->tenantUsersModel->where('user_id', $userId)
-                                      ->where('tenant_id', $tenant['tenant_id'])
-                                      ->asArray()
-                                      ->first();
+        $user = $this->apiUsersModel->where('user_id', $userId)
+                                   ->where('tenant_id', $tenant['tenant_id'])
+                                   ->asArray()
+                                   ->first();
         if (!$user) {
             return redirect()->to('admin/tenants/' . $tenantId . '/users')
                 ->with('error', 'API user not found');
