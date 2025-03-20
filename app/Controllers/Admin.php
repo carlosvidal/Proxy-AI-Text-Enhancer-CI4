@@ -444,10 +444,21 @@ class Admin extends BaseController
 
         // Validate input
         $rules = [
+            'external_id' => 'required|max_length[255]',
             'name' => 'required|min_length[3]',
             'email' => 'permit_empty|valid_email',
             'quota' => 'required|integer|greater_than[0]'
         ];
+        
+        // Check if external_id already exists for this tenant
+        $existingUser = $this->tenantUsersModel
+            ->where('tenant_id', $tenant['tenant_id'])
+            ->where('external_id', $this->request->getPost('external_id'))
+            ->first();
+            
+        if ($existingUser) {
+            return redirect()->back()->withInput()->with('error', 'An API user with this External ID already exists for this tenant');
+        }
 
         if ($this->validate($rules)) {
             try {
@@ -456,6 +467,7 @@ class Admin extends BaseController
                 $userData = [
                     'tenant_id' => $tenant['tenant_id'],
                     'user_id' => generate_hash_id('usr'),
+                    'external_id' => $this->request->getPost('external_id'),
                     'name' => $this->request->getPost('name'),
                     'email' => $this->request->getPost('email'),
                     'quota' => $this->request->getPost('quota'),

@@ -27,6 +27,12 @@
             </div>
 
             <div class="mb-3">
+                <label for="external_id" class="form-label">External ID</label>
+                <input type="text" class="form-control" id="external_id" value="<?= esc($user['external_id'] ?? '') ?>" readonly>
+                <small class="text-muted">The external ID cannot be changed once created.</small>
+            </div>
+
+            <div class="mb-3">
                 <label for="name" class="form-label">Name</label>
                 <input type="text" class="form-control" id="name" name="name" value="<?= old('name', $user['name']) ?>" required>
                 <small class="text-muted">Display name for this API user.</small>

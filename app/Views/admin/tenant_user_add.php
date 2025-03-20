@@ -35,6 +35,15 @@
             <?= csrf_field() ?>
 
             <div class="mb-3">
+                <label for="external_id" class="form-label">External ID <span class="text-danger">*</span></label>
+                <input type="text" class="form-control <?= session('errors.external_id') ? 'is-invalid' : '' ?>" id="external_id" name="external_id" value="<?= old('external_id') ?>" required>
+                <?php if (session('errors.external_id')): ?>
+                    <div class="invalid-feedback"><?= session('errors.external_id') ?></div>
+                <?php endif; ?>
+                <small class="text-muted">Unique identifier for this user (typically user ID from external system)</small>
+            </div>
+
+            <div class="mb-3">
                 <label for="name" class="form-label">Name</label>
                 <input type="text" class="form-control <?= session('errors.name') ? 'is-invalid' : '' ?>" id="name" name="name" value="<?= old('name') ?>" required>
                 <?php if (session('errors.name')): ?>
