@@ -274,6 +274,18 @@ return [
     'error_updating_status_try_again' => 'Error updating status. Please try again.',
     'cancel' => 'Cancel',
     'delete' => 'Delete',
+    'api_users_external_id' => 'External ID',
+    'api_users_external_id_help' => 'The ID used to identify this user in your system',
+    'api_users_email_help' => 'Optional email address for the API user',
+    'api_users_quota_help' => 'Maximum number of requests allowed per month',
+    'api_users_daily_quota' => 'Daily Quota',
+    'api_users_daily_quota_help' => 'Maximum number of requests allowed per day',
+    'api_users_active' => 'Active',
+    'api_users_active_help' => 'Inactive users cannot make API requests',
+    'api_users_last_activity' => 'Last Activity',
+    'api_users_delete_title' => 'Delete API User',
+    'api_users_delete_message' => 'Are you sure you want to delete this API user? This action cannot be undone.',
+    'api_users_toggle_status_confirm' => 'Are you sure you want to change the status of this API user?',
 
     // General
     'general_note' => 'Note',
