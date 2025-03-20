@@ -61,13 +61,25 @@ class UpdateApiKeysToUseHashIds extends Migration
         ]);
         
         $this->forge->addKey('api_key_id', true);
-        $this->forge->addForeignKey('tenant_id', 'tenants', 'tenant_id', 'CASCADE', 'CASCADE');
         $this->forge->createTable('api_keys');
 
         // If we had existing data, migrate it to the new structure
         if (!empty($existingData)) {
             helper('hash');
+            
+            // Get valid tenant IDs
+            $validTenantIds = $this->db->table('tenants')
+                                     ->select('tenant_id')
+                                     ->get()
+                                     ->getResultArray();
+            $validTenantIds = array_column($validTenantIds, 'tenant_id');
+
             foreach ($existingData as $row) {
+                // Skip if tenant_id doesn't exist
+                if (!in_array($row['tenant_id'], $validTenantIds)) {
+                    continue;
+                }
+
                 // Generate a new hash ID for each key
                 $data = [
                     'api_key_id' => generate_hash_id('key'),
@@ -84,6 +96,11 @@ class UpdateApiKeysToUseHashIds extends Migration
                 $this->db->table('api_keys')->insert($data);
             }
         }
+
+        // Now that we have all the data migrated, add the foreign key constraint
+        $this->forge->addForeignKey('tenant_id', 'tenants', 'tenant_id', 'CASCADE', 'CASCADE');
+        $sql = "ALTER TABLE api_keys ADD CONSTRAINT fk_api_keys_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id) ON DELETE CASCADE ON UPDATE CASCADE";
+        $this->db->query($sql);
     }
 
     public function down()
