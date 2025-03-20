@@ -466,20 +466,45 @@ class Admin extends BaseController
         if ($this->validate($rules)) {
             try {
                 helper('hash');
-                // Create API user with auto-generated ID
-                $userData = [
-                    'tenant_id' => $tenant['tenant_id'],
-                    'user_id' => generate_hash_id('usr'),
-                    'external_id' => $this->request->getPost('external_id'),
-                    'name' => $this->request->getPost('name'),
-                    'email' => $this->request->getPost('email'),
-                    'quota' => $this->request->getPost('quota'),
-                    'active' => 1,
-                    'created_at' => date('Y-m-d H:i:s'),
-                    'updated_at' => date('Y-m-d H:i:s')
-                ];
-
-                $this->apiUsersModel->insert($userData);
+                
+                // Generate user ID
+                $user_id = generate_hash_id('usr');
+                
+                // Use simple PDO connection directly to avoid model issues
+                $dsn = 'sqlite:' . WRITEPATH . 'database.sqlite';
+                $pdo = new \PDO($dsn);
+                
+                // Create API user with direct PDO query
+                $sql = "
+                    INSERT INTO api_users (
+                        user_id, 
+                        external_id, 
+                        tenant_id, 
+                        name, 
+                        email, 
+                        quota, 
+                        active, 
+                        created_at, 
+                        updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ";
+                
+                $stmt = $pdo->prepare($sql);
+                $result = $stmt->execute([
+                    $user_id,
+                    $this->request->getPost('external_id'),
+                    $tenant['tenant_id'],
+                    $this->request->getPost('name'),
+                    $this->request->getPost('email'),
+                    $this->request->getPost('quota'),
+                    1,
+                    date('Y-m-d H:i:s'),
+                    date('Y-m-d H:i:s')
+                ]);
+                
+                if (!$result) {
+                    throw new \Exception("Database insert failed: " . print_r($stmt->errorInfo(), true));
+                }
 
                 return redirect()->to('admin/tenants/' . $tenantId . '/users')
                     ->with('success', 'API user created successfully');
