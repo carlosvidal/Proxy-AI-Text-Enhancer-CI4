@@ -5,26 +5,26 @@ namespace App\Controllers;
 use CodeIgniter\Controller;
 use App\Models\ButtonsModel;
 use App\Models\TenantsModel;
+use App\Models\ApiKeysModel;
 use App\Models\DomainsModel;
-use App\Models\TenantApiKeysModel;
 
 class Buttons extends Controller
 {
     protected $db;
     protected $buttonsModel;
     protected $tenantsModel;
-    protected $domainsModel;
     protected $apiKeysModel;
+    protected $domainsModel;
     protected $providers;
     protected $models;
 
     public function __construct()
     {
         $this->db = \Config\Database::connect();
-        $this->buttonsModel = new \App\Models\ButtonsModel();
-        $this->tenantsModel = new \App\Models\TenantsModel();
-        $this->domainsModel = new \App\Models\DomainsModel();
-        $this->apiKeysModel = new \App\Models\TenantApiKeysModel();
+        $this->buttonsModel = new ButtonsModel();
+        $this->tenantsModel = new TenantsModel();
+        $this->apiKeysModel = new ApiKeysModel();
+        $this->domainsModel = new DomainsModel();
 
         // Define available providers
         $this->providers = [
@@ -49,17 +49,19 @@ class Buttons extends Controller
                 'claude-3-haiku-20240307' => 'Claude 3 Haiku',
             ],
             'mistral' => [
-                'mistral-small-latest' => 'Mistral Small',
-                'mistral-medium-latest' => 'Mistral Medium',
-                'mistral-large-latest' => 'Mistral Large',
+                'mistral-tiny' => 'Mistral Tiny',
+                'mistral-small' => 'Mistral Small',
+                'mistral-medium' => 'Mistral Medium',
+                'mistral-large' => 'Mistral Large',
             ],
             'cohere' => [
                 'command' => 'Command',
                 'command-light' => 'Command Light',
+                'command-r' => 'Command-R',
             ],
             'deepseek' => [
-                'deepseek-chat' => 'DeepSeek Chat',
                 'deepseek-coder' => 'DeepSeek Coder',
+                'deepseek-chat' => 'DeepSeek Chat',
             ],
             'google' => [
                 'gemini-pro' => 'Gemini Pro',
@@ -73,95 +75,50 @@ class Buttons extends Controller
      */
     public function index()
     {
-        if (!session()->get('isLoggedIn')) {
-            return redirect()->to('/auth/login');
-        }
-
         $tenant_id = session()->get('tenant_id');
-        if (!$tenant_id) {
-            return redirect()->to('/auth/login')
-                ->with('error', 'No tenant found');
-        }
+        $buttons = $this->buttonsModel->getButtonsWithStatsByTenant($tenant_id);
 
-        // Get tenant information
-        $tenant = $this->tenantsModel->where('tenant_id', $tenant_id)
-            ->where('active', 1)
-            ->first();
-
-        if (!$tenant) {
-            return redirect()->to('/auth/login')
-                ->with('error', 'Tenant not found');
-        }
-
-        $data = [
-            'title' => 'Buttons Management',
-            'tenant' => $tenant,
-            'buttons' => $this->buttonsModel->getButtonsWithStatsByTenant($tenant_id)
-        ];
-
-        return view('shared/buttons/index', $data);
+        return view('shared/buttons/index', [
+            'title' => 'Buttons',
+            'buttons' => $buttons,
+            'tenant' => $this->tenantsModel->find($tenant_id)
+        ]);
     }
 
     /**
-     * Create a new button
+     * Show the form for creating a new button
      */
     public function create()
     {
-        if (!session()->get('isLoggedIn')) {
-            return redirect()->to('/auth/login');
-        }
-
         $tenant_id = session()->get('tenant_id');
-        if (!$tenant_id) {
-            return redirect()->to('/auth/login')
-                ->with('error', 'No tenant found');
-        }
+        $tenant = $this->tenantsModel->find($tenant_id);
 
-        // Get tenant information
-        $tenant = $this->tenantsModel->where('tenant_id', $tenant_id)
-            ->where('active', 1)
-            ->first();
+        // Get available API keys for the tenant
+        $apiKeys = $this->apiKeysModel->getTenantApiKeys($tenant_id);
 
-        if (!$tenant) {
-            return redirect()->to('/auth/login')
-                ->with('error', 'Tenant not found');
-        }
-
-        // Get tenant API keys
-        $tenantApiKeys = $this->apiKeysModel->getTenantApiKeys($tenant_id);
-
-        // If no API keys, redirect to API keys page
-        if (empty($tenantApiKeys)) {
-            return redirect()->to('/api-keys')
-                ->with('error', 'Necesitas configurar al menos una API Key antes de crear un botón');
-        }
-
-        // Get available providers (only those with API keys)
+        // Filter providers based on available API keys
         $availableProviders = [];
-        foreach ($tenantApiKeys as $apiKey) {
-            if (isset($this->providers[$apiKey['provider']])) {
-                $availableProviders[$apiKey['provider']] = $this->providers[$apiKey['provider']];
+        foreach ($apiKeys as $key) {
+            if (isset($this->providers[$key['provider']])) {
+                $availableProviders[$key['provider']] = $this->providers[$key['provider']];
             }
         }
 
-        // Get available models (only for providers with API keys)
+        // Get models for available providers
         $availableModels = [];
-        foreach ($availableProviders as $provider => $label) {
+        foreach (array_keys($availableProviders) as $provider) {
             if (isset($this->models[$provider])) {
                 $availableModels[$provider] = $this->models[$provider];
             }
         }
 
-        $data = [
+        return view('shared/buttons/create', [
             'title' => 'Create Button',
             'tenant' => $tenant,
-            'domains' => $this->tenantsModel->getDomains($tenant_id),
             'providers' => $availableProviders,
             'models' => $availableModels,
-            'apiKeys' => $tenantApiKeys
-        ];
-
-        return view('shared/buttons/create', $data);
+            'apiKeys' => $apiKeys
+        ]);
     }
 
     /**
@@ -169,121 +126,45 @@ class Buttons extends Controller
      */
     public function store()
     {
-        if (!session()->get('isLoggedIn')) {
-            return redirect()->to('/auth/login');
-        }
-
         $tenant_id = session()->get('tenant_id');
-        if (!$tenant_id) {
-            return redirect()->to('/auth/login')
-                ->with('error', 'No tenant found');
-        }
-
-        // Get tenant information
-        $tenant = $this->tenantsModel->where('tenant_id', $tenant_id)
-            ->where('active', 1)
-            ->first();
-
-        if (!$tenant) {
-            return redirect()->to('/auth/login')
-                ->with('error', 'Tenant not found');
-        }
-
-        // Verificar que el dominio pertenezca al tenant y esté verificado
-        $domain = $this->request->getPost('domain');
-        $domains = $this->tenantsModel->getDomains($tenant_id);
-        $allowedDomains = array_column($domains, 'domain');
-
-        if (!in_array($domain, $allowedDomains)) {
-            return redirect()->back()
-                ->with('error', 'El dominio seleccionado no está permitido para tu cuenta')
-                ->withInput();
-        }
-
-        // Comentado para permitir periodo de gracia para verificación de dominios
-        /*
-        // Verificar si el dominio está verificado
-        $verifiedDomains = array_column(
-            array_filter($domains, function($d) { return $d['verified'] == 1; }), 
-            'domain'
-        );
-        
-        if (!in_array($domain, $verifiedDomains)) {
-            return redirect()->back()
-                ->with('error', 'El dominio seleccionado no está verificado. Por favor, verifica el dominio primero.')
-                ->withInput();
-        }
-        */
-
-        // Verificar que el provider seleccionado tenga una API key configurada
         $provider = $this->request->getPost('provider');
-        $api_key_id = $this->request->getPost('api_key_id');
+        $model = $this->request->getPost('model');
 
-        // Obtener la API key seleccionada
-        $apiKey = $this->apiKeysModel->where('api_key_id', $api_key_id)
-            ->where('tenant_id', $tenant_id)
+        // Validate provider and model
+        if (!isset($this->providers[$provider])) {
+            return redirect()->back()->withInput()->with('error', 'Invalid provider selected.');
+        }
+        if (!isset($this->models[$provider][$model])) {
+            return redirect()->back()->withInput()->with('error', 'Invalid model selected for the provider.');
+        }
+
+        // Get default API key for the provider
+        $apiKey = $this->apiKeysModel->where('tenant_id', $tenant_id)
             ->where('provider', $provider)
-            ->where('active', 1)
+            ->where('is_default', 1)
             ->first();
 
         if (!$apiKey) {
-            return redirect()->back()
-                ->with('error', 'La API Key seleccionada no es válida o no pertenece al proveedor seleccionado')
-                ->withInput();
+            return redirect()->back()->withInput()->with('error', 'No default API key found for the selected provider.');
         }
 
-        $rules = [
-            'name' => 'required|min_length[3]|max_length[255]',
-            'domain' => 'required',
-            'provider' => 'required|in_list[openai,anthropic,cohere,mistral,deepseek,google]',
-            'model' => 'required',
-            'api_key_id' => 'required',
-            'system_prompt' => 'permit_empty'
+        $data = [
+            'tenant_id' => $tenant_id,
+            'name' => $this->request->getPost('name'),
+            'description' => $this->request->getPost('description'),
+            'domain' => $this->request->getPost('domain'),
+            'provider' => $provider,
+            'model' => $model,
+            'prompt' => $this->request->getPost('prompt'),
+            'status' => 'active'
         ];
 
-        if (!$this->validate($rules)) {
-            return redirect()->back()
-                ->with('error', 'Please check the form for errors.')
-                ->withInput()
-                ->with('validation', $this->validator);
-        }
-
         try {
-            // Generate button ID using hash helper
-            helper('hash');
-            $buttonId = generate_hash_id('btn');
-
-            // Get the encrypted API key from the tenant's API key
-            $encryptedKey = $apiKey['api_key'];
-
-            // Create button data
-            $buttonData = [
-                'button_id' => $buttonId,
-                'tenant_id' => $tenant_id,
-                'name' => $this->request->getPost('name'),
-                'domain' => $this->request->getPost('domain'),
-                'provider' => $this->request->getPost('provider'),
-                'model' => $this->request->getPost('model'),
-                'api_key' => $encryptedKey,
-                'system_prompt' => $this->request->getPost('system_prompt'),
-                'active' => 1,
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s')
-            ];
-
-            if ($this->buttonsModel->insert($buttonData)) {
-                return redirect()->to('/buttons')
-                    ->with('success', 'Button created successfully');
-            }
-
-            return redirect()->back()
-                ->with('error', 'Failed to create button. Please try again.')
-                ->withInput();
+            $this->buttonsModel->insert($data);
+            return redirect()->to('/buttons')->with('success', 'Button created successfully.');
         } catch (\Exception $e) {
-            log_message('error', '[Button Creation] ' . $e->getMessage());
-            return redirect()->back()
-                ->with('error', 'Error creating button: ' . $e->getMessage())
-                ->withInput();
+            log_message('error', 'Error creating button: ' . $e->getMessage());
+            return redirect()->back()->withInput()->with('error', 'Failed to create button. Please try again.');
         }
     }
 
@@ -297,23 +178,26 @@ class Buttons extends Controller
         }
 
         $tenant_id = session()->get('tenant_id');
-        $button = $this->buttonsModel->where('button_id', $button_id)
-            ->where('tenant_id', $tenant_id)
-            ->first();
+        $button = $this->buttonsModel->getButtonWithDetails($button_id, $tenant_id);
 
         if (!$button) {
             return redirect()->to('/buttons')->with('error', 'Button not found.');
         }
 
-        $data = [
+        // Get API key for the button's provider
+        $apiKey = $this->apiKeysModel->where('tenant_id', $tenant_id)
+            ->where('provider', $button['provider'])
+            ->where('is_default', 1)
+            ->first();
+
+        return view('shared/buttons/view', [
             'title' => 'View Button',
             'button' => $button,
             'tenant' => $this->tenantsModel->find($tenant_id),
-            'providers' => $this->providers,
-            'models' => $this->models
-        ];
-
-        return view('shared/buttons/view', $data);
+            'provider_name' => $this->providers[$button['provider']] ?? $button['provider'],
+            'model_name' => $this->models[$button['provider']][$button['model']] ?? $button['model'],
+            'api_key' => $apiKey
+        ]);
     }
 
     /**
@@ -326,115 +210,45 @@ class Buttons extends Controller
         }
 
         $tenant_id = session()->get('tenant_id');
-        $button = $this->buttonsModel->where('button_id', $button_id)
-            ->where('tenant_id', $tenant_id)
-            ->first();
+        $button = $this->buttonsModel->getButtonWithDetails($button_id, $tenant_id);
 
         if (!$button) {
             return redirect()->to('/buttons')->with('error', 'Button not found.');
         }
 
-        // Get tenant API keys
-        $tenantApiKeys = $this->apiKeysModel->getTenantApiKeys($tenant_id);
+        $tenant = $this->tenantsModel->find($tenant_id);
 
-        // If no API keys, redirect to API keys page
-        if (empty($tenantApiKeys)) {
-            return redirect()->to('/api-keys')
-                ->with('error', 'Necesitas configurar al menos una API Key antes de editar un botón');
-        }
+        // Get available API keys for the tenant
+        $apiKeys = $this->apiKeysModel->getTenantApiKeys($tenant_id);
 
-        // Get available providers (only those with API keys)
+        // Get tenant domains
+        $domains = $this->domainsModel->where('tenant_id', $tenant_id)->findAll();
+
+        // Filter providers based on available API keys
         $availableProviders = [];
-        foreach ($tenantApiKeys as $apiKey) {
-            if (isset($this->providers[$apiKey['provider']])) {
-                $availableProviders[$apiKey['provider']] = $this->providers[$apiKey['provider']];
+        foreach ($apiKeys as $key) {
+            if (isset($this->providers[$key['provider']])) {
+                $availableProviders[$key['provider']] = $this->providers[$key['provider']];
             }
         }
 
-        // Get available models (only for providers with API keys)
+        // Get models for available providers
         $availableModels = [];
-        foreach ($availableProviders as $provider => $label) {
+        foreach (array_keys($availableProviders) as $provider) {
             if (isset($this->models[$provider])) {
                 $availableModels[$provider] = $this->models[$provider];
             }
         }
 
-        if ($this->request->getMethod() === 'post') {
-            $rules = [
-                'name' => 'required|min_length[3]|max_length[255]',
-                'domain' => 'required',
-                'provider' => 'required|in_list[openai,anthropic,cohere,mistral,deepseek,google]',
-                'model' => 'required',
-                'api_key_id' => 'required',
-                'system_prompt' => 'permit_empty|max_length[2000]'
-            ];
-
-            if ($this->validate($rules)) {
-                // Verificar que el dominio pertenezca al tenant
-                $domain = $this->request->getPost('domain');
-                $domains = $this->tenantsModel->getDomains($tenant_id);
-                $allowedDomains = array_column($domains, 'domain');
-
-                if (!in_array($domain, $allowedDomains)) {
-                    return redirect()->back()
-                        ->with('error', 'El dominio seleccionado no está permitido para tu cuenta')
-                        ->withInput();
-                }
-
-                // Verificar que el provider seleccionado tenga una API key configurada
-                $provider = $this->request->getPost('provider');
-                $api_key_id = $this->request->getPost('api_key_id');
-
-                // Obtener la API key seleccionada
-                $apiKey = $this->apiKeysModel->where('api_key_id', $api_key_id)
-                    ->where('tenant_id', $tenant_id)
-                    ->where('provider', $provider)
-                    ->where('active', 1)
-                    ->first();
-
-                if (!$apiKey) {
-                    return redirect()->back()
-                        ->with('error', 'La API Key seleccionada no es válida o no pertenece al proveedor seleccionado')
-                        ->withInput();
-                }
-
-                $updateData = [
-                    'name' => $this->request->getPost('name'),
-                    'domain' => $this->request->getPost('domain'),
-                    'provider' => $this->request->getPost('provider'),
-                    'model' => $this->request->getPost('model'),
-                    'system_prompt' => $this->request->getPost('system_prompt'),
-                    'api_key' => $apiKey['api_key']
-                ];
-
-                try {
-                    $this->buttonsModel->where('button_id', $button_id)
-                        ->where('tenant_id', $tenant_id)
-                        ->set($updateData)
-                        ->update();
-
-                    return redirect()->to('/buttons')->with('success', 'Button updated successfully.');
-                } catch (\Exception $e) {
-                    log_message('error', 'Error updating button: ' . $e->getMessage());
-                    return redirect()->back()->with('error', 'Failed to update button. Please try again.');
-                }
-            }
-        }
-
-        $apiKeyModel = new \App\Models\ApiKeyModel();
-        $apiKeys = $apiKeyModel->where('tenant_id', session()->get('tenant_id'))->findAll();
-
-        $data = [
+        return view('shared/buttons/edit', [
             'title' => 'Edit Button',
             'button' => $button,
-            'tenant' => $this->tenantsModel->find($tenant_id),
+            'tenant' => $tenant,
             'providers' => $availableProviders,
             'models' => $availableModels,
-            'domains' => $this->tenantsModel->getDomains($tenant_id),
-            'apiKeys' => $apiKeys
-        ];
-
-        return view('shared/buttons/edit', $data);
+            'apiKeys' => $apiKeys,
+            'domains' => $domains
+        ]);
     }
 
     /**
@@ -455,70 +269,33 @@ class Buttons extends Controller
             return redirect()->to('/buttons')->with('error', 'Button not found.');
         }
 
-        $rules = [
-            'name' => 'required|min_length[3]|max_length[255]',
-            'domain' => 'required',
-            'provider' => 'required|in_list[openai,anthropic,cohere,mistral,deepseek,google]',
-            'model' => 'required',
-            'api_key_id' => 'required',
-            'system_prompt' => 'permit_empty|max_length[2000]'
-        ];
-
-        if (!$this->validate($rules)) {
-            return redirect()->back()
-                ->with('error', 'Please check the form for errors.')
-                ->withInput()
-                ->with('validation', $this->validator);
-        }
-
-        // Verificar que el dominio pertenezca al tenant
-        $domain = $this->request->getPost('domain');
-        $domains = $this->tenantsModel->getDomains($tenant_id);
-        $allowedDomains = array_column($domains, 'domain');
-
-        if (!in_array($domain, $allowedDomains)) {
-            return redirect()->back()
-                ->with('error', 'El dominio seleccionado no está permitido para tu cuenta')
-                ->withInput();
-        }
-
-        // Verificar que el provider seleccionado tenga una API key configurada
         $provider = $this->request->getPost('provider');
-        $api_key_id = $this->request->getPost('api_key_id');
+        $model = $this->request->getPost('model');
 
-        // Obtener la API key seleccionada
-        $apiKey = $this->apiKeysModel->where('api_key_id', $api_key_id)
-            ->where('tenant_id', $tenant_id)
-            ->where('provider', $provider)
-            ->where('active', 1)
-            ->first();
-
-        if (!$apiKey) {
-            return redirect()->back()
-                ->with('error', 'La API Key seleccionada no es válida o no pertenece al proveedor seleccionado')
-                ->withInput();
+        // Validate provider and model
+        if (!isset($this->providers[$provider])) {
+            return redirect()->back()->withInput()->with('error', 'Invalid provider selected.');
+        }
+        if (!isset($this->models[$provider][$model])) {
+            return redirect()->back()->withInput()->with('error', 'Invalid model selected for the provider.');
         }
 
-        $updateData = [
+        $data = [
             'name' => $this->request->getPost('name'),
+            'description' => $this->request->getPost('description'),
             'domain' => $this->request->getPost('domain'),
-            'provider' => $this->request->getPost('provider'),
-            'model' => $this->request->getPost('model'),
-            'system_prompt' => $this->request->getPost('system_prompt'),
-            'api_key' => $apiKey['api_key'],
-            'updated_at' => date('Y-m-d H:i:s')
+            'provider' => $provider,
+            'model' => $model,
+            'prompt' => $this->request->getPost('prompt'),
+            'status' => $this->request->getPost('status')
         ];
 
         try {
-            $this->buttonsModel->where('button_id', $button_id)
-                ->where('tenant_id', $tenant_id)
-                ->set($updateData)
-                ->update();
-
+            $this->buttonsModel->update($button['id'], $data);
             return redirect()->to('/buttons')->with('success', 'Button updated successfully.');
         } catch (\Exception $e) {
             log_message('error', 'Error updating button: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Failed to update button. Please try again.');
+            return redirect()->back()->withInput()->with('error', 'Failed to update button. Please try again.');
         }
     }
 
@@ -541,25 +318,7 @@ class Buttons extends Controller
         }
 
         try {
-            // Delete button and associated usage logs
-            $this->db->transStart();
-
-            // Delete usage logs first (foreign key constraint)
-            $this->db->table('usage_logs')
-                ->where('button_id', $button_id)
-                ->delete();
-
-            // Delete the button
-            $this->buttonsModel->where('button_id', $button_id)
-                ->where('tenant_id', $tenant_id)
-                ->delete();
-
-            $this->db->transComplete();
-
-            if ($this->db->transStatus() === false) {
-                throw new \Exception('Failed to delete button and its usage logs.');
-            }
-
+            $this->buttonsModel->update($button['id'], ['status' => 'deleted']);
             return redirect()->to('/buttons')->with('success', 'Button deleted successfully.');
         } catch (\Exception $e) {
             log_message('error', 'Error deleting button: ' . $e->getMessage());

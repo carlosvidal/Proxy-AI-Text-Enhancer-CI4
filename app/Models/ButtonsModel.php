@@ -15,12 +15,12 @@ class ButtonsModel extends Model
         'button_id',
         'tenant_id',
         'name',
+        'description',
         'domain',
+        'prompt',
         'provider',
         'model',
-        'api_key',
-        'system_prompt',
-        'active',
+        'status',
         'created_at',
         'updated_at'
     ];
@@ -37,9 +37,8 @@ class ButtonsModel extends Model
         'domain' => 'required|valid_url_strict[https]',
         'provider' => 'required|in_list[openai,anthropic,cohere,mistral,deepseek,google]',
         'model' => 'required',
-        'api_key' => 'required',
-        'system_prompt' => 'permit_empty',
-        'active' => 'permit_empty|in_list[0,1]'
+        'prompt' => 'permit_empty',
+        'status' => 'permit_empty|in_list[active,inactive,deleted]'
     ];
 
     protected $validationMessages = [
@@ -58,7 +57,7 @@ class ButtonsModel extends Model
         ],
         'domain' => [
             'required' => 'Domain is required',
-            'valid_url_strict' => 'Domain must be a valid HTTPS URL'
+            'valid_url_strict' => 'Invalid domain URL'
         ],
         'provider' => [
             'required' => 'Provider is required',
@@ -67,17 +66,13 @@ class ButtonsModel extends Model
         'model' => [
             'required' => 'Model is required'
         ],
-        'api_key' => [
-            'required' => 'API key is required'
-        ],
-        'active' => [
-            'in_list' => 'Active must be 0 or 1'
+        'status' => [
+            'in_list' => 'Invalid status'
         ]
     ];
 
-    protected $beforeInsert = ['generateButtonId', 'encryptApiKey'];
-    protected $beforeUpdate = ['encryptApiKey'];
-    protected $afterFind = ['decryptApiKey'];
+    protected $beforeInsert = ['generateButtonId', 'setDefaultStatus'];
+    protected $beforeUpdate = [];
 
     /**
      * Generate a unique button ID using the format btn-{timestamp}-{random}
@@ -92,52 +87,14 @@ class ButtonsModel extends Model
         return $data;
     }
 
-    protected function encryptApiKey(array $data)
+    /**
+     * Set default status for new buttons
+     */
+    protected function setDefaultStatus(array $data)
     {
-        if (isset($data['data']['api_key']) && !empty($data['data']['api_key'])) {
-            $encrypter = \Config\Services::encrypter();
-            try {
-                // Check if the key is already encrypted (base64 format)
-                base64_decode($data['data']['api_key'], true);
-                if (strpos($data['data']['api_key'], 'error:') === false) {
-                    return $data;
-                }
-            } catch (\Exception $e) {
-                // Not base64, encrypt it
-                $data['data']['api_key'] = base64_encode($encrypter->encrypt($data['data']['api_key']));
-            }
+        if (!isset($data['data']['status'])) {
+            $data['data']['status'] = 'active';
         }
-        return $data;
-    }
-
-    protected function decryptApiKey(array $data)
-    {
-        $encrypter = \Config\Services::encrypter();
-
-        // Handle single result
-        if (isset($data['api_key'])) {
-            try {
-                $data['api_key'] = $encrypter->decrypt(base64_decode($data['api_key']));
-            } catch (\Exception $e) {
-                // If decryption fails, return encrypted value
-                log_message('error', 'Failed to decrypt API key: ' . $e->getMessage());
-            }
-        }
-
-        // Handle multiple results
-        if (isset($data['data'])) {
-            foreach ($data['data'] as &$row) {
-                if (isset($row['api_key'])) {
-                    try {
-                        $row['api_key'] = $encrypter->decrypt(base64_decode($row['api_key']));
-                    } catch (\Exception $e) {
-                        // If decryption fails, return encrypted value
-                        log_message('error', 'Failed to decrypt API key: ' . $e->getMessage());
-                    }
-                }
-            }
-        }
-
         return $data;
     }
 
@@ -183,15 +140,22 @@ class ButtonsModel extends Model
     }
 
     /**
+     * Get button with all its details
+     */
+    public function getButtonWithDetails($button_id, $tenant_id)
+    {
+        return $this->where('button_id', $button_id)
+            ->where('tenant_id', $tenant_id)
+            ->first();
+    }
+
+    /**
      * Get button configuration by domain
-     * 
-     * @param string $domain Domain name
-     * @param string|null $tenant_id Optional tenant ID to filter by
-     * @return array|null Button configuration or null if not found
      */
     public function getButtonByDomain(string $domain, string $tenant_id = null)
     {
-        $query = $this->where('domain', $domain);
+        $query = $this->where('domain', $domain)
+            ->where('status', 'active');
         
         if (!empty($tenant_id)) {
             $query->where('tenant_id', $tenant_id);

@@ -2,275 +2,151 @@
 
 namespace App\Controllers;
 
-use CodeIgniter\Controller;
-use App\Models\TenantsModel;
+use App\Controllers\BaseController;
 use App\Models\ApiKeysModel;
+use App\Models\TenantsModel;
 
 class ApiKeys extends BaseController
 {
-    protected $tenantsModel;
     protected $apiKeysModel;
+    protected $tenantsModel;
     protected $providers = [
         'openai' => 'OpenAI',
         'anthropic' => 'Anthropic',
         'cohere' => 'Cohere',
-        'mistral' => 'Mistral AI',
+        'mistral' => 'Mistral',
         'deepseek' => 'DeepSeek',
-        'google' => 'Google AI'
+        'google' => 'Google'
     ];
 
     public function __construct()
     {
-        $this->tenantsModel = new TenantsModel();
         $this->apiKeysModel = new ApiKeysModel();
-        
-        helper(['form', 'url', 'hash', 'api_key']);
+        $this->tenantsModel = new TenantsModel();
     }
 
-    /**
-     * List all API keys for the current tenant
-     */
     public function index()
     {
-        if (!session()->get('isLoggedIn')) {
-            return redirect()->to('/auth/login');
-        }
-
         $tenant_id = session()->get('tenant_id');
-        if (!$tenant_id) {
-            return redirect()->to('/auth/login')
-                ->with('error', 'No tenant found');
-        }
-
-        // Get tenant information
-        $tenant = $this->tenantsModel->where('tenant_id', $tenant_id)
-            ->where('active', 1)
-            ->first();
-
-        if (!$tenant) {
-            return redirect()->to('/auth/login')
-                ->with('error', 'Tenant not found');
-        }
-
+        $tenant = $this->tenantsModel->find($tenant_id);
+        
         $data = [
-            'title' => 'API Keys',
             'tenant' => $tenant,
             'apiKeys' => $this->apiKeysModel->getTenantApiKeys($tenant_id),
             'providers' => $this->providers
         ];
-
+        
         return view('shared/api_keys/index', $data);
     }
 
-    /**
-     * Create a new API key
-     */
-    public function create()
-    {
-        if (!session()->get('isLoggedIn')) {
-            return redirect()->to('/auth/login');
-        }
-
-        $tenant_id = session()->get('tenant_id');
-        if (!$tenant_id) {
-            return redirect()->to('/auth/login')
-                ->with('error', 'No tenant found');
-        }
-
-        // Get tenant information
-        $tenant = $this->tenantsModel->where('tenant_id', $tenant_id)
-            ->where('active', 1)
-            ->first();
-
-        if (!$tenant) {
-            return redirect()->to('/auth/login')
-                ->with('error', 'Tenant not found');
-        }
-
-        // Check if tenant has reached their API key limit
-        $apiKeyCount = $this->apiKeysModel->countTenantApiKeys($tenant_id);
-        $maxApiKeys = isset($tenant['max_api_keys']) ? $tenant['max_api_keys'] : 1;
-        
-        if ($apiKeyCount >= $maxApiKeys) {
-            return redirect()->to('/api-keys')
-                ->with('error', "Has alcanzado el límite de {$maxApiKeys} API Keys para tu plan. Actualiza tu plan para agregar más.");
-        }
-
-        $data = [
-            'title' => 'Create API Key',
-            'tenant' => $tenant,
-            'providers' => $this->providers
-        ];
-
-        return view('shared/api_keys/create', $data);
-    }
-
-    /**
-     * Store a new API key
-     */
     public function store()
     {
-        if (!session()->get('isLoggedIn')) {
-            return redirect()->to('/auth/login');
-        }
-
         $tenant_id = session()->get('tenant_id');
-        if (!$tenant_id) {
-            return redirect()->to('/auth/login')
-                ->with('error', 'No tenant found');
-        }
+        $tenant = $this->tenantsModel->find($tenant_id);
 
-        // Get tenant information
-        $tenant = $this->tenantsModel->where('tenant_id', $tenant_id)
-            ->where('active', 1)
-            ->first();
-
-        if (!$tenant) {
-            return redirect()->to('/auth/login')
-                ->with('error', 'Tenant not found');
-        }
-
-        // Check if tenant has reached their API key limit
-        $apiKeyCount = $this->apiKeysModel->countTenantApiKeys($tenant_id);
-        $maxApiKeys = isset($tenant['max_api_keys']) ? $tenant['max_api_keys'] : 1;
+        // Verificar límite de API keys según el plan
+        $current_keys = $this->apiKeysModel->getTenantApiKeys($tenant_id);
+        $maxApiKeys = $tenant['max_api_keys'] ?? 1; // Default to 1 for free plan
         
-        if ($apiKeyCount >= $maxApiKeys) {
+        if (count($current_keys) >= $maxApiKeys) {
             return redirect()->to('/api-keys')
                 ->with('error', "Has alcanzado el límite de {$maxApiKeys} API Keys para tu plan. Actualiza tu plan para agregar más.");
         }
+
+        helper('hash');
 
         $rules = [
             'name' => 'required|min_length[3]|max_length[100]',
             'provider' => 'required|in_list[openai,anthropic,cohere,mistral,deepseek,google]',
-            'api_key' => 'required|min_length[10]|max_length[255]',
-            'is_default' => 'permit_empty'
+            'api_key' => 'required|min_length[10]'
         ];
 
         if (!$this->validate($rules)) {
             return redirect()->back()
-                ->with('error', 'Por favor, verifica los errores en el formulario.')
                 ->withInput()
-                ->with('validation', $this->validator);
+                ->with('error', implode('<br>', $this->validator->getErrors()));
         }
 
         // Generate a unique API key ID
-        $api_key_id = $this->apiKeysModel->generateApiKeyId();
+        $api_key_id = generate_hash_id('key');
 
         // Encrypt the API key
         $encrypter = \Config\Services::encrypter();
-        $encryptedKey = base64_encode($encrypter->encrypt($this->request->getPost('api_key')));
-
-        // Check if this is the first API key for this provider, make it default
-        $isDefault = $this->request->getPost('is_default') ? 1 : 0;
-        $existingKeys = $this->apiKeysModel->getTenantProviderApiKeys($tenant_id, $this->request->getPost('provider'));
-        if (empty($existingKeys)) {
-            $isDefault = 1; // First key for this provider is automatically default
-        }
+        $encrypted_key = base64_encode($encrypter->encrypt($this->request->getPost('api_key')));
 
         $data = [
             'api_key_id' => $api_key_id,
             'tenant_id' => $tenant_id,
             'name' => $this->request->getPost('name'),
             'provider' => $this->request->getPost('provider'),
-            'api_key' => $encryptedKey,
-            'is_default' => $isDefault,
+            'api_key' => $encrypted_key,
+            'is_default' => count($current_keys) === 0 ? 1 : 0, // Set as default if it's the first key
             'active' => 1
         ];
 
-        try {
-            $this->apiKeysModel->insert($data);
-
-            // If this key is set as default, unset any other default for this provider
-            if ($isDefault) {
-                $this->apiKeysModel->setAsDefault($api_key_id, $tenant_id, $this->request->getPost('provider'));
-            }
-
+        if ($this->apiKeysModel->insert($data)) {
             return redirect()->to('/api-keys')
-                ->with('success', 'API Key creada correctamente');
-        } catch (\Exception $e) {
-            log_message('error', 'Error creating API key: ' . $e->getMessage());
-            return redirect()->back()
-                ->with('error', 'Error al crear la API Key. Por favor, intenta de nuevo.')
-                ->withInput();
+                ->with('success', 'API Key agregada correctamente.');
         }
+
+        return redirect()->to('/api-keys')
+            ->withInput()
+            ->with('error', 'Error al agregar la API Key: ' . implode('<br>', $this->apiKeysModel->errors()));
     }
 
-    /**
-     * Set an API key as default
-     */
-    public function setDefault($api_key_id = null)
+    public function delete($api_key_id)
     {
-        if (!$api_key_id) {
-            return redirect()->to('/api-keys')
-                ->with('error', 'API Key ID is required.');
-        }
-
         $tenant_id = session()->get('tenant_id');
+        
+        // Verify the API key belongs to the tenant
         $apiKey = $this->apiKeysModel->where('api_key_id', $api_key_id)
                                    ->where('tenant_id', $tenant_id)
                                    ->first();
-
+        
         if (!$apiKey) {
             return redirect()->to('/api-keys')
                 ->with('error', 'API Key not found.');
         }
 
-        try {
-            $this->apiKeysModel->setAsDefault($api_key_id, $tenant_id, $apiKey['provider']);
-            return redirect()->to('/api-keys')
-                ->with('success', 'API Key establecida como predeterminada.');
-        } catch (\Exception $e) {
-            log_message('error', 'Error setting API key as default: ' . $e->getMessage());
-            return redirect()->to('/api-keys')
-                ->with('error', 'Error al establecer la API Key como predeterminada.');
-        }
-    }
+        // Check if this is the last API key
+        $remaining_keys = $this->apiKeysModel->where('tenant_id', $tenant_id)
+                                           ->where('api_key_id !=', $api_key_id)
+                                           ->findAll();
 
-    /**
-     * Delete an API key
-     */
-    public function delete($api_key_id = null)
-    {
-        if (!$api_key_id) {
-            return redirect()->to('/api-keys')
-                ->with('error', 'API Key ID is required.');
+        // If this is the default key and there are other keys, set another one as default
+        if ($apiKey['is_default'] && !empty($remaining_keys)) {
+            $this->apiKeysModel->setDefault($remaining_keys[0]['api_key_id'], $tenant_id);
         }
 
-        $tenant_id = session()->get('tenant_id');
-        $apiKey = $this->apiKeysModel->where('api_key_id', $api_key_id)
-                                   ->where('tenant_id', $tenant_id)
-                                   ->first();
-
-        if (!$apiKey) {
-            return redirect()->to('/api-keys')
-                ->with('error', 'API Key not found.');
-        }
-
-        try {
-            // If this is the default key, find another key to set as default
-            if ($apiKey['is_default']) {
-                $otherKey = $this->apiKeysModel->where('tenant_id', $tenant_id)
-                                             ->where('provider', $apiKey['provider'])
-                                             ->where('api_key_id !=', $api_key_id)
-                                             ->where('active', 1)
-                                             ->first();
-                
-                if ($otherKey) {
-                    $this->apiKeysModel->setAsDefault($otherKey['api_key_id'], $tenant_id, $apiKey['provider']);
-                }
-            }
-
-            // Delete the API key
-            $this->apiKeysModel->where('api_key_id', $api_key_id)
-                             ->where('tenant_id', $tenant_id)
-                             ->delete();
-
+        if ($this->apiKeysModel->delete($api_key_id)) {
             return redirect()->to('/api-keys')
                 ->with('success', 'API Key eliminada correctamente.');
-        } catch (\Exception $e) {
-            log_message('error', 'Error deleting API key: ' . $e->getMessage());
-            return redirect()->to('/api-keys')
-                ->with('error', 'Error al eliminar la API Key.');
         }
+
+        return redirect()->to('/api-keys')
+            ->with('error', 'Error al eliminar la API Key.');
+    }
+
+    public function setDefault($api_key_id)
+    {
+        $tenant_id = session()->get('tenant_id');
+        
+        // Verify the API key belongs to the tenant
+        $apiKey = $this->apiKeysModel->where('api_key_id', $api_key_id)
+                                   ->where('tenant_id', $tenant_id)
+                                   ->first();
+
+        if (!$apiKey) {
+            return redirect()->to('/api-keys')
+                ->with('error', 'API Key not found.');
+        }
+
+        if ($this->apiKeysModel->setDefault($api_key_id, $tenant_id)) {
+            return redirect()->to('/api-keys')
+                ->with('success', 'API Key establecida como predeterminada.');
+        }
+
+        return redirect()->to('/api-keys')
+            ->with('error', 'Error al establecer la API Key como predeterminada.');
     }
 }

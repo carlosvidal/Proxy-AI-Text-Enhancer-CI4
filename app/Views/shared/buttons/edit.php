@@ -29,16 +29,22 @@
             <div class="row">
                 <div class="col-md-6">
                     <div class="mb-3">
-                        <label for="name" class="form-label">Button Name</label>
-                        <input type="text" class="form-control <?= session('errors.name') ? 'is-invalid' : '' ?>"
-                            id="name" name="name" value="<?= old('name', $button['name']) ?>" required>
-                        <?php if (session('errors.name')): ?>
-                            <div class="invalid-feedback"><?= session('errors.name') ?></div>
-                        <?php endif; ?>
+                        <label class="form-label">Button ID</label>
+                        <input type="text" class="form-control" value="<?= esc($button['button_id']) ?>" disabled>
+                        <div class="form-text">Button ID cannot be changed</div>
                     </div>
 
                     <div class="mb-3">
-                        <label for="domain" class="form-label">Dominio Permitido</label>
+                        <label for="name" class="form-label">Button Name</label>
+                        <input type="text" class="form-control <?= session('errors.name') ? 'is-invalid' : '' ?>" 
+                               id="name" name="name" value="<?= old('name', $button['name']) ?>" required>
+                        <?php if (session('errors.name')): ?>
+                            <div class="invalid-feedback"><?= session('errors.name') ?></div>
+                        <?php endif; ?>
+                        <div class="form-text">A descriptive name for your button</div>
+                    </div>
+
+                    <div class="mb-3">
                         <?php
                         if (empty($domains)): ?>
                             <div class="alert alert-warning">
@@ -47,6 +53,7 @@
                             <input type="text" class="form-control <?= session('errors.domain') ? 'is-invalid' : '' ?>"
                                 id="domain" name="domain" value="<?= old('domain', $button['domain']) ?>" required>
                         <?php elseif (isset($tenant['max_domains']) && $tenant['max_domains'] > 1 && count($domains) > 1): ?>
+                            <label class="form-label">Dominio Permitido</label>
                             <select class="form-select <?= session('errors.domain') ? 'is-invalid' : '' ?>"
                                 id="domain" name="domain" required>
                                 <option value="">Selecciona un dominio</option>
@@ -65,21 +72,52 @@
                         <?php if (session('errors.domain')): ?>
                             <div class="invalid-feedback"><?= session('errors.domain') ?></div>
                         <?php endif; ?>
-                        <div class="form-text">El dominio donde se usará este botón</div>
+                        <div class="form-text">The domain where this button will be used (must start with https://)</div>
                     </div>
 
                     <div class="mb-3">
-                        <label for="provider" class="form-label">LLM Provider</label>
-                        <select class="form-select <?= session('errors.provider') ? 'is-invalid' : '' ?>"
-                            id="provider" name="provider" required>
-                            <option value="">Select Provider</option>
-                            <?php foreach ($providers as $key => $label): ?>
-                                <option value="<?= $key ?>" <?= old('provider', $button['provider']) == $key ? 'selected' : '' ?>><?= $label ?></option>
-                            <?php endforeach; ?>
+                        <label for="api_key_id" class="form-label">API Key</label>
+                        <select class="form-select <?= session('errors.api_key_id') ? 'is-invalid' : '' ?>"
+                            id="api_key_id" name="api_key_id" required>
+                            <option value="">Select API Key</option>
+                            <?php
+                            // Try to find the current API key in the tenant's API keys
+                            $currentApiKeyFound = false;
+                            $currentApiKeyId = '';
+
+                            if (isset($apiKeys) && is_array($apiKeys)):
+                                foreach ($apiKeys as $apiKey):
+                                    if ($apiKey['active'] == 1):
+                                        // Check if this might be the current API key (matching provider)
+                                        $isCurrentProvider = ($apiKey['provider'] == $button['provider']);
+
+                                        // For old buttons that don't have api_key_id, we'll select based on provider
+                                        $selected = old('api_key_id') == $apiKey['id'] ||
+                                            (!old('api_key_id') && $isCurrentProvider && !$currentApiKeyFound);
+
+                                        if ($selected && $isCurrentProvider) {
+                                            $currentApiKeyFound = true;
+                                            $currentApiKeyId = $apiKey['id'];
+                                        }
+                            ?>
+                                        <option value="<?= $apiKey['id'] ?>"
+                                            data-provider="<?= $apiKey['provider'] ?>"
+                                            <?= $selected ? 'selected' : '' ?>>
+                                            <?= $apiKey['name'] ?> (<?= $providers[$apiKey['provider']] ?>)
+                                        </option>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <option value="" disabled>No API keys available</option>
+                            <?php endif; ?>
                         </select>
-                        <?php if (session('errors.provider')): ?>
-                            <div class="invalid-feedback"><?= session('errors.provider') ?></div>
+                        <?php if (session('errors.api_key_id')): ?>
+                            <div class="invalid-feedback"><?= session('errors.api_key_id') ?></div>
                         <?php endif; ?>
+                        <div class="form-text">
+                            Select an API key from your configured keys.
+                            <a href="<?= site_url('api-keys/create') ?>">Add a new API key</a>
+                        </div>
                     </div>
 
                     <div class="mb-3">
@@ -103,59 +141,25 @@
 
                 <div class="col-md-6">
                     <div class="mb-3">
-                        <label for="api_key_id" class="form-label">API Key</label>
-                        <select class="form-select <?= session('errors.api_key_id') ? 'is-invalid' : '' ?>"
-                            id="api_key_id" name="api_key_id" required>
-                            <option value="">Select API Key</option>
-                            <?php
-                            // Try to find the current API key in the tenant's API keys
-                            $currentApiKeyFound = false;
-                            $currentApiKeyId = '';
-
-                            if (isset($apiKeys) && is_array($apiKeys)):
-                                foreach ($apiKeys as $apiKey):
-                                    if ($apiKey['active'] == 1):
-                                        // Check if this might be the current API key (matching provider)
-                                        $isCurrentProvider = ($apiKey['provider'] == $button['provider']);
-
-                                        // For old buttons that don't have api_key_id, we'll select based on provider
-                                        $selected = old('api_key_id') == $apiKey['api_key_id'] ||
-                                            (!old('api_key_id') && $isCurrentProvider && !$currentApiKeyFound);
-
-                                        if ($selected && $isCurrentProvider) {
-                                            $currentApiKeyFound = true;
-                                            $currentApiKeyId = $apiKey['api_key_id'];
-                                        }
-                            ?>
-                                        <option value="<?= $apiKey['api_key_id'] ?>"
-                                            data-provider="<?= $apiKey['provider'] ?>"
-                                            <?= $selected ? 'selected' : '' ?>>
-                                            <?= $apiKey['name'] ?> (<?= $providers[$apiKey['provider']] ?>)
-                                        </option>
-                                    <?php endif; ?>
-                                <?php endforeach; ?>
-                                else:
-                                ?>
-                                <option value="" disabled>No API keys available</option>
-                            <?php endif; ?>
-                        </select>
-                        <?php if (session('errors.api_key_id')): ?>
-                            <div class="invalid-feedback"><?= session('errors.api_key_id') ?></div>
+                        <label for="prompt" class="form-label">System Prompt</label>
+                        <textarea class="form-control <?= session('errors.prompt') ? 'is-invalid' : '' ?>" 
+                                  id="prompt" name="prompt" rows="8"><?= old('prompt', $button['prompt']) ?></textarea>
+                        <?php if (session('errors.prompt')): ?>
+                            <div class="invalid-feedback"><?= session('errors.prompt') ?></div>
                         <?php endif; ?>
-                        <div class="form-text">
-                            Select an API key from your configured keys.
-                            <a href="<?= site_url('api-keys/create') ?>">Add a new API key</a>
-                        </div>
+                        <div class="form-text">System instructions for the model that define its behavior</div>
                     </div>
 
                     <div class="mb-3">
-                        <label for="system_prompt" class="form-label">System Prompt</label>
-                        <textarea class="form-control <?= session('errors.system_prompt') ? 'is-invalid' : '' ?>"
-                            id="system_prompt" name="system_prompt" rows="8"><?= old('system_prompt', $button['system_prompt']) ?></textarea>
-                        <?php if (session('errors.system_prompt')): ?>
-                            <div class="invalid-feedback"><?= session('errors.system_prompt') ?></div>
+                        <label for="status" class="form-label">Status</label>
+                        <select class="form-select <?= session('errors.status') ? 'is-invalid' : '' ?>" 
+                                id="status" name="status" required>
+                            <option value="active" <?= old('status', $button['status']) == 'active' ? 'selected' : '' ?>>Active</option>
+                            <option value="inactive" <?= old('status', $button['status']) == 'inactive' ? 'selected' : '' ?>>Inactive</option>
+                        </select>
+                        <?php if (session('errors.status')): ?>
+                            <div class="invalid-feedback"><?= session('errors.status') ?></div>
                         <?php endif; ?>
-                        <div class="form-text">System instructions for the model that define its behavior</div>
                     </div>
                 </div>
             </div>
@@ -169,108 +173,46 @@
 </div>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const providerSelect = document.getElementById('provider');
-        const modelSelect = document.getElementById('model');
-        const apiKeySelect = document.getElementById('api_key_id');
-        const modelGroups = document.querySelectorAll('.model-group');
+document.addEventListener('DOMContentLoaded', function() {
+    const apiKeySelect = document.getElementById('api_key_id');
+    const modelSelect = document.getElementById('model');
+    const modelGroups = document.querySelectorAll('.model-group');
 
-        // Function to filter models based on selected provider
-        function filterModels() {
-            const selectedProvider = providerSelect.value;
+    // Function to filter models based on selected API key's provider
+    function filterModels() {
+        const selectedOption = apiKeySelect.options[apiKeySelect.selectedIndex];
+        const selectedProvider = selectedOption ? selectedOption.getAttribute('data-provider') : null;
 
-            // Hide all model groups
-            modelGroups.forEach(group => {
-                group.style.display = 'none';
+        // Hide all model groups
+        modelGroups.forEach(group => {
+            group.style.display = 'none';
+            group.querySelectorAll('option').forEach(option => option.disabled = true);
+        });
 
-                // Disable all options in hidden groups
-                const options = group.querySelectorAll('option');
-                options.forEach(option => {
-                    option.disabled = true;
-                });
-            });
+        // Show only the selected provider's models
+        if (selectedProvider) {
+            const selectedGroup = document.querySelector(`.model-group[data-provider="${selectedProvider}"]`);
+            if (selectedGroup) {
+                selectedGroup.style.display = '';
+                selectedGroup.querySelectorAll('option').forEach(option => option.disabled = false);
 
-            // Show only the selected provider's models
-            if (selectedProvider) {
-                const selectedGroup = document.querySelector(`.model-group[data-provider="${selectedProvider}"]`);
-                if (selectedGroup) {
-                    selectedGroup.style.display = '';
-
-                    // Enable options in the selected group
-                    const options = selectedGroup.querySelectorAll('option');
-                    options.forEach(option => {
-                        option.disabled = false;
-                    });
-
-                    // Select the first option of the group if none selected
-                    if (!modelSelect.value || !selectedGroup.querySelector(`option[value="${modelSelect.value}"]`)) {
-                        const firstOption = selectedGroup.querySelector('option');
-                        if (firstOption) {
-                            firstOption.selected = true;
-                        }
+                // Select first option if none selected
+                if (!modelSelect.value || !selectedGroup.querySelector(`option[value="${modelSelect.value}"]`)) {
+                    const firstOption = selectedGroup.querySelector('option');
+                    if (firstOption) {
+                        modelSelect.value = firstOption.value;
                     }
                 }
             }
         }
+    }
 
-        // Function to filter API keys based on selected provider
-        function filterApiKeys() {
-            const selectedProvider = providerSelect.value;
-            const apiKeyOptions = apiKeySelect.querySelectorAll('option');
+    // Filter models on API key change
+    apiKeySelect.addEventListener('change', filterModels);
 
-            // First option is always "Select API Key"
-            let firstOption = apiKeyOptions[0];
-
-            // Hide all API key options except the first one
-            apiKeyOptions.forEach(option => {
-                if (option !== firstOption) {
-                    const optionProvider = option.getAttribute('data-provider');
-                    if (selectedProvider && optionProvider !== selectedProvider) {
-                        option.style.display = 'none';
-                        option.disabled = true;
-                    } else {
-                        option.style.display = '';
-                        option.disabled = false;
-                    }
-                }
-            });
-
-            // Reset selection if current selection is now hidden
-            const selectedOption = apiKeySelect.options[apiKeySelect.selectedIndex];
-            if (selectedOption && selectedOption !== firstOption && selectedOption.disabled) {
-                apiKeySelect.value = '';
-            }
-
-            // If there's only one valid option (besides the placeholder), select it
-            let validOptions = Array.from(apiKeyOptions).filter(option =>
-                option !== firstOption && !option.disabled
-            );
-
-            if (validOptions.length === 1) {
-                validOptions[0].selected = true;
-            }
-        }
-
-        // Initial filter
-        filterModels();
-        filterApiKeys();
-
-        // Add event listener to provider select
-        providerSelect.addEventListener('change', function() {
-            filterModels();
-            filterApiKeys();
-        });
-
-        // Add event listener to API key select to update provider
-        apiKeySelect.addEventListener('change', function() {
-            const selectedOption = apiKeySelect.options[apiKeySelect.selectedIndex];
-            if (selectedOption && selectedOption.getAttribute('data-provider')) {
-                const provider = selectedOption.getAttribute('data-provider');
-                providerSelect.value = provider;
-                filterModels();
-            }
-        });
-    });
+    // Initial filter
+    filterModels();
+});
 </script>
 
 <?= $this->endSection() ?>
