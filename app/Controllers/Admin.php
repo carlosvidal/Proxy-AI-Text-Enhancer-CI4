@@ -473,39 +473,59 @@ class Admin extends BaseController
                 // Use simple PDO connection directly to avoid model issues
                 $dsn = 'sqlite:' . WRITEPATH . 'database.sqlite';
                 $pdo = new \PDO($dsn);
+                $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
                 
                 // Create API user with direct PDO query
                 $sql = "
-                    INSERT INTO api_users (
-                        user_id, 
-                        external_id, 
-                        tenant_id, 
-                        name, 
-                        email, 
-                        quota, 
-                        active, 
-                        created_at, 
+                    INSERT INTO tenant_users (
+                        user_id,
+                        external_id,
+                        tenant_id,
+                        name,
+                        email,
+                        quota,
+                        active,
+                        created_at,
                         updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (
+                        :user_id,
+                        :external_id,
+                        :tenant_id,
+                        :name,
+                        :email,
+                        :quota,
+                        :active,
+                        :created_at,
+                        :updated_at
+                    )
                 ";
                 
-                $stmt = $pdo->prepare($sql);
-                $result = $stmt->execute([
-                    $user_id,
-                    $this->request->getPost('external_id'),
-                    $tenant['tenant_id'],
-                    $this->request->getPost('name'),
-                    $this->request->getPost('email'),
-                    $this->request->getPost('quota'),
-                    1,
-                    date('Y-m-d H:i:s'),
-                    date('Y-m-d H:i:s')
-                ]);
-                
-                if (!$result) {
-                    throw new \Exception("Database insert failed: " . print_r($stmt->errorInfo(), true));
-                }
+                try {
+                    $stmt = $pdo->prepare($sql);
+                    if (!$stmt) {
+                        throw new \Exception("Failed to prepare statement: " . print_r($pdo->errorInfo(), true));
+                    }
+                    
+                    $result = $stmt->execute([
+                        ':user_id' => $user_id,
+                        ':external_id' => $this->request->getPost('external_id'),
+                        ':tenant_id' => $tenant['tenant_id'],
+                        ':name' => $this->request->getPost('name'),
+                        ':email' => $this->request->getPost('email'),
+                        ':quota' => $this->request->getPost('quota'),
+                        ':active' => 1,
+                        ':created_at' => date('Y-m-d H:i:s'),
+                        ':updated_at' => date('Y-m-d H:i:s')
+                    ]);
 
+                    if (!$result) {
+                        throw new \Exception("Database insert failed: " . print_r($stmt->errorInfo(), true));
+                    }
+                } catch (\Exception $e) {
+                    log_message('error', 'Error creating API user: ' . $e->getMessage());
+                    throw $e;
+                }
+                
                 return redirect()->to('admin/tenants/' . $tenantId . '/users')
                     ->with('success', 'API user created successfully');
             } catch (\Exception $e) {
