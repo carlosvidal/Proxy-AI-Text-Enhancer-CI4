@@ -463,12 +463,15 @@ class LlmProxy extends Controller
                 'external_id' => $external_id
             ]);
 
+            // Generate a unique user_id
+            helper('hash');
+            $user_id = generate_hash_id('usr');
+
             // Create the user in api_users
             $userData = [
+                'user_id' => $user_id,
                 'tenant_id' => $tenant_id,
                 'external_id' => $external_id,
-                'name' => $external_id,
-                'email' => $external_id . '@auto.created',
                 'quota' => env('DEFAULT_QUOTA', 100000),
                 'daily_quota' => env('DEFAULT_DAILY_QUOTA', 10000),
                 'active' => 1,
@@ -480,8 +483,10 @@ class LlmProxy extends Controller
                 $result = $db->table('api_users')->insert($userData);
                 log_info('PROXY', 'API user created', [
                     'tenant_id' => $tenant_id,
-                    'external_id' => $external_id
+                    'external_id' => $external_id,
+                    'user_id' => $user_id
                 ]);
+                return TRUE;
             } catch (\Exception $e) {
                 log_error('PROXY', 'Failed to create API user', [
                     'tenant_id' => $tenant_id,
@@ -490,12 +495,13 @@ class LlmProxy extends Controller
                 ]);
                 return FALSE;
             }
-        } else {
-            log_info('PROXY', 'API user found', [
-                'tenant_id' => $tenant_id,
-                'external_id' => $external_id
-            ]);
         }
+
+        log_info('PROXY', 'API user found', [
+            'tenant_id' => $tenant_id,
+            'external_id' => $external_id
+        ]);
+        return TRUE;
     }
 
     /**
