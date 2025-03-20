@@ -15,13 +15,11 @@ class AddExternalIdToUsageLogs extends Migration
             $this->forge->dropTable('usage_logs_new', true);
         }
 
-        // For SQLite, we need to:
-        // 1. Create a new table with the desired structure
-        // 2. Copy data from old table to new table
-        // 3. Drop old table
-        // 4. Rename new table to old name
+        // Get the current table structure
+        $table_info = $this->db->query("PRAGMA table_info('usage_logs')")->getResultArray();
+        $existing_columns = array_column($table_info, 'name');
 
-        // First, create the new table
+        // Create the new table
         $this->forge->addField([
             'id' => [
                 'type' => 'INT',
@@ -44,21 +42,6 @@ class AddExternalIdToUsageLogs extends Migration
                 'constraint' => 255,
                 'null' => false
             ],
-            'provider' => [
-                'type' => 'VARCHAR',
-                'constraint' => 50,
-                'null' => false
-            ],
-            'model' => [
-                'type' => 'VARCHAR',
-                'constraint' => 50,
-                'null' => false
-            ],
-            'has_image' => [
-                'type' => 'TINYINT',
-                'constraint' => 1,
-                'default' => 0
-            ],
             'tokens' => [
                 'type' => 'INT',
                 'unsigned' => true,
@@ -78,10 +61,14 @@ class AddExternalIdToUsageLogs extends Migration
         // Create temporary table
         $this->forge->createTable('usage_logs_new');
 
+        // Build the column list for the INSERT based on existing columns
+        $copy_columns = ['id', 'tenant_id', 'user_id', 'tokens', 'usage_date'];
+        $select_columns = implode(', ', $copy_columns);
+
         // Copy data from old table to new table, using user_id as external_id initially
-        $this->db->query('INSERT INTO usage_logs_new (id, tenant_id, user_id, external_id, provider, model, has_image, tokens, usage_date)
-                         SELECT id, tenant_id, user_id, user_id, provider, model, has_image, tokens, usage_date
-                         FROM usage_logs');
+        $this->db->query("INSERT INTO usage_logs_new (${select_columns}, external_id)
+                         SELECT ${select_columns}, user_id
+                         FROM usage_logs");
 
         // Drop old table
         $this->forge->dropTable('usage_logs', true);
@@ -99,7 +86,6 @@ class AddExternalIdToUsageLogs extends Migration
             $this->forge->dropTable('usage_logs_new', true);
         }
 
-        // For down migration, we'll do the reverse process
         // Create temporary table without external_id
         $this->forge->addField([
             'id' => [
@@ -117,21 +103,6 @@ class AddExternalIdToUsageLogs extends Migration
                 'type' => 'VARCHAR',
                 'constraint' => 50,
                 'null' => false
-            ],
-            'provider' => [
-                'type' => 'VARCHAR',
-                'constraint' => 50,
-                'null' => false
-            ],
-            'model' => [
-                'type' => 'VARCHAR',
-                'constraint' => 50,
-                'null' => false
-            ],
-            'has_image' => [
-                'type' => 'TINYINT',
-                'constraint' => 1,
-                'default' => 0
             ],
             'tokens' => [
                 'type' => 'INT',
@@ -152,8 +123,8 @@ class AddExternalIdToUsageLogs extends Migration
         $this->forge->createTable('usage_logs_new');
 
         // Copy data from current table to new table
-        $this->db->query('INSERT INTO usage_logs_new (id, tenant_id, user_id, provider, model, has_image, tokens, usage_date)
-                         SELECT id, tenant_id, user_id, provider, model, has_image, tokens, usage_date
+        $this->db->query('INSERT INTO usage_logs_new (id, tenant_id, user_id, tokens, usage_date)
+                         SELECT id, tenant_id, user_id, tokens, usage_date
                          FROM usage_logs');
 
         // Drop old table
