@@ -36,47 +36,16 @@ class CorsFilter implements FilterInterface
             return self::$domainCache['domains'];
         }
         
-        // Start with the hardcoded allowed domains from Config
-        $configDomains = config('Cors')->allowedOrigins;
-        
-        // Extract just the domain part
         $allowedDomains = [];
-        foreach ($configDomains as $domain) {
-            $parsed = parse_url($domain);
-            if (isset($parsed['host'])) {
-                $allowedDomains[] = $parsed['host'];
-            } else {
-                // If it's not a URL, assume it's just a domain
-                $allowedDomains[] = $domain;
-            }
-        }
-        
-        // Add system domains that should always be allowed
-        $allowedDomains[] = 'llmproxy.mitienda.host'; // Main app domain
         
         try {
-            // Get domains from database - both from Domains table and ButtonsModel
+            // Get domains from database - only from active buttons
             $db = \Config\Database::connect();
             
-            // Get all verified domains from the domains table
-            $domainsQuery = $db->query("
-                SELECT domain FROM domains 
-                WHERE verified = 1
-            ");
-            
-            if ($domainsQuery) {
-                $domainRows = $domainsQuery->getResultArray();
-                foreach ($domainRows as $row) {
-                    if (!empty($row['domain'])) {
-                        $allowedDomains[] = $row['domain'];
-                    }
-                }
-            }
-            
-            // Get all domains from buttons table
+            // Get all domains from buttons table with status = 'active'
             $buttonsQuery = $db->query("
-                SELECT domain FROM buttons 
-                WHERE active = 1
+                SELECT DISTINCT domain FROM buttons 
+                WHERE status = 'active'
             ");
             
             if ($buttonsQuery) {
@@ -93,6 +62,13 @@ class CorsFilter implements FilterInterface
                     }
                 }
             }
+
+            // Log the domains found
+            log_debug('CORS', 'Found domains from active buttons', [
+                'count' => count($allowedDomains),
+                'domains' => $allowedDomains
+            ]);
+
         } catch (\Exception $e) {
             log_message('error', 'Error getting allowed domains from database: ' . $e->getMessage());
         }

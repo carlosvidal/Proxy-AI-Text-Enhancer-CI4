@@ -44,16 +44,9 @@ class Cors extends BaseConfig
      * @var array
      */
     public array $allowedOrigins = [
-        // Lista de dominios permitidos para desarrollo local
-        'http://llmproxy2.test:8080',
-        'http://127.0.0.1:54323',
-        'http://localhost:8080',
-        'http://localhost:8081',
-        'http://localhost:8082',
-        'http://localhost:8083',
-        'http://localhost:8084'
-        // Los dominios de producción se obtienen dinámicamente de la base de datos
+        // Los dominios se obtienen dinámicamente de la base de datos
         // en la clase CorsFilter usando el método getAllowedDomains()
+        // basado en los dominios de los botones activos
     ];
 
     /**
