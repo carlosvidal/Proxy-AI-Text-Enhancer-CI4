@@ -2,17 +2,14 @@
 
 namespace App\Libraries\LlmProviders;
 
-class OpenAiProvider extends BaseProvider
+class OpenAiProvider extends BaseLlmProvider
 {
-    private $api_key;
-    private $api_url = 'https://api.openai.com/v1/chat/completions';
-
-    public function __construct($api_key)
+    public function __construct(string $api_key)
     {
-        $this->api_key = $api_key;
+        parent::__construct($api_key, 'https://api.openai.com/v1/chat/completions');
     }
 
-    public function process_request($model, $messages, $options = [])
+    public function process_request(string $model, array $messages, array $options = []): array
     {
         try {
             // Prepare request payload
@@ -23,25 +20,16 @@ class OpenAiProvider extends BaseProvider
                 'stream' => false
             ];
 
-            // Make API request
-            $ch = curl_init($this->api_url);
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_POST, true);
-            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-            curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                'Content-Type: application/json',
-                'Authorization: Bearer ' . $this->api_key
-            ]);
+            // Make request using parent's make_request method
+            $response = $this->make_request($this->endpoint, $payload);
 
-            $response = curl_exec($ch);
-            $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-
-            if ($status !== 200) {
-                throw new \Exception('OpenAI API error: ' . $response);
+            if (isset($response['error'])) {
+                throw new \Exception($response['error']['message'] ?? 'Unknown error from OpenAI');
             }
 
-            $response = json_decode($response, true);
+            if (!isset($response['choices']) || !isset($response['choices'][0]['message'])) {
+                throw new \Exception('Unexpected response format from OpenAI');
+            }
 
             return [
                 'response' => $response['choices'][0]['message']['content'],
@@ -54,70 +42,23 @@ class OpenAiProvider extends BaseProvider
         }
     }
 
-    public function process_stream_request($model, $messages, $options = [])
+    public function process_stream_request(string $model, array $messages, array $options = []): callable
     {
-        return function() use ($model, $messages, $options) {
-            try {
-                // Prepare request payload
-                $payload = [
-                    'model' => $model,
-                    'messages' => $messages,
-                    'temperature' => $options['temperature'] ?? 0.7,
-                    'stream' => true
-                ];
+        // Prepare request payload
+        $payload = [
+            'model' => $model,
+            'messages' => $messages,
+            'temperature' => $options['temperature'] ?? 0.7,
+            'stream' => true
+        ];
 
-                // Initialize curl
-                $ch = curl_init($this->api_url);
-                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                curl_setopt($ch, CURLOPT_POST, true);
-                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
-                curl_setopt($ch, CURLOPT_HTTPHEADER, [
-                    'Content-Type: application/json',
-                    'Authorization: Bearer ' . $this->api_key,
-                    'Accept: text/event-stream'
-                ]);
-
-                // Set callback for streaming
-                curl_setopt($ch, CURLOPT_WRITEFUNCTION, function($ch, $data) {
-                    $lines = explode("\n", $data);
-                    foreach ($lines as $line) {
-                        if (strlen(trim($line)) === 0) continue;
-                        if (strpos($line, 'data: ') !== 0) continue;
-
-                        $line = substr($line, 6);
-                        if ($line === '[DONE]') {
-                            echo "data: [DONE]\n\n";
-                            flush();
-                            continue;
-                        }
-
-                        $response = json_decode($line, true);
-                        if (!$response) continue;
-
-                        if (isset($response['choices'][0]['delta']['content'])) {
-                            $chunk = $response['choices'][0]['delta']['content'];
-                            echo "data: " . $chunk . "\n\n";
-                            flush();
-                        }
-                    }
-                    return strlen($data);
-                });
-
-                // Execute request
-                curl_exec($ch);
-                $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                curl_close($ch);
-
-                if ($status !== 200) {
-                    throw new \Exception('OpenAI API error: HTTP ' . $status);
-                }
-            } catch (\Exception $e) {
-                throw new \Exception('Error processing OpenAI stream: ' . $e->getMessage());
-            }
-        };
+        // Make streaming request using parent's make_request method
+        return $this->make_request($this->endpoint, $payload, [
+            'Accept: text/event-stream'
+        ], true);
     }
 
-    public function get_token_usage($messages)
+    public function get_token_usage(array $messages): array
     {
         // Estimate token usage based on message length
         $total_chars = 0;
