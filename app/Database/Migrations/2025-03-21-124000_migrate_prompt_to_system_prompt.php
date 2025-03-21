@@ -8,125 +8,64 @@ class MigratePromptToSystemPrompt extends Migration
 {
     public function up()
     {
-        // En SQLite no podemos eliminar columnas directamente
-        // En su lugar, crearemos una nueva tabla y copiaremos los datos
-        
-        // 1. Crear tabla temporal
+        // Crear tabla usage_logs
         $this->forge->addField([
-            'button_id' => [
+            'usage_id' => [
                 'type' => 'VARCHAR',
-                'constraint' => 50
+                'constraint' => 50,
+                'null' => false
             ],
             'tenant_id' => [
                 'type' => 'VARCHAR',
-                'constraint' => 50
+                'constraint' => 50,
+                'null' => false
             ],
-            'name' => [
-                'type' => 'VARCHAR',
-                'constraint' => 100
-            ],
-            'domain' => [
+            'external_id' => [
                 'type' => 'VARCHAR',
                 'constraint' => 255,
                 'null' => true
             ],
-            'api_key_id' => [
+            'provider' => [
                 'type' => 'VARCHAR',
                 'constraint' => 50,
-                'null' => true
+                'null' => false
             ],
-            'system_prompt' => [
-                'type' => 'TEXT',
-                'null' => true
+            'model' => [
+                'type' => 'VARCHAR',
+                'constraint' => 50,
+                'null' => false
             ],
-            'active' => [
+            'tokens_in' => [
+                'type' => 'INT',
+                'constraint' => 11,
+                'null' => false,
+                'default' => 0
+            ],
+            'tokens_out' => [
+                'type' => 'INT',
+                'constraint' => 11,
+                'null' => false,
+                'default' => 0
+            ],
+            'has_image' => [
                 'type' => 'TINYINT',
                 'constraint' => 1,
-                'default' => 1
+                'null' => false,
+                'default' => 0
             ],
             'created_at' => [
-                'type' => 'DATETIME'
-            ],
-            'updated_at' => [
                 'type' => 'DATETIME',
-                'null' => true
+                'null' => false
             ]
         ]);
-        $this->forge->addKey('button_id', true);
-        $this->forge->createTable('buttons_temp');
-
-        // 2. Copiar datos
-        $db = db_connect();
-        $db->query("INSERT INTO buttons_temp 
-                   SELECT button_id, tenant_id, name, domain, api_key_id, prompt as system_prompt, active, created_at, updated_at 
-                   FROM buttons");
-
-        // 3. Eliminar tabla original
-        $this->forge->dropTable('buttons');
-
-        // 4. Renombrar tabla temporal
-        $db->query("ALTER TABLE buttons_temp RENAME TO buttons");
+        $this->forge->addKey('usage_id', true);
+        $this->forge->addKey('tenant_id');
+        $this->forge->addKey('external_id');
+        $this->forge->createTable('usage_logs', true);
     }
 
     public function down()
     {
-        // En SQLite no podemos eliminar columnas directamente
-        // En su lugar, crearemos una nueva tabla y copiaremos los datos
-        
-        // 1. Crear tabla temporal
-        $this->forge->addField([
-            'button_id' => [
-                'type' => 'VARCHAR',
-                'constraint' => 50
-            ],
-            'tenant_id' => [
-                'type' => 'VARCHAR',
-                'constraint' => 50
-            ],
-            'name' => [
-                'type' => 'VARCHAR',
-                'constraint' => 100
-            ],
-            'domain' => [
-                'type' => 'VARCHAR',
-                'constraint' => 255,
-                'null' => true
-            ],
-            'api_key_id' => [
-                'type' => 'VARCHAR',
-                'constraint' => 50,
-                'null' => true
-            ],
-            'prompt' => [
-                'type' => 'TEXT',
-                'null' => true
-            ],
-            'active' => [
-                'type' => 'TINYINT',
-                'constraint' => 1,
-                'default' => 1
-            ],
-            'created_at' => [
-                'type' => 'DATETIME'
-            ],
-            'updated_at' => [
-                'type' => 'DATETIME',
-                'null' => true
-            ]
-        ]);
-        $this->forge->addKey('button_id', true);
-        $this->forge->createTable('buttons_temp');
-
-        // 2. Copiar datos
-        $db = db_connect();
-        $db->query("INSERT INTO buttons_temp 
-                   SELECT button_id, tenant_id, name, domain, api_key_id, system_prompt as prompt, active, created_at, updated_at 
-                   FROM buttons");
-
-        // 3. Eliminar tabla original
-        $this->forge->dropTable('buttons');
-
-        // 4. Renombrar tabla temporal
-        $db->query("ALTER TABLE buttons_temp RENAME TO buttons");
+        $this->forge->dropTable('usage_logs', true);
     }
 }

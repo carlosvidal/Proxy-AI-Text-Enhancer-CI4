@@ -163,7 +163,7 @@ class LlmProxy extends Controller
 
                 // Log usage after streaming completes
                 $usage = $llm->get_token_usage($messages);
-                $this->_log_usage($tenant_id, $domain, $provider, $model, $usage['tokens_in'], $usage['tokens_out'], $messages, $response, $button_id);
+                $this->_log_usage($tenant_id, $domain, $provider, $model, $usage['tokens_in'], $usage['tokens_out'], false);
 
                 // Return empty response since we've already sent the stream
                 return '';
@@ -172,7 +172,7 @@ class LlmProxy extends Controller
                 $response = $llm->process_request($model, $messages, $options);
 
                 // Log usage
-                $this->_log_usage($tenant_id, $domain, $provider, $model, $response['tokens_in'], $response['tokens_out'], $messages, $response['response'], $button_id);
+                $this->_log_usage($tenant_id, $domain, $provider, $model, $response['tokens_in'], $response['tokens_out'], false);
 
                 // Return successful response
                 return $this->response->setJSON([
@@ -271,52 +271,42 @@ class LlmProxy extends Controller
     }
 
     /**
-     * Log usage for a request
+     * Log usage for billing purposes
      */
-    private function _log_usage($tenant_id, $domain, $provider, $model, $tokens_in, $tokens_out, $messages, $response, $button_id = null)
+    private function _log_usage($tenant_id, $external_id, $provider, $model, $tokens_in, $tokens_out, $has_image = false)
     {
+        $db = db_connect();
+        
         try {
-            $db = db_connect();
-
-            // Generate log ID
-            $log_id = 'log-' . bin2hex(random_bytes(4)) . '-' . bin2hex(random_bytes(4));
-
-            // Insert usage log
+            // Log usage details
             $db->table('usage_logs')->insert([
-                'log_id' => $log_id,
                 'tenant_id' => $tenant_id,
-                'button_id' => $button_id,
-                'tokens_in' => $tokens_in,
-                'tokens_out' => $tokens_out,
+                'user_id' => $external_id, // Using external_id as user_id
+                'external_id' => $external_id,
                 'provider' => $provider,
                 'model' => $model,
+                'tokens' => $tokens_in + $tokens_out,
+                'has_image' => $has_image ? 1 : 0,
+                'status' => 'success',
                 'created_at' => date('Y-m-d H:i:s')
             ]);
 
-            // Insert prompt log
-            $db->table('prompt_logs')->insert([
-                'prompt_id' => 'pmt-' . bin2hex(random_bytes(4)) . '-' . bin2hex(random_bytes(4)),
-                'log_id' => $log_id,
-                'prompt' => json_encode($messages),
-                'response' => $response,
-                'created_at' => date('Y-m-d H:i:s')
-            ]);
-
-            log_info('USAGE', 'Usage logged successfully', [
+            log_debug('USAGE', 'Usage logged successfully', [
                 'tenant_id' => $tenant_id,
-                'domain' => $domain,
-                'log_id' => $log_id,
-                'tokens_in' => $tokens_in,
-                'tokens_out' => $tokens_out
+                'external_id' => $external_id,
+                'provider' => $provider,
+                'model' => $model,
+                'tokens' => $tokens_in + $tokens_out
             ]);
 
+            return true;
         } catch (\Exception $e) {
             log_error('USAGE', 'Error logging usage', [
+                'error' => $e->getMessage(),
                 'tenant_id' => $tenant_id,
-                'domain' => $domain,
-                'error' => $e->getMessage()
+                'external_id' => $external_id
             ]);
-            throw $e;
+            return false;
         }
     }
 
