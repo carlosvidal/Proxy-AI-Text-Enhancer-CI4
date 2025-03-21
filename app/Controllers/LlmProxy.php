@@ -297,7 +297,8 @@ class LlmProxy extends Controller
                 if ($user) {
                     $user_id = $user['id'];
                     log_debug('USAGE', 'API User encontrado', [
-                        'user_id' => $user_id
+                        'user_id' => $user_id,
+                        'external_id' => $external_id
                     ]);
                 } else {
                     log_error('USAGE', 'API User no encontrado', [
@@ -329,7 +330,9 @@ class LlmProxy extends Controller
                 'tokens' => $total_tokens,
                 'cost' => $cost ?? 0,  // Si no hay cost, usamos 0
                 'has_image' => $has_image ? 1 : 0,
-                'status' => 'success'
+                'status' => 'success',
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s')
             ];
             
             log_debug('USAGE', 'Intentando insertar log', $data);
@@ -344,14 +347,16 @@ class LlmProxy extends Controller
             }
 
             log_debug('USAGE', 'Log insertado correctamente', [
-                'usage_id' => $usage_id
+                'usage_id' => $usage_id,
+                'data' => $data
             ]);
 
             return true;
         } catch (\Exception $e) {
             log_error('USAGE', 'Excepción al insertar log', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
+                'data' => isset($data) ? $data : null
             ]);
             return false;
         }

@@ -35,12 +35,14 @@ class UsageLogsModel extends Model
     protected $validationRules = [
         'usage_id' => 'required|is_unique[usage_logs.usage_id]',
         'tenant_id' => 'required',
-        'user_id' => 'permit_empty',
+        'user_id' => 'permit_empty|integer',
         'external_id' => 'permit_empty',  
+        'button_id' => 'permit_empty',
         'provider' => 'required',
         'model' => 'required',
         'tokens' => 'required|integer',
         'cost' => 'permit_empty|decimal',
+        'has_image' => 'permit_empty|integer',
         'status' => 'required'
     ];
 
