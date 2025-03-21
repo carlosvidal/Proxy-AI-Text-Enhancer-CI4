@@ -60,10 +60,21 @@ class OpenAiProvider extends BaseLlmProvider
 
     public function get_token_usage(array $messages): array
     {
+        // Convert messages to array if needed
+        $messages_array = [];
+        foreach ($messages as $message) {
+            if (is_object($message)) {
+                $message = (array)$message;
+            }
+            $messages_array[] = $message;
+        }
+
         // Estimate token usage based on message length
         $total_chars = 0;
-        foreach ($messages as $message) {
-            $total_chars += strlen($message['content']);
+        foreach ($messages_array as $message) {
+            if (isset($message['content'])) {
+                $total_chars += strlen($message['content']);
+            }
         }
 
         // Rough estimate: 4 characters per token
