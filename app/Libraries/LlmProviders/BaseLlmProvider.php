@@ -56,6 +56,8 @@ abstract class BaseLlmProvider implements LlmProviderInterface
 
                     // Process stream response
                     $lines = explode("\n", $response);
+                    $buffer = '';
+                    
                     foreach ($lines as $line) {
                         $line = trim($line);
                         if (empty($line)) continue;
@@ -70,6 +72,10 @@ abstract class BaseLlmProvider implements LlmProviderInterface
                         if (strpos($line, 'data: ') === 0) {
                             $line = substr($line, 6);
                             if ($line === '[DONE]') {
+                                if (!empty($buffer)) {
+                                    echo "data: " . $buffer . "\n\n";
+                                    flush();
+                                }
                                 echo "data: [DONE]\n\n";
                                 flush();
                                 continue;
@@ -79,10 +85,23 @@ abstract class BaseLlmProvider implements LlmProviderInterface
                             if (!$chunk) continue;
 
                             if (isset($chunk['choices'][0]['delta']['content'])) {
-                                echo "data: " . $chunk['choices'][0]['delta']['content'] . "\n\n";
-                                flush();
+                                $content = $chunk['choices'][0]['delta']['content'];
+                                $buffer .= $content;
+                                
+                                // Si tenemos un espacio o puntuación, enviamos el buffer
+                                if (preg_match('/[\s\.,!?;:]/', $content)) {
+                                    echo "data: " . $buffer . "\n\n";
+                                    flush();
+                                    $buffer = '';
+                                }
                             }
                         }
+                    }
+
+                    // Enviar cualquier contenido restante en el buffer
+                    if (!empty($buffer)) {
+                        echo "data: " . $buffer . "\n\n";
+                        flush();
                     }
                 } catch (\Exception $e) {
                     // Send error as SSE event
