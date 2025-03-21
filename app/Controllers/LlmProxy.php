@@ -5,6 +5,7 @@ namespace App\Controllers;
 use CodeIgniter\Controller;
 use CodeIgniter\HTTP\ResponseInterface;
 use App\Models\LlmProxyModel;
+use App\Models\UsageLogsModel;
 use App\Libraries\LlmProviders\OpenAiProvider;
 use App\Libraries\LlmProviders\AnthropicProvider;
 use App\Libraries\LlmProviders\MistralProvider;
@@ -255,36 +256,41 @@ class LlmProxy extends Controller
      */
     private function _log_usage($tenant_id, $external_id, $provider, $model, $tokens_in, $tokens_out, $has_image = false)
     {
-        $db = db_connect();
-        
         try {
-            // Generate usage_id
-            $usage_id = uniqid('usage_');
-
-            // Log usage details
-            $db->table('usage_logs')->insert([
+            $usageModel = new UsageLogsModel();
+            
+            // Calculate total tokens
+            $total_tokens = $tokens_in + $tokens_out;
+            
+            // Calculate cost based on model
+            $cost = $this->_calculate_cost($provider, $model, $total_tokens);
+            
+            // Generate usage_id using hash helper
+            $usage_id = generate_hash_id('usage');
+            
+            $data = [
                 'usage_id' => $usage_id,
                 'tenant_id' => $tenant_id,
                 'external_id' => $external_id,
                 'provider' => $provider,
                 'model' => $model,
-                'tokens_in' => $tokens_in,
-                'tokens_out' => $tokens_out,
-                'has_image' => $has_image ? 1 : 0,
-                'created_at' => date('Y-m-d H:i:s')
-            ]);
-
-            log_debug('USAGE', 'Usage logged successfully', [
-                'usage_id' => $usage_id,
-                'tenant_id' => $tenant_id,
-                'external_id' => $external_id,
-                'provider' => $provider,
-                'model' => $model,
-                'tokens_in' => $tokens_in,
-                'tokens_out' => $tokens_out
-            ]);
-
+                'tokens' => $total_tokens,
+                'cost' => $cost,
+                'has_image' => $has_image ? 1 : 0
+            ];
+            
+            if (!$usageModel->insert($data)) {
+                log_error('USAGE', 'Error logging usage', [
+                    'error' => implode(', ', $usageModel->errors()),
+                    'tenant_id' => $tenant_id,
+                    'external_id' => $external_id
+                ]);
+                return false;
+            }
+            
+            log_debug('USAGE', 'Usage logged successfully', $data);
             return true;
+            
         } catch (\Exception $e) {
             log_error('USAGE', 'Error logging usage', [
                 'error' => $e->getMessage(),
@@ -293,6 +299,37 @@ class LlmProxy extends Controller
             ]);
             return false;
         }
+    }
+
+    /**
+     * Calculate cost based on provider and model
+     */
+    private function _calculate_cost($provider, $model, $tokens)
+    {
+        $rates = [
+            'openai' => [
+                'gpt-4-turbo' => 0.00003,
+                'gpt-4-vision' => 0.00003,
+                'gpt-3.5-turbo' => 0.000002,
+                'default' => 0.00001
+            ],
+            'anthropic' => [
+                'claude-3-opus-20240229' => 0.00015,
+                'claude-3-sonnet-20240229' => 0.00003,
+                'claude-3-haiku-20240307' => 0.00001,
+                'default' => 0.00003
+            ],
+            'mistral' => [
+                'mistral-large' => 0.00002,
+                'default' => 0.00001
+            ],
+            'default' => 0.00001
+        ];
+        
+        $provider_rates = $rates[$provider] ?? $rates['default'];
+        $rate = $provider_rates[$model] ?? $provider_rates['default'];
+        
+        return round($tokens * $rate, 4);
     }
 
     /**

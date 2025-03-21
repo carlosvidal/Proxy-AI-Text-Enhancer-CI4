@@ -13,11 +13,15 @@ class UsageLogsModel extends Model
     protected $useSoftDeletes = false;
 
     protected $allowedFields = [
+        'usage_id',
         'tenant_id',
         'button_id',
-        'api_user_id',
+        'external_id',
+        'provider',
+        'model',
         'tokens',
         'cost',
+        'has_image',
         'created_at',
         'updated_at'
     ];
@@ -27,7 +31,10 @@ class UsageLogsModel extends Model
     protected $updatedField = 'updated_at';
     
     protected $validationRules = [
+        'usage_id' => 'required|is_unique[usage_logs.usage_id]',
         'tenant_id' => 'required',
+        'provider' => 'required',
+        'model' => 'required',
         'tokens' => 'required|integer',
         'cost' => 'required|decimal'
     ];
