@@ -8,6 +8,7 @@ use App\Models\LlmProxyModel;
 use App\Libraries\LlmProviders\OpenAiProvider;
 use App\Libraries\LlmProviders\AnthropicProvider;
 use App\Libraries\LlmProviders\MistralProvider;
+use App\Libraries\LlmProviders\DeepseekProvider;
 use App\Libraries\LlmProviders\GoogleProvider;
 use App\Libraries\LlmProviders\AzureProvider;
 
@@ -72,6 +73,7 @@ class LlmProxy extends Controller
             'openai' => getenv('OPENAI_API_KEY') ?: $config->openaiApiKey,
             'anthropic' => getenv('ANTHROPIC_API_KEY') ?: $config->anthropicApiKey,
             'mistral' => getenv('MISTRAL_API_KEY') ?: $config->mistralApiKey,
+            'deepseek' => getenv('DEEPSEEK_API_KEY') ?: $config->deepseekApiKey,
             'google' => getenv('GOOGLE_API_KEY') ?: $config->googleApiKey,
             'azure' => getenv('AZURE_API_KEY') ?: $config->azureApiKey
         ];
@@ -81,6 +83,7 @@ class LlmProxy extends Controller
             'openai' => getenv('OPENAI_API_ENDPOINT') ?: $config->openaiEndpoint,
             'anthropic' => getenv('ANTHROPIC_API_ENDPOINT') ?: $config->anthropicEndpoint,
             'mistral' => getenv('MISTRAL_API_ENDPOINT') ?: $config->mistralEndpoint,
+            'deepseek' => getenv('DEEPSEEK_API_ENDPOINT') ?: $config->deepseekEndpoint,
             'google' => getenv('GOOGLE_API_ENDPOINT') ?: $config->googleEndpoint,
             'azure' => getenv('AZURE_API_ENDPOINT') ?: $config->azureEndpoint
         ];
@@ -330,6 +333,8 @@ class LlmProxy extends Controller
                 return new AnthropicProvider($this->api_keys['anthropic'], $this->endpoints['anthropic']);
             case 'mistral':
                 return new MistralProvider($this->api_keys['mistral'], $this->endpoints['mistral']);
+            case 'deepseek':
+                return new DeepseekProvider($this->api_keys['deepseek'], $this->endpoints['deepseek']);
             case 'google':
                 return new GoogleProvider($this->api_keys['google'], $this->endpoints['google']);
             case 'azure':
