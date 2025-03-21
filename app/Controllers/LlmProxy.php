@@ -420,6 +420,70 @@ class LlmProxy extends Controller
     }
 
     /**
+     * Prepare payload for LLM request
+     */
+    private function _prepare_payload($provider, $model, $messages, $temperature, $stream)
+    {
+        // Procesar mensajes multimodales
+        $processed_messages = array_map(function($message) {
+            if (is_array($message['content'])) {
+                // Extraer solo el texto de los mensajes multimodales
+                $text_parts = [];
+                foreach ($message['content'] as $content) {
+                    if (isset($content['text'])) {
+                        $text_parts[] = $content['text'];
+                    }
+                }
+                return [
+                    'role' => $message['role'],
+                    'content' => implode("\n", $text_parts)
+                ];
+            }
+            return $message;
+        }, $messages);
+
+        // Payload base
+        $payload = [
+            'model' => $model,
+            'messages' => $processed_messages,
+            'temperature' => floatval($temperature),
+            'stream' => $stream
+        ];
+
+        // Ajustar payload según el proveedor
+        switch ($provider) {
+            case 'openai':
+                $payload['max_tokens'] = 2000;
+                $payload['frequency_penalty'] = 0;
+                $payload['presence_penalty'] = 0;
+                break;
+
+            case 'anthropic':
+                $payload['max_tokens_to_sample'] = 2000;
+                break;
+
+            case 'mistral':
+                $payload['max_tokens'] = 2000;
+                break;
+
+            case 'deepseek':
+                $payload['max_tokens'] = 2000;
+                break;
+
+            case 'google':
+                $payload['max_output_tokens'] = 2000;
+                $payload['temperature'] = min($temperature, 1.0); // Google solo acepta hasta 1.0
+                break;
+
+            case 'azure':
+                $payload['max_tokens'] = 2000;
+                break;
+        }
+
+        return $payload;
+    }
+
+    /**
      * Get quota information for tenant
      */
     public function quota()

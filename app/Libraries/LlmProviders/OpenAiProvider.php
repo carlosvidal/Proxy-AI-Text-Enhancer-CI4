@@ -12,12 +12,7 @@ class OpenAiProvider extends BaseLlmProvider
         try {
             $data = [
                 'model' => $model,
-                'messages' => array_map(function($msg) {
-                    return [
-                        'role' => $msg['role'],
-                        'content' => is_array($msg['content']) ? $msg['content'][0]['text'] : $msg['content']
-                    ];
-                }, $messages),
+                'messages' => $messages,
                 'temperature' => $options['temperature'] ?? 0.7,
                 'max_tokens' => $options['max_tokens'] ?? 2000,
                 'frequency_penalty' => $options['frequency_penalty'] ?? 0,
@@ -29,11 +24,6 @@ class OpenAiProvider extends BaseLlmProvider
                 $this->endpoint . '/chat/completions',
                 $data
             );
-
-            // Validar que tenemos los campos necesarios
-            if (!isset($response['choices'][0]['message']['content'])) {
-                throw new \Exception('Invalid response format from OpenAI');
-            }
 
             return [
                 'response' => $response['choices'][0]['message']['content'],
@@ -56,12 +46,7 @@ class OpenAiProvider extends BaseLlmProvider
     {
         $data = [
             'model' => $model,
-            'messages' => array_map(function($msg) {
-                return [
-                    'role' => $msg['role'],
-                    'content' => is_array($msg['content']) ? $msg['content'][0]['text'] : $msg['content']
-                ];
-            }, $messages),
+            'messages' => $messages,
             'temperature' => $options['temperature'] ?? 0.7,
             'max_tokens' => $options['max_tokens'] ?? 2000,
             'frequency_penalty' => $options['frequency_penalty'] ?? 0,
@@ -86,15 +71,9 @@ class OpenAiProvider extends BaseLlmProvider
         // In a real implementation, you would use a proper tokenizer
         $total_chars = 0;
         foreach ($messages as $message) {
-            if (is_array($message['content'])) {
-                // Handle multimodal messages
-                foreach ($message['content'] as $content) {
-                    if (isset($content['text'])) {
-                        $total_chars += strlen($content['text']);
-                    }
-                }
-            } else {
-                $total_chars += strlen($message['content']);
+            $content = $message['content'];
+            if (is_string($content)) {
+                $total_chars += strlen($content);
             }
         }
 
