@@ -19,12 +19,18 @@ abstract class BaseLlmProvider implements LlmProviderInterface
      */
     protected function make_request(string $url, array $data, array $headers = [], bool $stream = false)
     {
+        // Ensure proper headers for SSE
+        header('Content-Type: text/event-stream');
+        header('Cache-Control: no-cache');
+        header('Connection: keep-alive');
+        header('X-Accel-Buffering: no'); // Disable nginx buffering
+
         $curl = curl_init();
 
         curl_setopt_array($curl, [
             CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '', // Accept any encoding but don't automatically decode
+            CURLOPT_ENCODING => 'identity', // Disable compression
             CURLOPT_MAXREDIRS => 10,
             CURLOPT_TIMEOUT => 0,
             CURLOPT_FOLLOWLOCATION => true,
@@ -35,6 +41,7 @@ abstract class BaseLlmProvider implements LlmProviderInterface
                 'Content-Type: application/json',
                 'Authorization: Bearer ' . $this->api_key,
                 'Accept: text/event-stream',
+                'Accept-Encoding: identity', // Disable compression
                 'Cache-Control: no-cache',
                 'Connection: keep-alive'
             ], $headers)
@@ -44,10 +51,15 @@ abstract class BaseLlmProvider implements LlmProviderInterface
             // For streaming responses, return a callable that will yield chunks
             return function () use ($curl, $data) {
                 try {
+                    // Important: Set output headers before any content
+                    header('Content-Type: text/event-stream');
+                    header('Cache-Control: no-cache');
+                    header('Connection: keep-alive');
+                    header('X-Accel-Buffering: no');
+
                     $response = curl_exec($curl);
                     $err = curl_error($curl);
                     $status_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-                    $content_type = curl_getinfo($curl, CURLINFO_CONTENT_TYPE);
                     curl_close($curl);
 
                     if ($err) {
@@ -76,6 +88,7 @@ abstract class BaseLlmProvider implements LlmProviderInterface
                     ]);
                     echo "data: " . $startJson . "\n\n";
                     flush();
+                    ob_flush();
 
                     // Process stream response
                     $lines = explode("\n", $response);
@@ -115,9 +128,11 @@ abstract class BaseLlmProvider implements LlmProviderInterface
                                     ];
                                     echo "data: " . json_encode($data) . "\n\n";
                                     flush();
+                                    ob_flush();
                                 }
                                 echo "data: [DONE]\n\n";
                                 flush();
+                                ob_flush();
                                 continue;
                             }
 
@@ -146,6 +161,7 @@ abstract class BaseLlmProvider implements LlmProviderInterface
                                 ];
                                 echo "data: " . json_encode($data) . "\n\n";
                                 flush();
+                                ob_flush();
                                 $buffer = '';
                             }
                         }
@@ -170,12 +186,14 @@ abstract class BaseLlmProvider implements LlmProviderInterface
                         ];
                         echo "data: " . json_encode($data) . "\n\n";
                         flush();
+                        ob_flush();
                     }
                 } catch (\Exception $e) {
                     // Send error as SSE event
                     echo "event: error\n";
                     echo "data: " . json_encode(['error' => $e->getMessage()]) . "\n\n";
                     flush();
+                    ob_flush();
                 }
             };
         } else {
