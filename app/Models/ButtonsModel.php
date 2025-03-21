@@ -17,7 +17,6 @@ class ButtonsModel extends Model
         'name',
         'description',
         'domain',
-        'prompt',
         'system_prompt',
         'provider',
         'model',
@@ -36,7 +35,6 @@ class ButtonsModel extends Model
         'tenant_id' => 'required',
         'name' => 'required|min_length[3]|max_length[255]',
         'domain' => 'required',
-        'prompt' => 'required',
         'provider' => 'required|in_list[openai,anthropic,google,azure]',
         'model' => 'required',
         'api_key_id' => 'required',
@@ -54,9 +52,6 @@ class ButtonsModel extends Model
         ],
         'domain' => [
             'required' => 'Domain is required',
-        ],
-        'prompt' => [
-            'required' => 'Prompt is required',
         ],
         'provider' => [
             'required' => 'Provider is required',
