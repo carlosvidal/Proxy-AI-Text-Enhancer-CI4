@@ -131,6 +131,8 @@ class Usage extends Controller
                    b.name as button_name,
                    tu.name as user_name,
                    pl.messages,
+                   pl.system_prompt,
+                   pl.system_prompt_source,
                    pl.response
             FROM usage_logs ul
             LEFT JOIN buttons b ON ul.button_id = b.button_id
