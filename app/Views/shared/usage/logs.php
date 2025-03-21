@@ -25,8 +25,8 @@
                     <?php foreach ($logs as $log): ?>
                     <tr>
                         <td><?= date('Y-m-d H:i:s', strtotime($log->created_at)) ?></td>
-                        <td><?= esc($log->button_name ?? 'API Request') ?></td>
-                        <td><?= esc($log->user_name ?? $log->external_id) ?></td>
+                        <td><?= esc($log->button_name) ?></td>
+                        <td><?= esc($log->user_identifier ?? $log->external_id) ?></td>
                         <td><?= number_format($log->tokens) ?></td>
                         <td>$<?= number_format($log->cost, 4) ?></td>
                         <td class="details-column d-none">
