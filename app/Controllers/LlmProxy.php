@@ -361,5 +361,65 @@ class LlmProxy extends Controller
         $this->llm_proxy_model->update_tenant_quota($tenant_id, $tokens_in + $tokens_out);
     }
 
-    // ... resto del código ...
+    /**
+     * Process LLM request
+     */
+    public function process()
+    {
+        try {
+            // Get request data
+            $json = $this->request->getJSON();
+            if (!$json) {
+                throw new \Exception('Invalid request format');
+            }
+
+            // Extract request parameters
+            $provider = $json->provider ?? 'openai';
+            $model = $json->model ?? null;
+            $messages = $json->messages ?? [];
+            $options = $json->options ?? [];
+
+            // Validate required parameters
+            if (!$model || empty($messages)) {
+                throw new \Exception('Missing required parameters');
+            }
+
+            // Get LLM provider instance
+            $llm = $this->_get_llm_provider($provider);
+
+            // Process request through provider
+            $response = $llm->process_request($model, $messages, $options);
+
+            // Return successful response
+            return $this->response->setJSON([
+                'success' => true,
+                'data' => $response
+            ]);
+
+        } catch (\Exception $e) {
+            // Log error
+            log_message('error', 'Error processing LLM request', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            // Return error response
+            return $this->response->setStatusCode(500)->setJSON([
+                'success' => false,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Handle OPTIONS request for CORS
+     */
+    public function options()
+    {
+        return $this->response
+            ->setHeader('Access-Control-Allow-Origin', $this->allowed_origins)
+            ->setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization')
+            ->setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+            ->setStatusCode(200);
+    }
 }

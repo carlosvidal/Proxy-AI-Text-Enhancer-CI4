@@ -167,10 +167,14 @@ $routes->group('', ['filter' => 'auth:superadmin'], function ($routes) {
 
 /*
  * --------------------------------------------------------------------
- * API Routes (requires JWT authentication)
+ * API Routes
  * --------------------------------------------------------------------
  */
-$routes->group('api', ['filter' => 'jwt'], function ($routes) {
+$routes->group('api', function ($routes) {
+    // LLM Proxy routes
+    $routes->post('llm-proxy', 'LlmProxy::process');
+    $routes->options('llm-proxy', 'LlmProxy::options');
+
     // LLM Proxy endpoints
     $routes->post('enhance', 'Api::enhance');
 
