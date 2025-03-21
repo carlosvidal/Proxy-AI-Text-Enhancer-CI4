@@ -124,7 +124,7 @@ class LlmProxy extends Controller
             }
 
             // Procesa la solicitud al LLM
-            $response = $this->_process_llm_request($provider, $model, $messages, $options->temperature ?? 0.7, $stream, $tenant_id, $domain, $external_id, $button_id);
+            $response = $this->_process_llm_request($provider, $model, $messages, $options->temperature ?? 0.7, $stream, $tenant_id, $external_id, $button_id);
 
             return $response;
 
@@ -181,7 +181,7 @@ class LlmProxy extends Controller
     /**
      * Procesa la solicitud al LLM
      */
-    private function _process_llm_request($provider, $model, $messages, $temperature, $stream, $tenant_id, $domain, $external_id, $button_id = null, $has_image = false)
+    private function _process_llm_request($provider, $model, $messages, $temperature, $stream, $tenant_id, $external_id, $button_id = null, $has_image = false)
     {
         try {
             // Get LLM provider instance
