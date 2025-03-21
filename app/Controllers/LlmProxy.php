@@ -102,32 +102,71 @@ class LlmProxy extends Controller
 
             // Get domain from headers
             $domain = $this->_extract_domain_from_headers();
+            log_debug('PROXY', 'Domain extracted', [
+                'domain' => $domain,
+                'request_id' => $request_id
+            ]);
 
-            // Ensure user exists
-            $tenant_id = $this->_ensure_user_exists($domain);
-
-            // Get button configuration if provided
-            $button = null;
+            // Get button configuration
             $button_id = $json->button_id ?? null;
-            if ($button_id) {
-                $db = db_connect();
-                $button = $db->table('buttons')
-                    ->where('button_id', $button_id)
-                    ->where('tenant_id', $tenant_id)
-                    ->get()
-                    ->getRowArray();
-
-                if ($button) {
-                    $provider = $button['provider'];
-                    $model = $button['model'];
-                }
+            if (!$button_id) {
+                throw new \Exception('Missing button_id in request');
             }
 
-            // Procesa la solicitud al LLM
-            $response = $this->_process_llm_request($provider, $model, $messages, $options->temperature ?? 0.7, $stream, $tenant_id, $external_id, $button_id);
+            $db = db_connect();
+            $button = $db->table('buttons')
+                ->where('button_id', $button_id)
+                ->where('status', 'active')
+                ->get()
+                ->getRowArray();
+
+            if (!$button) {
+                throw new \Exception('Invalid or inactive button');
+            }
+
+            // Validate domain
+            if ($button['domain'] !== '*' && $button['domain'] !== $domain) {
+                log_error('PROXY', 'Domain mismatch', [
+                    'request_domain' => $domain,
+                    'button_domain' => $button['domain'],
+                    'button_id' => $button_id
+                ]);
+                throw new \Exception('Invalid domain for this button');
+            }
+
+            // Get API user
+            $api_user = $db->table('api_users')
+                ->where('tenant_id', $button['tenant_id'])
+                ->where('external_id', $external_id)
+                ->where('active', 1)
+                ->get()
+                ->getRowArray();
+
+            if (!$api_user) {
+                log_error('PROXY', 'API user not found or inactive', [
+                    'tenant_id' => $button['tenant_id'],
+                    'external_id' => $external_id
+                ]);
+                throw new \Exception('Invalid or inactive API user');
+            }
+
+            // Use button configuration
+            $provider = $button['provider'];
+            $model = $button['model'];
+
+            // Process the request
+            $response = $this->_process_llm_request(
+                $provider,
+                $model,
+                $messages,
+                $options->temperature ?? 0.7,
+                $stream,
+                $button['tenant_id'],
+                $external_id,
+                $button_id
+            );
 
             return $response;
-
         } catch (\Exception $e) {
             // Log error
             log_message('error', 'Error processing LLM request: ' . $e->getMessage(), [
@@ -141,41 +180,6 @@ class LlmProxy extends Controller
                 'error' => $e->getMessage()
             ]);
         }
-    }
-
-    /**
-     * Ensures a user exists for a tenant, creating them if needed
-     */
-    private function _ensure_user_exists($domain)
-    {
-        $db = db_connect();
-
-        // Try to find existing tenant by domain
-        $tenant = $db->table('tenants')
-            ->where('name', $domain)
-            ->get()
-            ->getRowArray();
-
-        // If tenant doesn't exist, create one
-        if (!$tenant) {
-            $tenant_id = generate_hash_id('ten');
-            $db->table('tenants')->insert([
-                'tenant_id' => $tenant_id,
-                'name' => $domain,
-                'active' => true,
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s')
-            ]);
-
-            log_info('TENANT', 'Created new tenant', [
-                'tenant_id' => $tenant_id,
-                'domain' => $domain
-            ]);
-
-            return $tenant_id;
-        }
-
-        return $tenant['tenant_id'];
     }
 
     /**
@@ -208,7 +212,7 @@ class LlmProxy extends Controller
 
                 // Get streaming response
                 $response = $llm->process_stream_request($model, $messages, $options);
-                
+
                 // Process stream response
                 if (is_callable($response)) {
                     $response();
@@ -226,7 +230,6 @@ class LlmProxy extends Controller
 
                 // Return empty response since we've already sent the stream
                 return '';
-
             } else {
                 $response = $llm->process_request($model, $messages, $options);
 
@@ -275,10 +278,10 @@ class LlmProxy extends Controller
 
         try {
             $usageModel = new \App\Models\UsageLogsModel();
-            
+
             // Generate usage_id using hash helper
             $usage_id = generate_hash_id('usage');
-            
+
             // Find user_id from api_users table using external_id
             $user_id = null;
             if ($external_id) {
@@ -287,7 +290,7 @@ class LlmProxy extends Controller
                     'tenant_id' => $tenant_id,
                     'external_id' => $external_id
                 ]);
-                
+
                 $user = $db->table('api_users')
                     ->where('tenant_id', $tenant_id)
                     ->where('external_id', $external_id)
@@ -334,9 +337,9 @@ class LlmProxy extends Controller
                 'created_at' => date('Y-m-d H:i:s'),
                 'updated_at' => date('Y-m-d H:i:s')
             ];
-            
+
             log_debug('USAGE', 'Intentando insertar log', $data);
-            
+
             if (!$usageModel->insert($data)) {
                 log_error('USAGE', 'Error al insertar log', [
                     'error' => implode(', ', $usageModel->errors()),
@@ -386,10 +389,10 @@ class LlmProxy extends Controller
             ],
             'default' => 0.00001
         ];
-        
+
         $provider_rates = $rates[$provider] ?? $rates['default'];
         $rate = $provider_rates[$model] ?? $provider_rates['default'];
-        
+
         return round($tokens * $rate, 4);
     }
 
