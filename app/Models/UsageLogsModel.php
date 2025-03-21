@@ -35,8 +35,8 @@ class UsageLogsModel extends Model
     protected $validationRules = [
         'usage_id' => 'required|is_unique[usage_logs.usage_id]',
         'tenant_id' => 'required',
-        'user_id' => 'required',
-        'external_id' => 'required',
+        'user_id' => 'permit_empty',
+        'external_id' => 'required',  
         'provider' => 'required',
         'model' => 'required',
         'tokens' => 'required|integer',
@@ -45,11 +45,21 @@ class UsageLogsModel extends Model
     ];
 
     protected $validationMessages = [
-        'user_id' => [
-            'required' => 'User ID is required'
+        'usage_id' => [
+            'required' => 'Usage ID is required',
+            'is_unique' => 'Usage ID must be unique'
+        ],
+        'tenant_id' => [
+            'required' => 'Tenant ID is required'
         ],
         'external_id' => [
-            'required' => 'External ID is required'
+            'required' => 'User ID is required'
+        ],
+        'provider' => [
+            'required' => 'Provider is required'
+        ],
+        'model' => [
+            'required' => 'Model is required'
         ]
     ];
 

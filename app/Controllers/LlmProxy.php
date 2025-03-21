@@ -89,7 +89,7 @@ class LlmProxy extends Controller
             $messages = $json->messages ?? [];
             $options = $json->options ?? [];
             $stream = $json->stream ?? false;
-            $external_id = $json->external_id ?? null;
+            $external_id = $json->user_id ?? null; // Get user_id from request and store as external_id
 
             // Validate required parameters
             if (!$model || empty($messages)) {
@@ -97,7 +97,7 @@ class LlmProxy extends Controller
             }
 
             if (!$external_id) {
-                throw new \Exception('Missing external_id: User identifier is required');
+                throw new \Exception('Missing user_id: User identifier is required');
             }
 
             // Get domain from headers
@@ -274,22 +274,25 @@ class LlmProxy extends Controller
             // Generate usage_id using hash helper
             $usage_id = generate_hash_id('usage');
 
-            // Find user_id from tenant_users table
-            $db = db_connect();
-            $user = $db->table('tenant_users')
-                ->where('tenant_id', $tenant_id)
-                ->where('external_id', $external_id)
-                ->get()
-                ->getRowArray();
+            // Find user_id from tenant_users table if external_id is provided
+            $user_id = null;
+            if ($external_id) {
+                $db = db_connect();
+                $user = $db->table('tenant_users')
+                    ->where('tenant_id', $tenant_id)
+                    ->where('external_id', $external_id)
+                    ->get()
+                    ->getRowArray();
 
-            if (!$user) {
-                throw new \Exception('User not found: Invalid external_id');
+                if ($user) {
+                    $user_id = $user['id'];
+                }
             }
             
             $data = [
                 'usage_id' => $usage_id,
                 'tenant_id' => $tenant_id,
-                'user_id' => $user['id'],
+                'user_id' => $user_id,
                 'external_id' => $external_id,
                 'button_id' => $button_id,
                 'provider' => $provider,
