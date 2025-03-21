@@ -323,39 +323,51 @@ class LlmProxy extends Controller
         ]);
 
         try {
-            $usageModel = new \App\Models\UsageLogsModel();
+            if (empty($external_id)) {
+                log_error('USAGE', 'External ID es requerido para el log');
+                return false;
+            }
 
-            // Generate usage_id using hash helper
-            $usage_id = generate_hash_id('usage');
+            $usageModel = new \App\Models\UsageLogsModel();
+            $db = db_connect();
 
             // Find user_id from api_users table using external_id
-            $user_id = null;
-            if ($external_id) {
-                $db = db_connect();
-                log_debug('USAGE', 'Buscando api_user', [
+            log_debug('USAGE', 'Buscando api_user', [
+                'tenant_id' => $tenant_id,
+                'external_id' => $external_id
+            ]);
+
+            $user = $db->table('api_users')
+                ->where('tenant_id', $tenant_id)
+                ->where('external_id', $external_id)
+                ->get()
+                ->getRowArray();
+
+            if (!$user) {
+                log_error('USAGE', 'API User no encontrado, creando nuevo usuario', [
                     'tenant_id' => $tenant_id,
                     'external_id' => $external_id
                 ]);
-
-                $user = $db->table('api_users')
-                    ->where('tenant_id', $tenant_id)
-                    ->where('external_id', $external_id)
-                    ->get()
-                    ->getRowArray();
-
-                if ($user) {
-                    $user_id = $user['id'];
-                    log_debug('USAGE', 'API User encontrado', [
-                        'user_id' => $user_id,
-                        'external_id' => $external_id
-                    ]);
-                } else {
-                    log_error('USAGE', 'API User no encontrado', [
-                        'tenant_id' => $tenant_id,
-                        'external_id' => $external_id
-                    ]);
-                }
+                
+                // Insert new API user
+                $db->table('api_users')->insert([
+                    'tenant_id' => $tenant_id,
+                    'external_id' => $external_id,
+                    'created_at' => date('Y-m-d H:i:s')
+                ]);
+                
+                $user_id = $db->insertID();
+            } else {
+                $user_id = $user['id'];
+                log_debug('USAGE', 'API User encontrado', [
+                    'user_id' => $user_id,
+                    'external_id' => $external_id
+                ]);
             }
+
+            // Generate usage_id using hash helper
+            helper('hash');
+            $usage_id = generate_hash_id('usage');
 
             // Calculate cost if not provided
             if ($cost === null) {
@@ -377,11 +389,10 @@ class LlmProxy extends Controller
                 'provider' => $provider,
                 'model' => $model,
                 'tokens' => $total_tokens,
-                'cost' => $cost ?? 0,  // Si no hay cost, usamos 0
+                'cost' => $cost ?? 0,
                 'has_image' => $has_image ? 1 : 0,
                 'status' => 'success',
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s')
+                'created_at' => date('Y-m-d H:i:s')
             ];
 
             log_debug('USAGE', 'Intentando insertar log', $data);
@@ -393,8 +404,7 @@ class LlmProxy extends Controller
                     'validation' => $usageModel->getValidationRules(),
                     'last_query' => $usageModel->getLastQuery(),
                     'db_error' => db_connect()->error(),
-                    'db_error_message' => db_connect()->error()['message'] ?? 'No message',
-                    'table_structure' => $db->query('PRAGMA table_info(usage_logs)')->getResultArray()
+                    'db_error_message' => db_connect()->error()['message'] ?? 'No message'
                 ]);
                 return false;
             }
