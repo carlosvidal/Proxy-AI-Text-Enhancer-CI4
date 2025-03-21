@@ -52,7 +52,7 @@
                         <thead>
                             <tr>
                                 <th>User ID</th>
-                                <th>Name</th>
+                                <th>External ID</th>
                                 <th>Quota</th>
                                 <th>Usage</th>
                                 <th>Requests</th>
@@ -62,8 +62,8 @@
                         <tbody>
                             <?php foreach ($api_stats as $user): ?>
                             <tr>
-                                <td><?= esc($user->user_id) ?></td>
-                                <td><?= esc($user->name) ?></td>
+                                <td><?= esc($user->id) ?></td>
+                                <td><?= esc($user->external_id) ?></td>
                                 <td><?= number_format($user->quota) ?></td>
                                 <td><?= number_format($user->total_tokens) ?></td>
                                 <td><?= number_format($user->request_count) ?></td>

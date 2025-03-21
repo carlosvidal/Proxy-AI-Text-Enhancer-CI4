@@ -383,7 +383,9 @@ class LlmProxy extends Controller
                 log_error('USAGE', 'Error al insertar log', [
                     'error' => implode(', ', $usageModel->errors()),
                     'data' => $data,
-                    'validation' => $usageModel->getValidationRules()
+                    'validation' => $usageModel->getValidationRules(),
+                    'last_query' => $usageModel->getLastQuery(),
+                    'db_error' => db_connect()->error()
                 ]);
                 return false;
             }
