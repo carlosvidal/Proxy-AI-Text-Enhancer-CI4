@@ -79,12 +79,12 @@ class LlmProxy extends Controller
         try {
             // Get request data
             $raw_input = file_get_contents('php://input');
-            log_error('PROXY', 'Raw request data', [
+            log_message('error', '[PROXY] Raw request data: ' . print_r([
                 'raw_input' => $raw_input,
                 'content_type' => $this->request->getHeaderLine('Content-Type'),
                 'method' => $this->request->getMethod(),
                 'headers' => $this->request->headers()
-            ]);
+            ], true));
 
             $json = $this->request->getJSON();
             if (!$json) {
@@ -107,7 +107,7 @@ class LlmProxy extends Controller
             $external_id = $json->userId ?? $json->user_id ?? null; // Aceptar tanto userId como user_id
             $button_id = $json->buttonId ?? $json->button_id ?? null; // Aceptar tanto buttonId como button_id
 
-            log_error('PROXY', 'Extracted parameters', [
+            log_message('error', '[PROXY] Extracted parameters: ' . print_r([
                 'provider' => $provider,
                 'model' => $model,
                 'messages_count' => count($messages),
@@ -115,7 +115,7 @@ class LlmProxy extends Controller
                 'external_id' => $external_id,
                 'button_id' => $button_id,
                 'json' => json_encode($json)
-            ]);
+            ], true));
 
             log_debug('PROXY', 'Extracted parameters', [
                 'request_id' => $request_id,
