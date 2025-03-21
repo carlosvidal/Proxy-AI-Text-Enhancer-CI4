@@ -89,10 +89,15 @@ class LlmProxy extends Controller
             $messages = $json->messages ?? [];
             $options = $json->options ?? [];
             $stream = $json->stream ?? false;
+            $external_id = $json->external_id ?? null;
 
             // Validate required parameters
             if (!$model || empty($messages)) {
-                throw new \Exception('Missing required parameters');
+                throw new \Exception('Missing required parameters: model and messages are required');
+            }
+
+            if (!$external_id) {
+                throw new \Exception('Missing external_id: User identifier is required');
             }
 
             // Get domain from headers
@@ -119,7 +124,7 @@ class LlmProxy extends Controller
             }
 
             // Procesa la solicitud al LLM
-            $response = $this->_process_llm_request($provider, $model, $messages, $options->temperature ?? 0.7, $stream, $tenant_id, $domain);
+            $response = $this->_process_llm_request($provider, $model, $messages, $options->temperature ?? 0.7, $stream, $tenant_id, $domain, $external_id, $button_id);
 
             return $response;
 
@@ -176,7 +181,7 @@ class LlmProxy extends Controller
     /**
      * Procesa la solicitud al LLM
      */
-    private function _process_llm_request($provider, $model, $messages, $temperature, $stream, $tenant_id, $external_id, $has_image = false)
+    private function _process_llm_request($provider, $model, $messages, $temperature, $stream, $tenant_id, $domain, $external_id, $button_id = null, $has_image = false)
     {
         try {
             // Get LLM provider instance
@@ -217,15 +222,16 @@ class LlmProxy extends Controller
 
                 // Log usage after streaming completes
                 $usage = $llm->get_token_usage($messages);
-                $this->_log_usage($tenant_id, $external_id, $provider, $model, $usage['tokens_in'], $usage['tokens_out'], $has_image);
+                $this->_log_usage($tenant_id, $external_id, $provider, $model, $usage['tokens_in'], $usage['tokens_out'], $button_id, $has_image);
 
                 // Return empty response since we've already sent the stream
                 return '';
+
             } else {
                 $response = $llm->process_request($model, $messages, $options);
 
                 // Log usage
-                $this->_log_usage($tenant_id, $external_id, $provider, $model, $response['tokens_in'], $response['tokens_out'], $has_image);
+                $this->_log_usage($tenant_id, $external_id, $provider, $model, $response['tokens_in'], $response['tokens_out'], $button_id, $has_image);
 
                 // Return successful response
                 return $this->response->setJSON([
@@ -254,7 +260,7 @@ class LlmProxy extends Controller
     /**
      * Log usage for billing purposes
      */
-    private function _log_usage($tenant_id, $external_id, $provider, $model, $tokens_in, $tokens_out, $has_image = false)
+    private function _log_usage($tenant_id, $external_id, $provider, $model, $tokens_in, $tokens_out, $button_id = null, $has_image = false)
     {
         try {
             $usageModel = new UsageLogsModel();
@@ -267,23 +273,39 @@ class LlmProxy extends Controller
             
             // Generate usage_id using hash helper
             $usage_id = generate_hash_id('usage');
+
+            // Find user_id from tenant_users table
+            $db = db_connect();
+            $user = $db->table('tenant_users')
+                ->where('tenant_id', $tenant_id)
+                ->where('external_id', $external_id)
+                ->get()
+                ->getRowArray();
+
+            if (!$user) {
+                throw new \Exception('User not found: Invalid external_id');
+            }
             
             $data = [
                 'usage_id' => $usage_id,
                 'tenant_id' => $tenant_id,
+                'user_id' => $user['id'],
                 'external_id' => $external_id,
+                'button_id' => $button_id,
                 'provider' => $provider,
                 'model' => $model,
                 'tokens' => $total_tokens,
                 'cost' => $cost,
-                'has_image' => $has_image ? 1 : 0
+                'has_image' => $has_image ? 1 : 0,
+                'status' => 'success'
             ];
             
             if (!$usageModel->insert($data)) {
                 log_error('USAGE', 'Error logging usage', [
                     'error' => implode(', ', $usageModel->errors()),
                     'tenant_id' => $tenant_id,
-                    'external_id' => $external_id
+                    'external_id' => $external_id,
+                    'button_id' => $button_id
                 ]);
                 return false;
             }
@@ -295,7 +317,8 @@ class LlmProxy extends Controller
             log_error('USAGE', 'Error logging usage', [
                 'error' => $e->getMessage(),
                 'tenant_id' => $tenant_id,
-                'external_id' => $external_id
+                'external_id' => $external_id,
+                'button_id' => $button_id
             ]);
             return false;
         }

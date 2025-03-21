@@ -123,20 +123,21 @@ class Usage extends Controller
         $tenant_id = session()->get('tenant_id');
         $data['title'] = 'Usage Logs';
 
-        // Get the latest 100 usage logs for the tenant with prompts
+        // Get the latest 100 usage logs for the tenant
         $db = db_connect();
         $query = $db->query(
             "
-            SELECT ul.*,
-                   b.name as button_name,
-                   tu.name as user_name,
-                   pl.messages,
-                   pl.system_prompt,
-                   pl.system_prompt_source,
-                   pl.response
+            SELECT 
+                ul.*,
+                b.name as button_name,
+                tu.name as user_name,
+                COALESCE(pl.messages, '[]') as messages,
+                COALESCE(pl.system_prompt, '') as system_prompt,
+                COALESCE(pl.system_prompt_source, '') as system_prompt_source,
+                COALESCE(pl.response, '') as response
             FROM usage_logs ul
             LEFT JOIN buttons b ON ul.button_id = b.button_id
-            LEFT JOIN tenant_users tu ON tu.id = ul.user_id
+            LEFT JOIN tenant_users tu ON ul.user_id = tu.id
             LEFT JOIN prompt_logs pl ON pl.usage_log_id = ul.id
             WHERE ul.tenant_id = ?
             ORDER BY ul.created_at DESC

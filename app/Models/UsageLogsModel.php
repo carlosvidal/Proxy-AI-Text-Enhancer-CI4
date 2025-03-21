@@ -15,13 +15,15 @@ class UsageLogsModel extends Model
     protected $allowedFields = [
         'usage_id',
         'tenant_id',
-        'button_id',
+        'user_id',
         'external_id',
+        'button_id',
         'provider',
         'model',
         'tokens',
         'cost',
         'has_image',
+        'status',
         'created_at',
         'updated_at'
     ];
@@ -33,10 +35,22 @@ class UsageLogsModel extends Model
     protected $validationRules = [
         'usage_id' => 'required|is_unique[usage_logs.usage_id]',
         'tenant_id' => 'required',
+        'user_id' => 'required',
+        'external_id' => 'required',
         'provider' => 'required',
         'model' => 'required',
         'tokens' => 'required|integer',
-        'cost' => 'required|decimal'
+        'cost' => 'required|decimal',
+        'status' => 'required'
+    ];
+
+    protected $validationMessages = [
+        'user_id' => [
+            'required' => 'User ID is required'
+        ],
+        'external_id' => [
+            'required' => 'External ID is required'
+        ]
     ];
 
     /**
