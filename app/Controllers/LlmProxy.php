@@ -344,19 +344,32 @@ class LlmProxy extends Controller
                 ->getRowArray();
 
             if (!$user) {
-                log_error('USAGE', 'API User no encontrado, creando nuevo usuario', [
+                log_debug('USAGE', 'API User no encontrado, creando nuevo usuario', [
                     'tenant_id' => $tenant_id,
                     'external_id' => $external_id
                 ]);
                 
                 // Insert new API user
-                $db->table('api_users')->insert([
+                $result = $db->table('api_users')->insert([
                     'tenant_id' => $tenant_id,
                     'external_id' => $external_id,
                     'created_at' => date('Y-m-d H:i:s')
                 ]);
+
+                if (!$result) {
+                    log_error('USAGE', 'Error al crear API user', [
+                        'error' => $db->error(),
+                        'tenant_id' => $tenant_id,
+                        'external_id' => $external_id
+                    ]);
+                    return false;
+                }
                 
                 $user_id = $db->insertID();
+                log_debug('USAGE', 'Nuevo API user creado', [
+                    'user_id' => $user_id,
+                    'external_id' => $external_id
+                ]);
             } else {
                 $user_id = $user['id'];
                 log_debug('USAGE', 'API User encontrado', [
@@ -398,13 +411,15 @@ class LlmProxy extends Controller
             log_debug('USAGE', 'Intentando insertar log', $data);
 
             if (!$usageModel->insert($data)) {
+                $errors = $usageModel->errors();
                 log_error('USAGE', 'Error al insertar log', [
-                    'error' => implode(', ', $usageModel->errors()),
+                    'error' => implode(', ', $errors),
                     'data' => $data,
-                    'validation' => $usageModel->getValidationRules(),
-                    'last_query' => $usageModel->getLastQuery(),
-                    'db_error' => db_connect()->error(),
-                    'db_error_message' => db_connect()->error()['message'] ?? 'No message'
+                    'validation_rules' => $usageModel->getValidationRules(),
+                    'last_query' => $db->getLastQuery(),
+                    'db_error' => $db->error(),
+                    'db_error_message' => $db->error()['message'] ?? 'No message',
+                    'model_errors' => $errors
                 ]);
                 return false;
             }
