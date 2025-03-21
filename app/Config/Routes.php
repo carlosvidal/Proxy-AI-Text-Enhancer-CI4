@@ -171,15 +171,15 @@ $routes->group('', ['filter' => 'auth:superadmin'], function ($routes) {
  * --------------------------------------------------------------------
  */
 $routes->group('api', function ($routes) {
-    // LLM Proxy routes
-    $routes->group('llm-proxy', ['filter' => ['cors', 'admin']], function ($routes) {
-        $routes->get('install', 'LlmProxy::install');
-        $routes->get('status', 'LlmProxy::status');
-        $routes->get('test-connection', 'LlmProxy::test_connection');
+    // System Endpoints (admin only)
+    $routes->group('llm-proxy', function ($routes) {
+        $routes->get('install', 'LlmProxy::install', ['filter' => 'admin']);
+        $routes->get('status', 'LlmProxy::status', ['filter' => 'admin']);
+        $routes->get('test-connection', 'LlmProxy::test_connection', ['filter' => 'admin']);
     });
 
+    // Main proxy endpoints
     $routes->group('', ['filter' => 'cors'], function ($routes) {
-        // Main proxy endpoints
         $routes->post('llm-proxy', 'LlmProxy::index');
         $routes->post('llm-proxy/secure', 'LlmProxy::index', ['filter' => 'jwt']);
         $routes->options('llm-proxy', 'LlmProxy::options');
@@ -190,19 +190,6 @@ $routes->group('api', function ($routes) {
         $routes->get('quota/secure', 'LlmProxy::quota', ['filter' => 'jwt']);
         $routes->options('quota', 'LlmProxy::options');
         $routes->options('quota/secure', 'LlmProxy::options');
-
-        // LLM Proxy endpoints
-        $routes->post('enhance', 'Api::enhance');
-
-        // Button management endpoints
-        $routes->get('buttons', 'Api::getButtons');
-        $routes->post('buttons', 'Api::createButton');
-        $routes->put('buttons/(:segment)', 'Api::updateButton/$1');
-        $routes->delete('buttons/(:segment)', 'Api::deleteButton/$1');
-
-        // JWT API Authentication routes
-        $routes->post('auth/login', 'Auth::apiLogin');
-        $routes->post('auth/refresh', 'Auth::refreshToken');
     });
 });
 

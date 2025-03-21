@@ -97,17 +97,17 @@ class Filters extends BaseConfig
                 'api/*',  // Apply CORS to all API routes
             ]
         ],
+        'admin' => [
+            'before' => [
+                'api/llm-proxy/install',  // Installation endpoint
+                'api/llm-proxy/status',   // Status endpoint
+                'api/llm-proxy/test-connection', // Test connection endpoint
+            ]
+        ],
         'compress' => [
             'after' => [
                 'api/*'  // Apply compression to all API responses
             ]
         ],
-        'admin' => [
-            'before' => [
-                'api/llm-proxy/install',  // Admin-only endpoints
-                'api/llm-proxy/status',
-                'api/llm-proxy/test-connection'
-            ]
-        ]
     ];
 }

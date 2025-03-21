@@ -240,36 +240,34 @@ class LlmProxy extends Controller
      */
     private function _ensure_user_exists($domain)
     {
-        try {
-            $db = db_connect();
-            
-            // Try to directly check if user exists in the database
-            $tenant = $db->table('tenants')
-                ->where('domain', $domain)
-                ->get()
-                ->getRowArray();
+        $db = db_connect();
 
-            if (!$tenant) {
-                // Create new tenant
-                $tenant_id = 'ten-' . dechex(time()) . '-' . bin2hex(random_bytes(4));
-                $db->table('tenants')->insert([
-                    'tenant_id' => $tenant_id,
-                    'domain' => $domain,
-                    'created_at' => date('Y-m-d H:i:s'),
-                    'updated_at' => date('Y-m-d H:i:s')
-                ]);
-                return $tenant_id;
-            }
+        // Try to find existing tenant by domain
+        $tenant = $db->table('tenants')
+            ->where('name', $domain)
+            ->get()
+            ->getRowArray();
 
-            return $tenant['tenant_id'];
-
-        } catch (\Exception $e) {
-            log_error('USER', 'Error ensuring user exists', [
-                'domain' => $domain,
-                'error' => $e->getMessage()
+        // If tenant doesn't exist, create one
+        if (!$tenant) {
+            $tenant_id = 'ten-' . bin2hex(random_bytes(4)) . '-' . bin2hex(random_bytes(4));
+            $db->table('tenants')->insert([
+                'tenant_id' => $tenant_id,
+                'name' => $domain,
+                'active' => true,
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s')
             ]);
-            throw $e;
+
+            log_info('TENANT', 'Created new tenant', [
+                'tenant_id' => $tenant_id,
+                'domain' => $domain
+            ]);
+
+            return $tenant_id;
         }
+
+        return $tenant['tenant_id'];
     }
 
     /**
@@ -280,48 +278,42 @@ class LlmProxy extends Controller
         try {
             $db = db_connect();
 
+            // Generate log ID
+            $log_id = 'log-' . bin2hex(random_bytes(4)) . '-' . bin2hex(random_bytes(4));
+
             // Insert usage log
-            $usage_log = [
+            $db->table('usage_logs')->insert([
+                'log_id' => $log_id,
                 'tenant_id' => $tenant_id,
-                'domain' => $domain,
-                'provider' => $provider,
-                'model' => $model,
+                'button_id' => $button_id,
                 'tokens_in' => $tokens_in,
                 'tokens_out' => $tokens_out,
-                'button_id' => $button_id,
+                'provider' => $provider,
+                'model' => $model,
                 'created_at' => date('Y-m-d H:i:s')
-            ];
-            $db->table('usage_logs')->insert($usage_log);
-            $usage_log_id = $db->insertID();
+            ]);
 
             // Insert prompt log
-            $prompt_log = [
-                'usage_log_id' => $usage_log_id,
-                'messages' => json_encode($messages),
+            $db->table('prompt_logs')->insert([
+                'prompt_id' => 'pmt-' . bin2hex(random_bytes(4)) . '-' . bin2hex(random_bytes(4)),
+                'log_id' => $log_id,
+                'prompt' => json_encode($messages),
                 'response' => $response,
                 'created_at' => date('Y-m-d H:i:s')
-            ];
+            ]);
 
-            // If button_id is provided, get system prompt from button
-            if ($button_id) {
-                $button = $db->table('buttons')
-                    ->where('button_id', $button_id)
-                    ->get()
-                    ->getRowArray();
-                if ($button) {
-                    $prompt_log['system_prompt'] = $button['system_prompt'];
-                    $prompt_log['system_prompt_source'] = 'button';
-                }
-            }
-
-            $db->table('prompt_logs')->insert($prompt_log);
-
-            // Update tenant quota
-            $this->_update_tenant_quota($tenant_id, $tokens_in + $tokens_out);
+            log_info('USAGE', 'Usage logged successfully', [
+                'tenant_id' => $tenant_id,
+                'domain' => $domain,
+                'log_id' => $log_id,
+                'tokens_in' => $tokens_in,
+                'tokens_out' => $tokens_out
+            ]);
 
         } catch (\Exception $e) {
             log_error('USAGE', 'Error logging usage', [
                 'tenant_id' => $tenant_id,
+                'domain' => $domain,
                 'error' => $e->getMessage()
             ]);
             throw $e;
@@ -449,6 +441,15 @@ class LlmProxy extends Controller
 
             // Get tenant's quota information
             $db = db_connect();
+            
+            // Get total tokens used from usage_logs
+            $tokens_used = $db->table('usage_logs')
+                ->selectSum('tokens_in + tokens_out', 'total_tokens')
+                ->where('tenant_id', $tenant_id)
+                ->get()
+                ->getRow();
+
+            // Get tenant info
             $tenant = $db->table('tenants')
                 ->where('tenant_id', $tenant_id)
                 ->get()
@@ -458,15 +459,19 @@ class LlmProxy extends Controller
                 throw new \Exception('Tenant not found');
             }
 
+            // Calculate quota
+            $quota_used = (int)($tokens_used->total_tokens ?? 0);
+            $quota_limit = 1000000; // 1M tokens by default
+
             // Return quota information
             return $this->response->setJSON([
                 'success' => true,
                 'data' => [
                     'tenant_id' => $tenant_id,
                     'domain' => $domain,
-                    'quota_used' => (int)$tenant['quota_used'],
-                    'quota_limit' => (int)$tenant['quota_limit'],
-                    'quota_remaining' => (int)$tenant['quota_limit'] - (int)$tenant['quota_used']
+                    'quota_used' => $quota_used,
+                    'quota_limit' => $quota_limit,
+                    'quota_remaining' => $quota_limit - $quota_used
                 ]
             ]);
 
@@ -491,7 +496,11 @@ class LlmProxy extends Controller
         try {
             // Run migrations
             $migrate = \Config\Services::migrations();
-            $migrate->latest();
+            
+            // Run migrations
+            if ($migrate->latest() === false) {
+                throw new \Exception('Error running migrations');
+            }
 
             return $this->response->setJSON([
                 'success' => true,
@@ -500,12 +509,16 @@ class LlmProxy extends Controller
 
         } catch (\Exception $e) {
             log_error('INSTALL', 'Error installing database tables', [
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
             ]);
 
             return $this->response->setStatusCode(500)->setJSON([
                 'success' => false,
-                'error' => $e->getMessage()
+                'error' => [
+                    'message' => 'Error installing database tables',
+                    'details' => $e->getMessage()
+                ]
             ]);
         }
     }
