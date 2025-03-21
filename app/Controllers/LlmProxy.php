@@ -375,7 +375,7 @@ class LlmProxy extends Controller
 
         // Set endpoints
         $this->endpoints = [
-            'openai' => getenv('OPENAI_API_ENDPOINT') ?: $config->openaiEndpoint,
+            'openai' => "https://api.openai.com/v1/chat/completions",
             'anthropic' => getenv('ANTHROPIC_API_ENDPOINT') ?: $config->anthropicEndpoint,
             'mistral' => getenv('MISTRAL_API_ENDPOINT') ?: $config->mistralEndpoint,
             'deepseek' => getenv('DEEPSEEK_API_ENDPOINT') ?: $config->deepseekEndpoint,
