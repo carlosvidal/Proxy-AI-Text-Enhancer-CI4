@@ -18,7 +18,7 @@ use CodeIgniter\Debug\Toolbar\Collectors\Views;
  *
  * The Debug Toolbar provides a way to see information about the performance
  * and state of your application during that page display. By default it will
- * NOT be displayed under production environments, and will only display if
+ * NOT be shown under production environments, and will only be shown if
  * `CI_DEBUG` is true, since if it's not, there's not much to display anyway.
  */
 class Toolbar extends BaseConfig
@@ -31,7 +31,7 @@ class Toolbar extends BaseConfig
      * List of toolbar collectors that will be called when Debug Toolbar
      * fires up and collects data from.
      *
-     * @var list<class-string>
+     * @var string[]
      */
     public array $collectors = [
         Timers::class,
@@ -49,8 +49,8 @@ class Toolbar extends BaseConfig
      * Collect Var Data
      * --------------------------------------------------------------------------
      *
-     * If set to false var data from the views will not be collected. Useful to
-     * avoid high memory usage when there are lots of data passed to the view.
+     * If set to false var data from the views will not be collected
+     * to save memory.
      */
     public bool $collectVarData = true;
 
@@ -119,4 +119,13 @@ class Toolbar extends BaseConfig
     public array $watchedExtensions = [
         'php', 'css', 'js', 'html', 'svg', 'json', 'env',
     ];
+
+    /**
+     * --------------------------------------------------------------------------
+     * Toolbar Enable/Disable
+     * --------------------------------------------------------------------------
+     *
+     * Set to false to disable the toolbar.
+     */
+    public bool $enabled = false;
 }

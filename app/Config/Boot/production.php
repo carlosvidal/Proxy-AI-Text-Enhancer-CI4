@@ -4,10 +4,8 @@
  |--------------------------------------------------------------------------
  | ERROR DISPLAY
  |--------------------------------------------------------------------------
- | Don't show ANY in production environments. Instead, let the system catch
- | it and display a generic error message.
- |
- | If you set 'display_errors' to '1', CI4's detailed error report will show.
+ | In production, we want to not show any errors to the public, so disable
+ | error display and send all errors to the system log.
  */
 ini_set('display_errors', '0');
 error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED & ~E_STRICT & ~E_USER_NOTICE & ~E_USER_DEPRECATED);
@@ -17,7 +15,10 @@ error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED & ~E_STRICT & ~E_USER_NOTICE &
  | DEBUG MODE
  |--------------------------------------------------------------------------
  | Debug mode is an experimental flag that can allow changes throughout
- | the system. It's not widely used currently, and may not survive
- | release of the framework.
+ | the system. This will control whether Kint is loaded, and a few other items.
+ | It can always be used within your own application too.
  */
 defined('CI_DEBUG') || define('CI_DEBUG', false);
+
+// Disable debug toolbar
+defined('SHOW_DEBUG_TOOLBAR') || define('SHOW_DEBUG_TOOLBAR', false);
