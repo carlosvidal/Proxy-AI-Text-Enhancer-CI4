@@ -40,41 +40,56 @@ abstract class BaseLlmProvider implements LlmProviderInterface
         if ($stream) {
             // For streaming responses, return a callable that will yield chunks
             return function () use ($curl) {
-                $response = curl_exec($curl);
-                $err = curl_error($curl);
-                $status_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+                try {
+                    $response = curl_exec($curl);
+                    $err = curl_error($curl);
+                    $status_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+                    curl_close($curl);
 
-                if ($err) {
-                    throw new \Exception('Error making request to provider: ' . $err);
-                }
-
-                if ($status_code >= 400) {
-                    throw new \Exception('Provider returned error status: ' . $status_code);
-                }
-
-                // Process stream response
-                $lines = explode("\n", $response);
-                foreach ($lines as $line) {
-                    if (strlen(trim($line)) === 0) continue;
-                    if (strpos($line, 'data: ') !== 0) continue;
-
-                    $line = substr($line, 6);
-                    if ($line === '[DONE]') {
-                        echo "data: [DONE]\n\n";
-                        flush();
-                        continue;
+                    if ($err) {
+                        throw new \Exception('Error making request to provider: ' . $err);
                     }
 
-                    $chunk = json_decode($line, true);
-                    if (!$chunk) continue;
-
-                    if (isset($chunk['choices'][0]['delta']['content'])) {
-                        echo "data: " . $chunk['choices'][0]['delta']['content'] . "\n\n";
-                        flush();
+                    if ($status_code >= 400) {
+                        throw new \Exception('Provider returned error status: ' . $status_code);
                     }
-                }
 
-                curl_close($curl);
+                    // Process stream response
+                    $lines = explode("\n", $response);
+                    foreach ($lines as $line) {
+                        $line = trim($line);
+                        if (empty($line)) continue;
+
+                        // Check if it's an error response
+                        $error = json_decode($line, true);
+                        if (isset($error['error'])) {
+                            throw new \Exception($error['error']['message'] ?? 'Unknown provider error');
+                        }
+
+                        // Process SSE data
+                        if (strpos($line, 'data: ') === 0) {
+                            $line = substr($line, 6);
+                            if ($line === '[DONE]') {
+                                echo "data: [DONE]\n\n";
+                                flush();
+                                continue;
+                            }
+
+                            $chunk = json_decode($line, true);
+                            if (!$chunk) continue;
+
+                            if (isset($chunk['choices'][0]['delta']['content'])) {
+                                echo "data: " . $chunk['choices'][0]['delta']['content'] . "\n\n";
+                                flush();
+                            }
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // Send error as SSE event
+                    echo "event: error\n";
+                    echo "data: " . json_encode(['error' => $e->getMessage()]) . "\n\n";
+                    flush();
+                }
             };
         } else {
             // For non-streaming responses, return the parsed JSON
@@ -88,6 +103,11 @@ abstract class BaseLlmProvider implements LlmProviderInterface
             }
 
             if ($status_code >= 400) {
+                // Try to parse error response
+                $error = json_decode($response, true);
+                if (isset($error['error'])) {
+                    throw new \Exception($error['error']['message'] ?? 'Unknown provider error');
+                }
                 throw new \Exception('Provider returned error status: ' . $status_code);
             }
 
@@ -101,19 +121,7 @@ abstract class BaseLlmProvider implements LlmProviderInterface
         }
     }
 
-    /**
-     * Process a request through the provider
-     */
     abstract public function process_request(string $model, array $messages, array $options = []): array;
-
-    /**
-     * Get token usage for a request
-     */
-    abstract public function get_token_usage(array $messages): array;
-
-    /**
-     * Process a streaming request through the provider
-     * @return callable A function that yields response chunks
-     */
     abstract public function process_stream_request(string $model, array $messages, array $options = []): callable;
+    abstract public function get_token_usage(array $messages): array;
 }
