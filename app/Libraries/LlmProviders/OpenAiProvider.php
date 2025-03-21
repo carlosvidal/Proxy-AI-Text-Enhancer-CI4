@@ -29,6 +29,11 @@ class OpenAiProvider extends BaseLlmProvider
             $data
         );
 
+        // Convert stdClass to array if needed
+        if (is_object($response)) {
+            $response = json_decode(json_encode($response), true);
+        }
+
         return [
             'response' => $response['choices'][0]['message']['content'],
             'tokens_in' => $response['usage']['prompt_tokens'],
