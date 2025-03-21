@@ -65,6 +65,7 @@ abstract class BaseLlmProvider implements LlmProviderInterface
                     // Process stream response
                     $lines = explode("\n", $response);
                     $buffer = '';
+                    $last_was_space = false;
                     
                     foreach ($lines as $line) {
                         $line = trim($line);
@@ -96,12 +97,23 @@ abstract class BaseLlmProvider implements LlmProviderInterface
 
                             if (isset($chunk['choices'][0]['delta']['content'])) {
                                 $content = $chunk['choices'][0]['delta']['content'];
+
+                                // Si el contenido actual es un espacio y el último carácter del buffer también lo es,
+                                // o si el último carácter enviado fue un espacio y el actual empieza con espacio,
+                                // omitimos el espacio duplicado
+                                if ($content === ' ' && $last_was_space) {
+                                    continue;
+                                }
+
                                 $buffer .= $content;
                                 
-                                // Si tenemos un espacio o puntuación, enviamos el buffer
-                                if (preg_match('/[\s\.,!?;:]/', $content)) {
+                                // Enviamos el buffer cuando:
+                                // 1. Encontramos un espacio o puntuación
+                                // 2. El buffer es muy largo (más de 20 caracteres)
+                                if (preg_match('/[\s\.,!?;:]$/', $content) || strlen($buffer) > 20) {
                                     echo "data: " . $buffer . "\n\n";
                                     flush();
+                                    $last_was_space = substr($content, -1) === ' ';
                                     $buffer = '';
                                 }
                             }
