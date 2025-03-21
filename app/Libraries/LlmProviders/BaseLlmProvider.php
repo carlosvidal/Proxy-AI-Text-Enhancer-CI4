@@ -49,17 +49,38 @@ abstract class BaseLlmProvider implements LlmProviderInterface
                 }
 
                 if ($status_code >= 400) {
-                    throw new \Exception('Provider API error: ' . $response);
+                    throw new \Exception('Provider returned error status: ' . $status_code);
                 }
 
-                return $response;
+                // Process stream response
+                $lines = explode("\n", $response);
+                foreach ($lines as $line) {
+                    if (strlen(trim($line)) === 0) continue;
+                    if (strpos($line, 'data: ') !== 0) continue;
+
+                    $line = substr($line, 6);
+                    if ($line === '[DONE]') {
+                        echo "data: [DONE]\n\n";
+                        flush();
+                        continue;
+                    }
+
+                    $chunk = json_decode($line, true);
+                    if (!$chunk) continue;
+
+                    if (isset($chunk['choices'][0]['delta']['content'])) {
+                        echo "data: " . $chunk['choices'][0]['delta']['content'] . "\n\n";
+                        flush();
+                    }
+                }
+
+                curl_close($curl);
             };
         } else {
             // For non-streaming responses, return the parsed JSON
             $response = curl_exec($curl);
             $err = curl_error($curl);
             $status_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-
             curl_close($curl);
 
             if ($err) {
@@ -67,16 +88,16 @@ abstract class BaseLlmProvider implements LlmProviderInterface
             }
 
             if ($status_code >= 400) {
-                throw new \Exception('Provider API error: ' . $response);
+                throw new \Exception('Provider returned error status: ' . $status_code);
             }
 
-            // Ensure we get an array back, not an object
-            $decoded = json_decode($response, true);
+            // Ensure we decode as array
+            $result = json_decode($response, true);
             if (json_last_error() !== JSON_ERROR_NONE) {
                 throw new \Exception('Error decoding JSON response: ' . json_last_error_msg());
             }
 
-            return $decoded;
+            return $result;
         }
     }
 
