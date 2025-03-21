@@ -18,6 +18,7 @@ class ButtonsModel extends Model
         'description',
         'domain',
         'prompt',
+        'system_prompt',
         'provider',
         'model',
         'api_key_id',
@@ -206,6 +207,16 @@ class ButtonsModel extends Model
     {
         return $this->where('button_id', $button_id)
             ->where('tenant_id', $tenant_id)
+            ->first();
+    }
+
+    /**
+     * Get button by button_id
+     */
+    public function getButtonByButtonId($button_id)
+    {
+        return $this->where('button_id', $button_id)
+            ->where('status', 'active')
             ->first();
     }
 
