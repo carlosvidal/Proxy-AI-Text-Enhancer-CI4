@@ -94,7 +94,7 @@ class Usage extends Controller
         $query = $db->query(
             "
             SELECT au.id,
-                   au.name,
+                   au.external_id as identifier,
                    au.quota,
                    COUNT(ul.id) as request_count,
                    COALESCE(SUM(ul.tokens), 0) as total_tokens
@@ -102,7 +102,7 @@ class Usage extends Controller
             LEFT JOIN usage_logs ul ON au.id = ul.user_id 
                 AND ul.created_at >= date('now', '-30 days')
             WHERE au.tenant_id = ?
-            GROUP BY au.id, au.name, au.quota
+            GROUP BY au.id, au.external_id, au.quota
             ORDER BY total_tokens DESC",
             [$tenant_id]
         );
@@ -130,7 +130,7 @@ class Usage extends Controller
             SELECT 
                 ul.*,
                 b.name as button_name,
-                au.name as user_name,
+                au.external_id as user_identifier,
                 COALESCE(pl.messages, '[]') as messages,
                 COALESCE(pl.system_prompt, '') as system_prompt,
                 COALESCE(pl.system_prompt_source, '') as system_prompt_source,
