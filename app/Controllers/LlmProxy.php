@@ -58,10 +58,292 @@ class LlmProxy extends Controller
     }
 
     /**
+     * Main endpoint for proxy requests
+     */
+    public function index()
+    {
+        $request_id = uniqid('proxy_');
+        log_info('PROXY', 'Request received at main endpoint', [
+            'request_id' => $request_id,
+            'ip' => service('request')->getIPAddress(),
+            'method' => service('request')->getMethod()
+        ]);
+
+        // Verify this is a POST request
+        if (service('request')->getMethod() !== 'post') {
+            log_error('PROXY', 'Method not allowed', [
+                'request_id' => $request_id,
+                'method' => service('request')->getMethod()
+            ]);
+
+            return $this->response
+                ->setContentType('application/json')
+                ->setStatusCode(405)
+                ->setJSON(['error' => ['message' => 'Method not allowed']]);
+        }
+
+        // Get JWT data if available
+        $jwtData = null;
+        $token = get_jwt_from_header();
+        if ($token) {
+            $tokenData = validate_jwt($token);
+            if ($tokenData && isset($tokenData->data)) {
+                $jwtData = $tokenData->data;
+                log_info('PROXY', 'JWT authenticated user', [
+                    'request_id' => $request_id,
+                    'username' => $jwtData->username ?? 'unknown',
+                    'id' => $jwtData->id ?? 'unknown',
+                    'tenant_id' => $jwtData->tenant_id ?? 'unknown'
+                ]);
+            } else {
+                log_warning('PROXY', 'Invalid JWT token provided', [
+                    'request_id' => $request_id,
+                    'token_exists' => !empty($token)
+                ]);
+            }
+        }
+
+        try {
+            // Get request data
+            $json = $this->request->getJSON();
+            if (!$json) {
+                throw new \Exception('Invalid request format');
+            }
+
+            // Extract request parameters
+            $provider = $json->provider ?? 'openai';
+            $model = $json->model ?? null;
+            $messages = $json->messages ?? [];
+            $options = $json->options ?? [];
+            $stream = $json->stream ?? false;
+
+            // Validate required parameters
+            if (!$model || empty($messages)) {
+                throw new \Exception('Missing required parameters');
+            }
+
+            // Get domain from headers
+            $domain = $this->_extract_domain_from_headers();
+
+            // Ensure user exists
+            $tenant_id = $this->_ensure_user_exists($domain);
+
+            // Get button configuration if provided
+            $button = null;
+            $button_id = $json->button_id ?? null;
+            if ($button_id) {
+                $db = db_connect();
+                $button = $db->table('buttons')
+                    ->where('button_id', $button_id)
+                    ->where('tenant_id', $tenant_id)
+                    ->get()
+                    ->getRowArray();
+
+                if ($button) {
+                    $provider = $button['provider'];
+                    $model = $button['model'];
+                }
+            }
+
+            // Get LLM provider instance
+            $llm = $this->_get_llm_provider($provider);
+
+            // Process request through provider
+            $response = $llm->process_request($model, $messages, array_merge($options, ['stream' => $stream]));
+
+            // Log usage
+            $this->_log_usage($tenant_id, $domain, $provider, $model, $response['tokens_in'], $response['tokens_out'], $messages, $response['response'], $button_id);
+
+            // Return successful response
+            return $this->response->setJSON([
+                'success' => true,
+                'data' => $response
+            ]);
+
+        } catch (\Exception $e) {
+            // Log error
+            log_message('error', 'Error processing LLM request', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            // Return error response
+            return $this->response->setStatusCode(500)->setJSON([
+                'success' => false,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Process LLM request
+     */
+    public function process()
+    {
+        return $this->index();
+    }
+
+    /**
+     * Handle OPTIONS request for CORS
+     */
+    public function options()
+    {
+        return $this->response
+            ->setHeader('Access-Control-Allow-Origin', $this->allowed_origins)
+            ->setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization')
+            ->setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+            ->setStatusCode(200);
+    }
+
+    /**
+     * Extract domain from request headers
+     */
+    private function _extract_domain_from_headers()
+    {
+        $origin = service('request')->getHeaderLine('Origin');
+        $referer = service('request')->getHeaderLine('Referer');
+
+        if (!empty($origin)) {
+            $domain = parse_url($origin, PHP_URL_HOST);
+        } elseif (!empty($referer)) {
+            $domain = parse_url($referer, PHP_URL_HOST);
+        } else {
+            $domain = service('request')->getIPAddress();
+        }
+
+        return $domain;
+    }
+
+    /**
+     * Ensures a user exists for a tenant, creating them if needed
+     */
+    private function _ensure_user_exists($domain)
+    {
+        try {
+            $db = db_connect();
+            
+            // Try to directly check if user exists in the database
+            $tenant = $db->table('tenants')
+                ->where('domain', $domain)
+                ->get()
+                ->getRowArray();
+
+            if (!$tenant) {
+                // Create new tenant
+                $tenant_id = 'ten-' . dechex(time()) . '-' . bin2hex(random_bytes(4));
+                $db->table('tenants')->insert([
+                    'tenant_id' => $tenant_id,
+                    'domain' => $domain,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s')
+                ]);
+                return $tenant_id;
+            }
+
+            return $tenant['tenant_id'];
+
+        } catch (\Exception $e) {
+            log_error('USER', 'Error ensuring user exists', [
+                'domain' => $domain,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Log usage for a request
+     */
+    private function _log_usage($tenant_id, $domain, $provider, $model, $tokens_in, $tokens_out, $messages, $response, $button_id = null)
+    {
+        try {
+            $db = db_connect();
+
+            // Insert usage log
+            $usage_log = [
+                'tenant_id' => $tenant_id,
+                'domain' => $domain,
+                'provider' => $provider,
+                'model' => $model,
+                'tokens_in' => $tokens_in,
+                'tokens_out' => $tokens_out,
+                'button_id' => $button_id,
+                'created_at' => date('Y-m-d H:i:s')
+            ];
+            $db->table('usage_logs')->insert($usage_log);
+            $usage_log_id = $db->insertID();
+
+            // Insert prompt log
+            $prompt_log = [
+                'usage_log_id' => $usage_log_id,
+                'messages' => json_encode($messages),
+                'response' => $response,
+                'created_at' => date('Y-m-d H:i:s')
+            ];
+
+            // If button_id is provided, get system prompt from button
+            if ($button_id) {
+                $button = $db->table('buttons')
+                    ->where('button_id', $button_id)
+                    ->get()
+                    ->getRowArray();
+                if ($button) {
+                    $prompt_log['system_prompt'] = $button['system_prompt'];
+                    $prompt_log['system_prompt_source'] = 'button';
+                }
+            }
+
+            $db->table('prompt_logs')->insert($prompt_log);
+
+            // Update tenant quota
+            $this->_update_tenant_quota($tenant_id, $tokens_in + $tokens_out);
+
+        } catch (\Exception $e) {
+            log_error('USAGE', 'Error logging usage', [
+                'tenant_id' => $tenant_id,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
+     * Update tenant quota
+     */
+    private function _update_tenant_quota($tenant_id, $tokens)
+    {
+        try {
+            $db = db_connect();
+            
+            // Get current quota
+            $tenant = $db->table('tenants')
+                ->where('tenant_id', $tenant_id)
+                ->get()
+                ->getRowArray();
+
+            if (!$tenant) {
+                throw new \Exception('Tenant not found');
+            }
+
+            // Update quota
+            $db->table('tenants')
+                ->where('tenant_id', $tenant_id)
+                ->update([
+                    'quota_used' => $tenant['quota_used'] + $tokens,
+                    'updated_at' => date('Y-m-d H:i:s')
+                ]);
+
+        } catch (\Exception $e) {
+            log_error('QUOTA', 'Error updating tenant quota', [
+                'tenant_id' => $tenant_id,
+                'error' => $e->getMessage()
+            ]);
+            throw $e;
+        }
+    }
+
+    /**
      * Initialize proxy configuration
-     * 
-     * Carga la configuración del proxy desde el archivo de configuración
-     * y establece las variables necesarias
      */
     private function _initialize_config()
     {
@@ -94,226 +376,6 @@ class LlmProxy extends Controller
     }
 
     /**
-     * Process request through LLM provider
-     */
-    private function _process_request($tenant_id, $external_id, $provider, $model, $messages, $options = [])
-    {
-        $request_id = uniqid('llm_');
-        $db = db_connect();
-
-        try {
-            // Get LLM provider instance
-            $llm = $this->_get_llm_provider($provider);
-            if (!$llm) {
-                throw new \Exception("Invalid provider: $provider");
-            }
-
-            // Get button system prompt if available
-            $button_id = $this->request->getPost('buttonId');
-            $system_prompt = null;
-            $system_prompt_source = null;
-
-            if ($button_id) {
-                $button = $db->table('buttons')
-                    ->where('button_id', $button_id)
-                    ->get()
-                    ->getRow();
-                if ($button && $button->system_prompt) {
-                    $system_prompt = $button->system_prompt;
-                    $system_prompt_source = 'button';
-                }
-            }
-
-            // Check if there's a system message in the request
-            foreach ($messages as $msg) {
-                if ($msg['role'] === 'system') {
-                    $system_prompt = $msg['content'];
-                    $system_prompt_source = 'request';
-                    break;
-                }
-            }
-
-            // Process request through provider
-            $response = $llm->process_request($model, $messages, $options);
-
-            // Check quota and log usage
-            $tokens_in = $response['usage']['prompt_tokens'] ?? 0;
-            $tokens_out = $response['usage']['completion_tokens'] ?? 0;
-            
-            // Log usage and update quota
-            $usage_result = $this->_check_and_update_quota($tenant_id, $external_id, $tokens_in, $tokens_out, $provider, $model);
-            
-            // Get the last inserted usage_log_id
-            $usage_log_id = $db->insertID();
-
-            // Log the prompt and response
-            $prompt_log = [
-                'usage_log_id' => $usage_log_id,
-                'tenant_id' => $tenant_id,
-                'button_id' => $button_id,
-                'messages' => json_encode($messages),
-                'system_prompt' => $system_prompt,
-                'system_prompt_source' => $system_prompt_source,
-                'response' => json_encode($response['choices'][0]['message'] ?? $response),
-                'created_at' => date('Y-m-d H:i:s')
-            ];
-            
-            $db->table('prompt_logs')->insert($prompt_log);
-
-            log_info('LLM', 'Request processed successfully', [
-                'request_id' => $request_id,
-                'tenant_id' => $tenant_id,
-                'external_id' => $external_id,
-                'provider' => $provider,
-                'model' => $model,
-                'system_prompt_source' => $system_prompt_source
-            ]);
-
-            return $response;
-
-        } catch (\Exception $e) {
-            log_error('LLM', 'Error processing request', [
-                'request_id' => $request_id,
-                'tenant_id' => $tenant_id,
-                'external_id' => $external_id,
-                'error' => $e->getMessage()
-            ]);
-            throw $e;
-        }
-    }
-
-    /**
-     * Handle stream chunk from LLM provider
-     */
-    private function _handle_stream_chunk($data, $tenant_id, $external_id, $provider, $model, $has_image)
-    {
-        $lines = explode("\n", $data);
-        $response = '';
-
-        // Get button system prompt if available
-        $db = db_connect();
-        $button_id = $this->request->getPost('buttonId');
-        $system_prompt = null;
-        $system_prompt_source = null;
-
-        if ($button_id) {
-            $button = $db->table('buttons')
-                ->where('button_id', $button_id)
-                ->get()
-                ->getRow();
-            if ($button && $button->system_prompt) {
-                $system_prompt = $button->system_prompt;
-                $system_prompt_source = 'button';
-            }
-        }
-
-        // Check if there's a system message in the request
-        $messages = $this->request->getPost('messages') ?? [];
-        foreach ($messages as $msg) {
-            if ($msg['role'] === 'system') {
-                $system_prompt = $msg['content'];
-                $system_prompt_source = 'request';
-                break;
-            }
-        }
-
-        foreach ($lines as $line) {
-            if (empty(trim($line))) continue;
-
-            // Si la línea comienza con "data: "
-            if (strpos($line, 'data: ') === 0) {
-                $content = substr($line, 6); // Remover "data: "
-
-                // Intentar decodificar el JSON
-                $json = json_decode($content, true);
-                if ($json === null) {
-                    log_warning('STREAM_CHUNK', 'Error decodificando JSON', [
-                        'content' => $content,
-                        'json_error' => json_last_error_msg()
-                    ]);
-
-                    // Si hay un error con el formato JSON, aún así reenviar al cliente
-                    echo "data: " . $content . "\n\n";
-                    flush();
-                    continue;
-                }
-
-                // Acumular el contenido para el log
-                if (isset($json['choices'][0]['delta']['content'])) {
-                    $response .= $json['choices'][0]['delta']['content'];
-                }
-
-                // Reenviar el chunk al cliente
-                echo "data: " . $content . "\n\n";
-                flush();
-
-            } else {
-                // Si el proveedor no devuelve formato "data: ", intentamos adaptarlo
-                $json = json_decode($line, true);
-                if ($json !== null) {
-                    echo "data: " . $line . "\n\n";
-                    flush();
-                    
-                    // Acumular el contenido para el log
-                    if (isset($json['choices'][0]['delta']['content'])) {
-                        $response .= $json['choices'][0]['delta']['content'];
-                    }
-                } else {
-                    $textChunk = [
-                        'id' => 'chatcmpl-' . uniqid(),
-                        'object' => 'chat.completion.chunk',
-                        'created' => time(),
-                        'model' => $model,
-                        'choices' => [
-                            [
-                                'index' => 0,
-                                'delta' => [
-                                    'content' => $line
-                                ],
-                                'finish_reason' => null
-                            ]
-                        ]
-                    ];
-                    echo "data: " . json_encode($textChunk) . "\n\n";
-                    flush();
-                    
-                    // Acumular el contenido para el log
-                    $response .= $line;
-                }
-            }
-        }
-
-        // Al final del streaming, guardar el log
-        if (!empty($response)) {
-            // Log usage and get ID
-            $usage_result = $this->_check_and_update_quota($tenant_id, $external_id, 0, 0, $provider, $model);
-            $usage_log_id = $db->insertID();
-
-            // Log the prompt and response
-            $prompt_log = [
-                'usage_log_id' => $usage_log_id,
-                'tenant_id' => $tenant_id,
-                'button_id' => $button_id,
-                'messages' => json_encode($messages),
-                'system_prompt' => $system_prompt,
-                'system_prompt_source' => $system_prompt_source,
-                'response' => json_encode(['content' => $response]),
-                'created_at' => date('Y-m-d H:i:s')
-            ];
-            
-            $db->table('prompt_logs')->insert($prompt_log);
-
-            log_info('STREAM', 'Stream completed and logged', [
-                'tenant_id' => $tenant_id,
-                'external_id' => $external_id,
-                'system_prompt_source' => $system_prompt_source
-            ]);
-        }
-
-        return strlen($data);
-    }
-
-    /**
      * Get LLM provider instance
      */
     private function _get_llm_provider($provider)
@@ -342,84 +404,5 @@ class LlmProxy extends Controller
             default:
                 throw new \Exception("Invalid provider: {$provider}");
         }
-    }
-
-    /**
-     * Check and update quota for tenant
-     */
-    private function _check_and_update_quota($tenant_id, $external_id, $tokens_in, $tokens_out, $provider, $model)
-    {
-        // Get tenant's current quota usage
-        $quota = $this->llm_proxy_model->get_tenant_quota($tenant_id);
-        
-        // Check if tenant has exceeded their quota
-        if ($quota['tokens_used'] + $tokens_in + $tokens_out > $quota['tokens_limit']) {
-            throw new \Exception('Quota exceeded for tenant');
-        }
-
-        // Update quota usage
-        $this->llm_proxy_model->update_tenant_quota($tenant_id, $tokens_in + $tokens_out);
-    }
-
-    /**
-     * Process LLM request
-     */
-    public function process()
-    {
-        try {
-            // Get request data
-            $json = $this->request->getJSON();
-            if (!$json) {
-                throw new \Exception('Invalid request format');
-            }
-
-            // Extract request parameters
-            $provider = $json->provider ?? 'openai';
-            $model = $json->model ?? null;
-            $messages = $json->messages ?? [];
-            $options = $json->options ?? [];
-
-            // Validate required parameters
-            if (!$model || empty($messages)) {
-                throw new \Exception('Missing required parameters');
-            }
-
-            // Get LLM provider instance
-            $llm = $this->_get_llm_provider($provider);
-
-            // Process request through provider
-            $response = $llm->process_request($model, $messages, $options);
-
-            // Return successful response
-            return $this->response->setJSON([
-                'success' => true,
-                'data' => $response
-            ]);
-
-        } catch (\Exception $e) {
-            // Log error
-            log_message('error', 'Error processing LLM request', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            // Return error response
-            return $this->response->setStatusCode(500)->setJSON([
-                'success' => false,
-                'error' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * Handle OPTIONS request for CORS
-     */
-    public function options()
-    {
-        return $this->response
-            ->setHeader('Access-Control-Allow-Origin', $this->allowed_origins)
-            ->setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization')
-            ->setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-            ->setStatusCode(200);
     }
 }
