@@ -141,7 +141,6 @@ class Usage extends Controller
                 ul.cost,
                 ul.status,
                 ul.created_at,
-                ul.updated_at,
                 COALESCE(b.name, 'API Request') as button_name,
                 COALESCE(au.external_id, ul.external_id) as user_identifier,
                 COALESCE(pl.messages, '[]') as messages,
