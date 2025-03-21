@@ -78,6 +78,14 @@ class LlmProxy extends Controller
 
         try {
             // Get request data
+            $raw_input = file_get_contents('php://input');
+            log_error('PROXY', 'Raw request data', [
+                'raw_input' => $raw_input,
+                'content_type' => $this->request->getHeaderLine('Content-Type'),
+                'method' => $this->request->getMethod(),
+                'headers' => $this->request->headers()
+            ]);
+
             $json = $this->request->getJSON();
             if (!$json) {
                 throw new \Exception('Invalid request format');
@@ -86,7 +94,7 @@ class LlmProxy extends Controller
             log_debug('PROXY', 'Request data received', [
                 'request_id' => $request_id,
                 'json' => json_encode($json),
-                'raw_input' => file_get_contents('php://input'),
+                'raw_input' => $raw_input,
                 'content_type' => $this->request->getHeaderLine('Content-Type')
             ]);
 
@@ -97,7 +105,17 @@ class LlmProxy extends Controller
             $options = $json->options ?? [];
             $stream = $json->stream ?? false;
             $external_id = $json->userId ?? $json->user_id ?? null; // Aceptar tanto userId como user_id
-            $button_id = $json->button_id ?? null;
+            $button_id = $json->buttonId ?? $json->button_id ?? null; // Aceptar tanto buttonId como button_id
+
+            log_error('PROXY', 'Extracted parameters', [
+                'provider' => $provider,
+                'model' => $model,
+                'messages_count' => count($messages),
+                'stream' => $stream,
+                'external_id' => $external_id,
+                'button_id' => $button_id,
+                'json' => json_encode($json)
+            ]);
 
             log_debug('PROXY', 'Extracted parameters', [
                 'request_id' => $request_id,
