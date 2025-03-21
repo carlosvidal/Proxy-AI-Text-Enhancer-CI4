@@ -94,15 +94,16 @@ class Usage extends Controller
         $query = $db->query(
             "
             SELECT au.id,
-                   au.external_id as identifier,
+                   au.external_id,
                    au.quota,
+                   au.active,
                    COUNT(ul.id) as request_count,
-                   COALESCE(SUM(ul.tokens), 0) as total_tokens
+                   COALESCE(SUM(ul.tokens), 0) as total_tokens,
+                   MAX(ul.created_at) as last_used
             FROM api_users au
-            LEFT JOIN usage_logs ul ON au.id = ul.user_id 
-                AND ul.created_at >= date('now', '-30 days')
+            LEFT JOIN usage_logs ul ON au.id = ul.user_id
             WHERE au.tenant_id = ?
-            GROUP BY au.id, au.external_id, au.quota
+            GROUP BY au.id, au.external_id, au.quota, au.active
             ORDER BY total_tokens DESC",
             [$tenant_id]
         );
@@ -217,15 +218,17 @@ class Usage extends Controller
         $db = db_connect();
         $query = $db->query(
             "
-            SELECT date(created_at) as usage_date,
-                   COUNT(*) as daily_requests,
-                   SUM(tokens) as total_tokens
-            FROM usage_logs
-            WHERE tenant_id = ?
-            AND user_id = ?
-            AND created_at >= date('now', '-30 days')
-            GROUP BY date(created_at)
-            ORDER BY usage_date DESC",
+            SELECT au.id,
+                   au.external_id,
+                   au.quota,
+                   au.active,
+                   COUNT(ul.id) as request_count,
+                   COALESCE(SUM(ul.tokens), 0) as total_tokens,
+                   MAX(ul.created_at) as last_used
+            FROM api_users au
+            LEFT JOIN usage_logs ul ON au.id = ul.user_id
+            WHERE au.tenant_id = ? AND au.id = ?
+            GROUP BY au.id, au.external_id, au.quota, au.active",
             [$tenant_id, $user_id]
         );
 
