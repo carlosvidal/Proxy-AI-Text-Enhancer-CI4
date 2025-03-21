@@ -42,7 +42,7 @@ abstract class BaseLlmProvider implements LlmProviderInterface
 
         if ($stream) {
             // For streaming responses, return a callable that will yield chunks
-            return function () use ($curl) {
+            return function () use ($curl, $data) {
                 try {
                     $response = curl_exec($curl);
                     $err = curl_error($curl);
@@ -58,14 +58,28 @@ abstract class BaseLlmProvider implements LlmProviderInterface
                         throw new \Exception('Provider returned error status: ' . $status_code);
                     }
 
-                    if (strpos($content_type, 'text/event-stream') === false) {
-                        throw new \Exception('Invalid content type received: ' . $content_type);
-                    }
+                    // Send initial response
+                    $startJson = json_encode([
+                        'id' => 'chatcmpl-' . uniqid(),
+                        'object' => 'chat.completion.chunk',
+                        'created' => time(),
+                        'model' => $data['model'],
+                        'choices' => [
+                            [
+                                'index' => 0,
+                                'delta' => [
+                                    'role' => 'assistant'
+                                ],
+                                'finish_reason' => null
+                            ]
+                        ]
+                    ]);
+                    echo "data: " . $startJson . "\n\n";
+                    flush();
 
                     // Process stream response
                     $lines = explode("\n", $response);
                     $buffer = '';
-                    $last_was_space = false;
                     
                     foreach ($lines as $line) {
                         $line = trim($line);
@@ -84,7 +98,22 @@ abstract class BaseLlmProvider implements LlmProviderInterface
                             $line = substr($line, 6);
                             if ($line === '[DONE]') {
                                 if (!empty($buffer)) {
-                                    echo "data: " . $buffer . "\n\n";
+                                    $data = [
+                                        'id' => 'chatcmpl-' . uniqid(),
+                                        'object' => 'chat.completion.chunk',
+                                        'created' => time(),
+                                        'model' => $data['model'],
+                                        'choices' => [
+                                            [
+                                                'index' => 0,
+                                                'delta' => [
+                                                    'content' => $buffer
+                                                ],
+                                                'finish_reason' => 'stop'
+                                            ]
+                                        ]
+                                    ];
+                                    echo "data: " . json_encode($data) . "\n\n";
                                     flush();
                                 }
                                 echo "data: [DONE]\n\n";
@@ -93,36 +122,53 @@ abstract class BaseLlmProvider implements LlmProviderInterface
                             }
 
                             $chunk = json_decode($line, true);
-                            if (!$chunk) continue;
+                            if (!$chunk || !isset($chunk['choices'][0]['delta']['content'])) continue;
 
-                            if (isset($chunk['choices'][0]['delta']['content'])) {
-                                $content = $chunk['choices'][0]['delta']['content'];
+                            $content = $chunk['choices'][0]['delta']['content'];
+                            $buffer .= $content;
 
-                                // Si el contenido actual es un espacio y el último carácter del buffer también lo es,
-                                // o si el último carácter enviado fue un espacio y el actual empieza con espacio,
-                                // omitimos el espacio duplicado
-                                if ($content === ' ' && $last_was_space) {
-                                    continue;
-                                }
-
-                                $buffer .= $content;
-                                
-                                // Enviamos el buffer cuando:
-                                // 1. Encontramos un espacio o puntuación
-                                // 2. El buffer es muy largo (más de 20 caracteres)
-                                if (preg_match('/[\s\.,!?;:]$/', $content) || strlen($buffer) > 20) {
-                                    echo "data: " . $buffer . "\n\n";
-                                    flush();
-                                    $last_was_space = substr($content, -1) === ' ';
-                                    $buffer = '';
-                                }
+                            // Si tenemos un espacio o puntuación, o el buffer es muy largo, enviamos
+                            if (preg_match('/[\s\.,!?;:]$/', $content) || strlen($buffer) > 20) {
+                                $data = [
+                                    'id' => 'chatcmpl-' . uniqid(),
+                                    'object' => 'chat.completion.chunk',
+                                    'created' => time(),
+                                    'model' => $data['model'],
+                                    'choices' => [
+                                        [
+                                            'index' => 0,
+                                            'delta' => [
+                                                'content' => $buffer
+                                            ],
+                                            'finish_reason' => null
+                                        ]
+                                    ]
+                                ];
+                                echo "data: " . json_encode($data) . "\n\n";
+                                flush();
+                                $buffer = '';
                             }
                         }
                     }
 
                     // Enviar cualquier contenido restante en el buffer
                     if (!empty($buffer)) {
-                        echo "data: " . $buffer . "\n\n";
+                        $data = [
+                            'id' => 'chatcmpl-' . uniqid(),
+                            'object' => 'chat.completion.chunk',
+                            'created' => time(),
+                            'model' => $data['model'],
+                            'choices' => [
+                                [
+                                    'index' => 0,
+                                    'delta' => [
+                                        'content' => $buffer
+                                    ],
+                                    'finish_reason' => 'stop'
+                                ]
+                            ]
+                        ];
+                        echo "data: " . json_encode($data) . "\n\n";
                         flush();
                     }
                 } catch (\Exception $e) {
