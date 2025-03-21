@@ -172,11 +172,9 @@ $routes->group('', ['filter' => 'auth:superadmin'], function ($routes) {
  */
 $routes->group('api', function ($routes) {
     // System Endpoints (admin only)
-    $routes->group('llm-proxy', function ($routes) {
-        $routes->get('install', 'LlmProxy::install', ['filter' => 'admin']);
-        $routes->get('status', 'LlmProxy::status', ['filter' => 'admin']);
-        $routes->get('test-connection', 'LlmProxy::test_connection', ['filter' => 'admin']);
-    });
+    $routes->get('llm-proxy/install', 'LlmProxy::install', ['filter' => 'admin']);
+    $routes->get('llm-proxy/status', 'LlmProxy::status', ['filter' => 'admin']);
+    $routes->get('llm-proxy/test-connection', 'LlmProxy::test_connection', ['filter' => 'admin']);
 
     // Main proxy endpoints
     $routes->group('', ['filter' => 'cors'], function ($routes) {
