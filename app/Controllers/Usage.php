@@ -93,16 +93,16 @@ class Usage extends Controller
         // Get API user statistics
         $query = $db->query(
             "
-            SELECT tu.id,
-                   tu.name,
-                   tu.quota,
+            SELECT au.id,
+                   au.name,
+                   au.quota,
                    COUNT(ul.id) as request_count,
                    COALESCE(SUM(ul.tokens), 0) as total_tokens
-            FROM tenant_users tu
-            LEFT JOIN usage_logs ul ON tu.id = ul.user_id 
+            FROM api_users au
+            LEFT JOIN usage_logs ul ON au.id = ul.user_id 
                 AND ul.created_at >= date('now', '-30 days')
-            WHERE tu.tenant_id = ?
-            GROUP BY tu.id, tu.name, tu.quota
+            WHERE au.tenant_id = ?
+            GROUP BY au.id, au.name, au.quota
             ORDER BY total_tokens DESC",
             [$tenant_id]
         );
@@ -130,14 +130,14 @@ class Usage extends Controller
             SELECT 
                 ul.*,
                 b.name as button_name,
-                tu.name as user_name,
+                au.name as user_name,
                 COALESCE(pl.messages, '[]') as messages,
                 COALESCE(pl.system_prompt, '') as system_prompt,
                 COALESCE(pl.system_prompt_source, '') as system_prompt_source,
                 COALESCE(pl.response, '') as response
             FROM usage_logs ul
             LEFT JOIN buttons b ON ul.button_id = b.button_id
-            LEFT JOIN tenant_users tu ON ul.user_id = tu.id
+            LEFT JOIN api_users au ON ul.user_id = au.id
             LEFT JOIN prompt_logs pl ON pl.usage_log_id = ul.id
             WHERE ul.tenant_id = ?
             ORDER BY ul.created_at DESC

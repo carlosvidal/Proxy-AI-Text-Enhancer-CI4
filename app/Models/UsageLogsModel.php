@@ -36,11 +36,11 @@ class UsageLogsModel extends Model
         'usage_id' => 'required|is_unique[usage_logs.usage_id]',
         'tenant_id' => 'required',
         'user_id' => 'permit_empty',
-        'external_id' => 'required',  
+        'external_id' => 'permit_empty',  
         'provider' => 'required',
         'model' => 'required',
         'tokens' => 'required|integer',
-        'cost' => 'required|decimal',
+        'cost' => 'permit_empty|decimal',
         'status' => 'required'
     ];
 

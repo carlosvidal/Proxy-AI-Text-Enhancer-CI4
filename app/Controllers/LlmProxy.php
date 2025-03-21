@@ -311,17 +311,18 @@ class LlmProxy extends Controller
                 'provider' => $provider,
                 'model' => $model,
                 'tokens' => $total_tokens,
-                'cost' => $cost,
+                'cost' => $cost ?? 0,  // Si no hay cost, usamos 0
                 'has_image' => $has_image ? 1 : 0,
                 'status' => 'success'
             ];
             
+            log_debug('USAGE', 'Intentando insertar log', $data);
+            
             if (!$usageModel->insert($data)) {
-                log_error('USAGE', 'Error logging usage', [
+                log_error('USAGE', 'Error al insertar log', [
                     'error' => implode(', ', $usageModel->errors()),
-                    'tenant_id' => $tenant_id,
-                    'external_id' => $external_id,
-                    'button_id' => $button_id
+                    'data' => $data,
+                    'validation' => $usageModel->getValidationRules()
                 ]);
                 return false;
             }
