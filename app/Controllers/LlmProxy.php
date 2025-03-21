@@ -274,16 +274,16 @@ class LlmProxy extends Controller
             // Generate usage_id using hash helper
             $usage_id = generate_hash_id('usage');
 
-            // Find user_id from tenant_users table if external_id is provided
+            // Find user_id from api_users table using external_id
             $user_id = null;
             if ($external_id) {
                 $db = db_connect();
-                log_debug('USAGE', 'Buscando user_id', [
+                log_debug('USAGE', 'Buscando api_user', [
                     'tenant_id' => $tenant_id,
                     'external_id' => $external_id
                 ]);
                 
-                $user = $db->table('tenant_users')
+                $user = $db->table('api_users')
                     ->where('tenant_id', $tenant_id)
                     ->where('external_id', $external_id)
                     ->get()
@@ -291,11 +291,11 @@ class LlmProxy extends Controller
 
                 if ($user) {
                     $user_id = $user['id'];
-                    log_debug('USAGE', 'Usuario encontrado', [
+                    log_debug('USAGE', 'API User encontrado', [
                         'user_id' => $user_id
                     ]);
                 } else {
-                    log_error('USAGE', 'Usuario no encontrado', [
+                    log_error('USAGE', 'API User no encontrado', [
                         'tenant_id' => $tenant_id,
                         'external_id' => $external_id
                     ]);
