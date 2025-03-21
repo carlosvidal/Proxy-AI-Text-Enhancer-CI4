@@ -58,7 +58,7 @@ abstract class BaseLlmProvider implements LlmProviderInterface
                         throw new \Exception('Provider returned error status: ' . $status_code);
                     }
 
-                    if (!str_contains($content_type, 'text/event-stream')) {
+                    if (strpos($content_type, 'text/event-stream') === false) {
                         throw new \Exception('Invalid content type received: ' . $content_type);
                     }
 
