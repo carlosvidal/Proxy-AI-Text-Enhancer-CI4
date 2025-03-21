@@ -99,16 +99,15 @@ class Filters extends BaseConfig
         ],
         'compress' => [
             'after' => [
-                'api/llm-proxy/*',  // All LLM proxy endpoints
-                'api/quota/*',      // All quota endpoints
-                'api/*/stats',      // Any stats endpoints
-                'api/*/usage',      // Any usage endpoints
+                'api/*'  // Apply compression to all API responses
             ]
         ],
         'admin' => [
             'before' => [
-                // Add URI patterns for admin filter here
+                'api/llm-proxy/install',  // Admin-only endpoints
+                'api/llm-proxy/status',
+                'api/llm-proxy/test-connection'
             ]
-        ],
+        ]
     ];
 }
