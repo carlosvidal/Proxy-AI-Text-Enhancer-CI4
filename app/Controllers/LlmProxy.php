@@ -278,6 +278,11 @@ class LlmProxy extends Controller
             $user_id = null;
             if ($external_id) {
                 $db = db_connect();
+                log_debug('USAGE', 'Buscando user_id', [
+                    'tenant_id' => $tenant_id,
+                    'external_id' => $external_id
+                ]);
+                
                 $user = $db->table('tenant_users')
                     ->where('tenant_id', $tenant_id)
                     ->where('external_id', $external_id)
@@ -286,6 +291,14 @@ class LlmProxy extends Controller
 
                 if ($user) {
                     $user_id = $user['id'];
+                    log_debug('USAGE', 'Usuario encontrado', [
+                        'user_id' => $user_id
+                    ]);
+                } else {
+                    log_error('USAGE', 'Usuario no encontrado', [
+                        'tenant_id' => $tenant_id,
+                        'external_id' => $external_id
+                    ]);
                 }
             }
             
