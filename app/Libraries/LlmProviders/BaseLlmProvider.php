@@ -24,7 +24,7 @@ abstract class BaseLlmProvider implements LlmProviderInterface
         curl_setopt_array($curl, [
             CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_ENCODING => '',
+            CURLOPT_ENCODING => '', // Accept any encoding but don't automatically decode
             CURLOPT_MAXREDIRS => 10,
             CURLOPT_TIMEOUT => 0,
             CURLOPT_FOLLOWLOCATION => true,
@@ -33,7 +33,10 @@ abstract class BaseLlmProvider implements LlmProviderInterface
             CURLOPT_POSTFIELDS => json_encode($data),
             CURLOPT_HTTPHEADER => array_merge([
                 'Content-Type: application/json',
-                'Authorization: Bearer ' . $this->api_key
+                'Authorization: Bearer ' . $this->api_key,
+                'Accept: text/event-stream',
+                'Cache-Control: no-cache',
+                'Connection: keep-alive'
             ], $headers)
         ]);
 
@@ -44,6 +47,7 @@ abstract class BaseLlmProvider implements LlmProviderInterface
                     $response = curl_exec($curl);
                     $err = curl_error($curl);
                     $status_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+                    $content_type = curl_getinfo($curl, CURLINFO_CONTENT_TYPE);
                     curl_close($curl);
 
                     if ($err) {
@@ -52,6 +56,10 @@ abstract class BaseLlmProvider implements LlmProviderInterface
 
                     if ($status_code >= 400) {
                         throw new \Exception('Provider returned error status: ' . $status_code);
+                    }
+
+                    if (!str_contains($content_type, 'text/event-stream')) {
+                        throw new \Exception('Invalid content type received: ' . $content_type);
                     }
 
                     // Process stream response
@@ -63,9 +71,11 @@ abstract class BaseLlmProvider implements LlmProviderInterface
                         if (empty($line)) continue;
 
                         // Check if it's an error response
-                        $error = json_decode($line, true);
-                        if (isset($error['error'])) {
-                            throw new \Exception($error['error']['message'] ?? 'Unknown provider error');
+                        if (strpos($line, '{') === 0) {
+                            $error = json_decode($line, true);
+                            if (isset($error['error'])) {
+                                throw new \Exception($error['error']['message'] ?? 'Unknown provider error');
+                            }
                         }
 
                         // Process SSE data
