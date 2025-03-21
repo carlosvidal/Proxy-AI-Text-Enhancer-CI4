@@ -86,17 +86,12 @@ class Autoload extends AutoloadConfig
 
     /**
      * -------------------------------------------------------------------
-     * Helpers
+     * Helper files to load
      * -------------------------------------------------------------------
-     * Prototype:
-     *   $helpers = [
-     *       'form',
-     *   ];
+     * This file contains a list of helper files that will be loaded
+     * automatically.
      *
-     * @var list<string>
+     * @var array
      */
-    public $helpers = [
-        'form',
-        'hash'
-    ];
+    public $helpers = ['form', 'url', 'log'];
 }

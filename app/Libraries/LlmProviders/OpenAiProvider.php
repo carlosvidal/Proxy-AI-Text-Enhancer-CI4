@@ -9,36 +9,44 @@ class OpenAiProvider extends BaseLlmProvider
      */
     public function process_request(string $model, array $messages, array $options = []): array
     {
-        $data = [
-            'model' => $model,
-            'messages' => array_map(function($msg) {
-                return [
-                    'role' => $msg['role'],
-                    'content' => is_array($msg['content']) ? $msg['content'][0]['text'] : $msg['content']
-                ];
-            }, $messages),
-            'temperature' => $options['temperature'] ?? 0.7,
-            'max_tokens' => $options['max_tokens'] ?? 2000,
-            'frequency_penalty' => $options['frequency_penalty'] ?? 0,
-            'presence_penalty' => $options['presence_penalty'] ?? 0,
-            'stream' => false
-        ];
+        try {
+            $data = [
+                'model' => $model,
+                'messages' => array_map(function($msg) {
+                    return [
+                        'role' => $msg['role'],
+                        'content' => is_array($msg['content']) ? $msg['content'][0]['text'] : $msg['content']
+                    ];
+                }, $messages),
+                'temperature' => $options['temperature'] ?? 0.7,
+                'max_tokens' => $options['max_tokens'] ?? 2000,
+                'frequency_penalty' => $options['frequency_penalty'] ?? 0,
+                'presence_penalty' => $options['presence_penalty'] ?? 0,
+                'stream' => false
+            ];
 
-        $response = $this->make_request(
-            $this->endpoint . '/chat/completions',
-            $data
-        );
+            $response = $this->make_request(
+                $this->endpoint . '/chat/completions',
+                $data
+            );
 
-        // Convert stdClass to array if needed
-        if (is_object($response)) {
-            $response = json_decode(json_encode($response), true);
+            // Validar que tenemos los campos necesarios
+            if (!isset($response['choices'][0]['message']['content'])) {
+                throw new \Exception('Invalid response format from OpenAI');
+            }
+
+            return [
+                'response' => $response['choices'][0]['message']['content'],
+                'tokens_in' => $response['usage']['prompt_tokens'] ?? 0,
+                'tokens_out' => $response['usage']['completion_tokens'] ?? 0
+            ];
+        } catch (\Exception $e) {
+            log_error('OPENAI', 'Error processing request', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            throw $e;
         }
-
-        return [
-            'response' => $response['choices'][0]['message']['content'],
-            'tokens_in' => $response['usage']['prompt_tokens'],
-            'tokens_out' => $response['usage']['completion_tokens']
-        ];
     }
 
     /**
