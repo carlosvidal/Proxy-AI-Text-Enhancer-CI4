@@ -222,7 +222,7 @@ class LlmProxy extends Controller
 
                 // Log usage after streaming completes
                 $usage = $llm->get_token_usage($messages);
-                $this->_log_usage($tenant_id, $external_id, $provider, $model, $usage['tokens_in'], $usage['tokens_out'], $button_id, $has_image);
+                $this->_log_usage($tenant_id, $external_id, $button_id, $provider, $model, $usage['tokens_in'] + $usage['tokens_out'], null, $has_image);
 
                 // Return empty response since we've already sent the stream
                 return '';
@@ -231,7 +231,7 @@ class LlmProxy extends Controller
                 $response = $llm->process_request($model, $messages, $options);
 
                 // Log usage
-                $this->_log_usage($tenant_id, $external_id, $provider, $model, $response['tokens_in'], $response['tokens_out'], $button_id, $has_image);
+                $this->_log_usage($tenant_id, $external_id, $button_id, $provider, $model, $response['tokens_in'] + $response['tokens_out'], null, $has_image);
 
                 // Return successful response
                 return $this->response->setJSON([
@@ -260,20 +260,25 @@ class LlmProxy extends Controller
     /**
      * Log usage for billing purposes
      */
-    private function _log_usage($tenant_id, $external_id, $provider, $model, $tokens_in, $tokens_out, $button_id = null, $has_image = false)
+    private function _log_usage($tenant_id, $external_id, $button_id, $provider, $model, $total_tokens, $cost = null, $has_image = false)
     {
+        log_debug('USAGE', 'Iniciando log_usage', [
+            'tenant_id' => $tenant_id,
+            'external_id' => $external_id,
+            'button_id' => $button_id,
+            'provider' => $provider,
+            'model' => $model,
+            'total_tokens' => $total_tokens,
+            'cost' => $cost,
+            'has_image' => $has_image
+        ]);
+
         try {
-            $usageModel = new UsageLogsModel();
-            
-            // Calculate total tokens
-            $total_tokens = $tokens_in + $tokens_out;
-            
-            // Calculate cost based on model
-            $cost = $this->_calculate_cost($provider, $model, $total_tokens);
+            $usageModel = new \App\Models\UsageLogsModel();
             
             // Generate usage_id using hash helper
             $usage_id = generate_hash_id('usage');
-
+            
             // Find user_id from api_users table using external_id
             $user_id = null;
             if ($external_id) {
@@ -301,7 +306,18 @@ class LlmProxy extends Controller
                     ]);
                 }
             }
-            
+
+            // Calculate cost if not provided
+            if ($cost === null) {
+                $cost = $this->_calculate_cost($provider, $model, $total_tokens);
+                log_debug('USAGE', 'Costo calculado', [
+                    'cost' => $cost,
+                    'provider' => $provider,
+                    'model' => $model,
+                    'tokens' => $total_tokens
+                ]);
+            }
+
             $data = [
                 'usage_id' => $usage_id,
                 'tenant_id' => $tenant_id,
@@ -326,16 +342,16 @@ class LlmProxy extends Controller
                 ]);
                 return false;
             }
-            
-            log_debug('USAGE', 'Usage logged successfully', $data);
+
+            log_debug('USAGE', 'Log insertado correctamente', [
+                'usage_id' => $usage_id
+            ]);
+
             return true;
-            
         } catch (\Exception $e) {
-            log_error('USAGE', 'Error logging usage', [
+            log_error('USAGE', 'Excepción al insertar log', [
                 'error' => $e->getMessage(),
-                'tenant_id' => $tenant_id,
-                'external_id' => $external_id,
-                'button_id' => $button_id
+                'trace' => $e->getTraceAsString()
             ]);
             return false;
         }
