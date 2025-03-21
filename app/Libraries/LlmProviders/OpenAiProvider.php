@@ -11,7 +11,12 @@ class OpenAiProvider extends BaseLlmProvider
     {
         $data = [
             'model' => $model,
-            'messages' => $messages,
+            'messages' => array_map(function($msg) {
+                return [
+                    'role' => $msg['role'],
+                    'content' => is_array($msg['content']) ? $msg['content'][0]['text'] : $msg['content']
+                ];
+            }, $messages),
             'temperature' => $options['temperature'] ?? 0.7,
             'max_tokens' => $options['max_tokens'] ?? 2000,
             'frequency_penalty' => $options['frequency_penalty'] ?? 0,
@@ -38,7 +43,12 @@ class OpenAiProvider extends BaseLlmProvider
     {
         $data = [
             'model' => $model,
-            'messages' => $messages,
+            'messages' => array_map(function($msg) {
+                return [
+                    'role' => $msg['role'],
+                    'content' => is_array($msg['content']) ? $msg['content'][0]['text'] : $msg['content']
+                ];
+            }, $messages),
             'temperature' => $options['temperature'] ?? 0.7,
             'max_tokens' => $options['max_tokens'] ?? 2000,
             'frequency_penalty' => $options['frequency_penalty'] ?? 0,
@@ -66,8 +76,8 @@ class OpenAiProvider extends BaseLlmProvider
             if (is_array($message['content'])) {
                 // Handle multimodal messages
                 foreach ($message['content'] as $content) {
-                    if (is_string($content)) {
-                        $total_chars += strlen($content);
+                    if (isset($content['text'])) {
+                        $total_chars += strlen($content['text']);
                     }
                 }
             } else {
