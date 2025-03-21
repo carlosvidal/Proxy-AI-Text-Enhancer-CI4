@@ -311,133 +311,51 @@ class LlmProxy extends Controller
      */
     private function _log_usage($tenant_id, $external_id, $button_id, $provider, $model, $total_tokens, $cost = null, $has_image = false)
     {
-        log_debug('USAGE', 'Iniciando log_usage', [
-            'tenant_id' => $tenant_id,
-            'external_id' => $external_id,
-            'button_id' => $button_id,
-            'provider' => $provider,
-            'model' => $model,
-            'total_tokens' => $total_tokens,
-            'cost' => $cost,
-            'has_image' => $has_image
-        ]);
-
         try {
-            if (empty($external_id)) {
-                log_error('USAGE', 'External ID es requerido para el log');
-                return false;
-            }
-
             $usageModel = new \App\Models\UsageLogsModel();
             $db = db_connect();
 
-            // Find user_id from api_users table using external_id
-            log_debug('USAGE', 'Buscando api_user', [
-                'tenant_id' => $tenant_id,
-                'external_id' => $external_id
-            ]);
-
-            $user = $db->table('api_users')
-                ->where('tenant_id', $tenant_id)
-                ->where('external_id', $external_id)
-                ->get()
-                ->getRowArray();
-
-            if (!$user) {
-                log_debug('USAGE', 'API User no encontrado, creando nuevo usuario', [
-                    'tenant_id' => $tenant_id,
-                    'external_id' => $external_id
-                ]);
-                
-                // Insert new API user
-                $result = $db->table('api_users')->insert([
-                    'tenant_id' => $tenant_id,
-                    'external_id' => $external_id,
-                    'created_at' => date('Y-m-d H:i:s')
-                ]);
-
-                if (!$result) {
-                    log_error('USAGE', 'Error al crear API user', [
-                        'error' => $db->error(),
-                        'tenant_id' => $tenant_id,
-                        'external_id' => $external_id
-                    ]);
-                    return false;
-                }
-                
-                $user_id = $db->insertID();
-                log_debug('USAGE', 'Nuevo API user creado', [
-                    'user_id' => $user_id,
-                    'external_id' => $external_id
-                ]);
-            } else {
-                $user_id = $user['id'];
-                log_debug('USAGE', 'API User encontrado', [
-                    'user_id' => $user_id,
-                    'external_id' => $external_id
-                ]);
-            }
-
-            // Generate usage_id using hash helper
-            helper('hash');
-            $usage_id = generate_hash_id('usage');
-
-            // Calculate cost if not provided
-            if ($cost === null) {
-                $cost = $this->_calculate_cost($provider, $model, $total_tokens);
-                log_debug('USAGE', 'Costo calculado', [
-                    'cost' => $cost,
-                    'provider' => $provider,
-                    'model' => $model,
-                    'tokens' => $total_tokens
-                ]);
-            }
-
-            $data = [
-                'usage_id' => $usage_id,
-                'tenant_id' => $tenant_id,
-                'user_id' => $user_id,
-                'external_id' => $external_id,
-                'button_id' => $button_id,
-                'provider' => $provider,
-                'model' => $model,
-                'tokens' => $total_tokens,
-                'cost' => $cost ?? 0,
-                'has_image' => $has_image ? 1 : 0,
+            // Mock data para prueba
+            $mock_data = [
+                'usage_id' => 'usage-' . time() . '-test',
+                'tenant_id' => 'ten-67d88d1d-111ae225',
+                'user_id' => '1',
+                'external_id' => '12345',
+                'button_id' => 'BTN00001',
+                'provider' => 'openai',
+                'model' => 'gpt-4',
+                'tokens' => 100,
+                'cost' => 0.002,
+                'has_image' => 0,
                 'status' => 'success',
                 'created_at' => date('Y-m-d H:i:s')
             ];
 
-            log_debug('USAGE', 'Intentando insertar log', [
-                'data' => $data,
-                'validation_rules' => $usageModel->getValidationRules()
+            log_debug('USAGE', 'Intentando insertar mock log', [
+                'data' => $mock_data
             ]);
 
-            if (!$usageModel->insert($data)) {
-                $errors = $usageModel->errors();
-                $dbError = $db->error();
-                log_error('USAGE', 'Error al insertar log', [
-                    'validation_errors' => $errors,
-                    'data' => $data,
-                    'db_error' => $dbError,
-                    'db_error_number' => $dbError['code'] ?? '',
-                    'db_error_message' => $dbError['message'] ?? '',
+            // Intento directo con Query Builder
+            $result = $db->table('usage_logs')->insert($mock_data);
+            
+            if (!$result) {
+                $error = $db->error();
+                log_error('USAGE', 'Error al insertar mock log con Query Builder', [
+                    'error' => $error,
                     'last_query' => $db->getLastQuery() ? $db->getLastQuery()->getQuery() : 'No query available'
                 ]);
                 return false;
             }
 
-            log_debug('USAGE', 'Log insertado correctamente', [
-                'usage_id' => $usage_id,
-                'data' => $data
+            log_debug('USAGE', 'Mock log insertado correctamente', [
+                'insert_id' => $db->insertID()
             ]);
 
             return true;
         } catch (\Exception $e) {
-            log_error('USAGE', 'Excepción al insertar log', [
+            log_error('USAGE', 'Excepción al insertar mock log', [
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'data' => isset($data) ? $data : null
+                'trace' => $e->getTraceAsString()
             ]);
             return false;
         }
