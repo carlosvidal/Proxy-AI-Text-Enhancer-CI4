@@ -160,11 +160,15 @@ class LlmProxy extends Controller
             }
 
             // Validate domain
-            if ($button['domain'] !== '*' && $button['domain'] !== $domain) {
+            if ($button['domain'] !== '*' && $this->_normalize_domain($button['domain']) !== $this->_normalize_domain($domain)) {
                 log_error('PROXY', 'Domain mismatch', [
                     'request_domain' => $domain,
+                    'normalized_request_domain' => $this->_normalize_domain($domain),
                     'button_domain' => $button['domain'],
-                    'button_id' => $button_id
+                    'normalized_button_domain' => $this->_normalize_domain($button['domain']),
+                    'origin' => service('request')->getHeaderLine('Origin'),
+                    'referer' => service('request')->getHeaderLine('Referer'),
+                    'button' => $button
                 ]);
                 throw new \Exception('Invalid domain for this button');
             }
@@ -447,6 +451,27 @@ class LlmProxy extends Controller
             $domain = service('request')->getIPAddress();
         }
 
+        // Limpiar el dominio de la misma manera que en Domains.php
+        $domain = preg_replace('#^https?://#', '', $domain);
+        $domain = preg_replace('#^www\.#', '', $domain);
+
+        return $domain;
+    }
+
+    /**
+     * Normaliza un dominio para comparación
+     */
+    private function _normalize_domain($domain) 
+    {
+        // Si el dominio es '*', retornarlo tal cual
+        if ($domain === '*') {
+            return $domain;
+        }
+
+        // Remover protocolo y www si existen
+        $domain = preg_replace('#^https?://#', '', $domain);
+        $domain = preg_replace('#^www\.#', '', $domain);
+        
         return $domain;
     }
 
