@@ -15,7 +15,9 @@ class OpenAiProvider extends BaseLlmProvider
             // Prepare request payload
             $payload = [
                 'model' => $model,
-                'messages' => $messages,
+                'messages' => array_map(function($msg) {
+                    return is_object($msg) ? (array)$msg : $msg;
+                }, $messages),
                 'temperature' => $options['temperature'] ?? 0.7,
                 'stream' => false
             ];
@@ -44,6 +46,11 @@ class OpenAiProvider extends BaseLlmProvider
 
     public function process_stream_request(string $model, array $messages, array $options = []): callable
     {
+        // Convert messages to array if needed
+        $messages = array_map(function($msg) {
+            return is_object($msg) ? (array)$msg : $msg;
+        }, $messages);
+
         // Prepare request payload
         $payload = [
             'model' => $model,
@@ -61,13 +68,9 @@ class OpenAiProvider extends BaseLlmProvider
     public function get_token_usage(array $messages): array
     {
         // Convert messages to array if needed
-        $messages_array = [];
-        foreach ($messages as $message) {
-            if (is_object($message)) {
-                $message = (array)$message;
-            }
-            $messages_array[] = $message;
-        }
+        $messages_array = array_map(function($msg) {
+            return is_object($msg) ? (array)$msg : $msg;
+        }, $messages);
 
         // Estimate token usage based on message length
         $total_chars = 0;
