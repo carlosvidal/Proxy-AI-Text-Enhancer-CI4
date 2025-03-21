@@ -83,6 +83,13 @@ class LlmProxy extends Controller
                 throw new \Exception('Invalid request format');
             }
 
+            log_debug('PROXY', 'Request data received', [
+                'request_id' => $request_id,
+                'json' => json_encode($json),
+                'raw_input' => file_get_contents('php://input'),
+                'content_type' => $this->request->getHeaderLine('Content-Type')
+            ]);
+
             // Extract request parameters
             $provider = $json->provider ?? 'openai';
             $model = $json->model ?? null;
@@ -90,6 +97,17 @@ class LlmProxy extends Controller
             $options = $json->options ?? [];
             $stream = $json->stream ?? false;
             $external_id = $json->userId ?? $json->user_id ?? null; // Aceptar tanto userId como user_id
+            $button_id = $json->button_id ?? null;
+
+            log_debug('PROXY', 'Extracted parameters', [
+                'request_id' => $request_id,
+                'provider' => $provider,
+                'model' => $model,
+                'messages_count' => count($messages),
+                'stream' => $stream,
+                'external_id' => $external_id,
+                'button_id' => $button_id
+            ]);
 
             // Validate required parameters
             if (!$model || empty($messages)) {
@@ -100,6 +118,10 @@ class LlmProxy extends Controller
                 throw new \Exception('Missing user_id in request');
             }
 
+            if (!$button_id) {
+                throw new \Exception('Missing button_id in request');
+            }
+
             // Get domain from headers
             $domain = $this->_extract_domain_from_headers();
             log_debug('PROXY', 'Domain extracted', [
@@ -108,11 +130,6 @@ class LlmProxy extends Controller
             ]);
 
             // Get button configuration
-            $button_id = $json->button_id ?? null;
-            if (!$button_id) {
-                throw new \Exception('Missing button_id in request');
-            }
-
             $db = db_connect();
             $button = $db->table('buttons')
                 ->where('button_id', $button_id)
