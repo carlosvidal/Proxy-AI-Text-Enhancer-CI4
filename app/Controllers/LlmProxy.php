@@ -12,13 +12,6 @@ use App\Libraries\LlmProviders\DeepseekProvider;
 use App\Libraries\LlmProviders\GoogleProvider;
 use App\Libraries\LlmProviders\AzureProvider;
 
-/**
- * LlmProxy Controller
- * 
- * Controlador que maneja las peticiones al proxy de LLM en CodeIgniter 4
- * 
- * @package     AI Text Enhancer
- */
 class LlmProxy extends Controller
 {
     /**
@@ -80,27 +73,6 @@ class LlmProxy extends Controller
                 ->setContentType('application/json')
                 ->setStatusCode(405)
                 ->setJSON(['error' => ['message' => 'Method not allowed']]);
-        }
-
-        // Get JWT data if available
-        $jwtData = null;
-        $token = get_jwt_from_header();
-        if ($token) {
-            $tokenData = validate_jwt($token);
-            if ($tokenData && isset($tokenData->data)) {
-                $jwtData = $tokenData->data;
-                log_info('PROXY', 'JWT authenticated user', [
-                    'request_id' => $request_id,
-                    'username' => $jwtData->username ?? 'unknown',
-                    'id' => $jwtData->id ?? 'unknown',
-                    'tenant_id' => $jwtData->tenant_id ?? 'unknown'
-                ]);
-            } else {
-                log_warning('PROXY', 'Invalid JWT token provided', [
-                    'request_id' => $request_id,
-                    'token_exists' => !empty($token)
-                ]);
-            }
         }
 
         try {
@@ -244,23 +216,48 @@ class LlmProxy extends Controller
     }
 
     /**
-     * Process LLM request
+     * Log usage for billing purposes
      */
-    public function process()
+    private function _log_usage($tenant_id, $external_id, $provider, $model, $tokens_in, $tokens_out, $has_image = false)
     {
-        return $this->index();
-    }
+        $db = db_connect();
+        
+        try {
+            // Generate usage_id
+            $usage_id = uniqid('usage_');
 
-    /**
-     * Handle OPTIONS request for CORS
-     */
-    public function options()
-    {
-        return $this->response
-            ->setHeader('Access-Control-Allow-Origin', $this->allowed_origins)
-            ->setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization')
-            ->setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-            ->setStatusCode(200);
+            // Log usage details
+            $db->table('usage_logs')->insert([
+                'usage_id' => $usage_id,
+                'tenant_id' => $tenant_id,
+                'external_id' => $external_id,
+                'provider' => $provider,
+                'model' => $model,
+                'tokens_in' => $tokens_in,
+                'tokens_out' => $tokens_out,
+                'has_image' => $has_image ? 1 : 0,
+                'created_at' => date('Y-m-d H:i:s')
+            ]);
+
+            log_debug('USAGE', 'Usage logged successfully', [
+                'usage_id' => $usage_id,
+                'tenant_id' => $tenant_id,
+                'external_id' => $external_id,
+                'provider' => $provider,
+                'model' => $model,
+                'tokens_in' => $tokens_in,
+                'tokens_out' => $tokens_out
+            ]);
+
+            return true;
+        } catch (\Exception $e) {
+            log_error('USAGE', 'Error logging usage', [
+                'error' => $e->getMessage(),
+                'tenant_id' => $tenant_id,
+                'external_id' => $external_id
+            ]);
+            return false;
+        }
     }
 
     /**
@@ -283,112 +280,29 @@ class LlmProxy extends Controller
     }
 
     /**
-     * Ensures a user exists for a tenant, creating them if needed
+     * Get LLM provider instance
      */
-    private function _ensure_user_exists($domain)
+    private function _get_llm_provider($provider)
     {
-        $db = db_connect();
-
-        // Try to find existing tenant by domain
-        $tenant = $db->table('tenants')
-            ->where('name', $domain)
-            ->get()
-            ->getRowArray();
-
-        // If tenant doesn't exist, create one
-        if (!$tenant) {
-            $tenant_id = 'ten-' . bin2hex(random_bytes(4)) . '-' . bin2hex(random_bytes(4));
-            $db->table('tenants')->insert([
-                'tenant_id' => $tenant_id,
-                'name' => $domain,
-                'active' => true,
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s')
-            ]);
-
-            log_info('TENANT', 'Created new tenant', [
-                'tenant_id' => $tenant_id,
-                'domain' => $domain
-            ]);
-
-            return $tenant_id;
+        if (!isset($this->api_keys[$provider]) || empty($this->api_keys[$provider])) {
+            throw new \Exception('Provider not configured: ' . $provider);
         }
 
-        return $tenant['tenant_id'];
-    }
-
-    /**
-     * Log usage for billing purposes
-     */
-    private function _log_usage($tenant_id, $external_id, $provider, $model, $tokens_in, $tokens_out, $has_image = false)
-    {
-        $db = db_connect();
-        
-        try {
-            // Log usage details
-            $db->table('usage_logs')->insert([
-                'tenant_id' => $tenant_id,
-                'user_id' => $external_id, // Using external_id as user_id
-                'external_id' => $external_id,
-                'provider' => $provider,
-                'model' => $model,
-                'tokens' => $tokens_in + $tokens_out,
-                'has_image' => $has_image ? 1 : 0,
-                'status' => 'success',
-                'created_at' => date('Y-m-d H:i:s')
-            ]);
-
-            log_debug('USAGE', 'Usage logged successfully', [
-                'tenant_id' => $tenant_id,
-                'external_id' => $external_id,
-                'provider' => $provider,
-                'model' => $model,
-                'tokens' => $tokens_in + $tokens_out
-            ]);
-
-            return true;
-        } catch (\Exception $e) {
-            log_error('USAGE', 'Error logging usage', [
-                'error' => $e->getMessage(),
-                'tenant_id' => $tenant_id,
-                'external_id' => $external_id
-            ]);
-            return false;
-        }
-    }
-
-    /**
-     * Update tenant quota
-     */
-    private function _update_tenant_quota($tenant_id, $tokens)
-    {
-        try {
-            $db = db_connect();
-            
-            // Get current quota
-            $tenant = $db->table('tenants')
-                ->where('tenant_id', $tenant_id)
-                ->get()
-                ->getRowArray();
-
-            if (!$tenant) {
-                throw new \Exception('Tenant not found');
-            }
-
-            // Update quota
-            $db->table('tenants')
-                ->where('tenant_id', $tenant_id)
-                ->update([
-                    'quota_used' => $tenant['quota_used'] + $tokens,
-                    'updated_at' => date('Y-m-d H:i:s')
-                ]);
-
-        } catch (\Exception $e) {
-            log_error('QUOTA', 'Error updating tenant quota', [
-                'tenant_id' => $tenant_id,
-                'error' => $e->getMessage()
-            ]);
-            throw $e;
+        switch ($provider) {
+            case 'openai':
+                return new OpenAiProvider($this->api_keys[$provider], $this->endpoints[$provider]);
+            case 'anthropic':
+                return new AnthropicProvider($this->api_keys[$provider], $this->endpoints[$provider]);
+            case 'mistral':
+                return new MistralProvider($this->api_keys[$provider], $this->endpoints[$provider]);
+            case 'deepseek':
+                return new DeepseekProvider($this->api_keys[$provider], $this->endpoints[$provider]);
+            case 'google':
+                return new GoogleProvider($this->api_keys[$provider], $this->endpoints[$provider]);
+            case 'azure':
+                return new AzureProvider($this->api_keys[$provider], $this->endpoints[$provider]);
+            default:
+                throw new \Exception('Unsupported provider: ' . $provider);
         }
     }
 
@@ -397,339 +311,25 @@ class LlmProxy extends Controller
      */
     private function _initialize_config()
     {
-        // Load configuration
-        $config = config('Proxy');
-
-        // Set API keys
         $this->api_keys = [
-            'openai' => getenv('OPENAI_API_KEY') ?: $config->openaiApiKey,
-            'anthropic' => getenv('ANTHROPIC_API_KEY') ?: $config->anthropicApiKey,
-            'mistral' => getenv('MISTRAL_API_KEY') ?: $config->mistralApiKey,
-            'deepseek' => getenv('DEEPSEEK_API_KEY') ?: $config->deepseekApiKey,
-            'google' => getenv('GOOGLE_API_KEY') ?: $config->googleApiKey,
-            'azure' => getenv('AZURE_API_KEY') ?: $config->azureApiKey
+            'openai' => env('OPENAI_API_KEY', ''),
+            'anthropic' => env('ANTHROPIC_API_KEY', ''),
+            'mistral' => env('MISTRAL_API_KEY', ''),
+            'deepseek' => env('DEEPSEEK_API_KEY', ''),
+            'google' => env('GOOGLE_API_KEY', ''),
+            'azure' => env('AZURE_API_KEY', '')
         ];
 
-        // Set endpoints
         $this->endpoints = [
-            'openai' => "https://api.openai.com/v1/chat/completions",
-            'anthropic' => getenv('ANTHROPIC_API_ENDPOINT') ?: $config->anthropicEndpoint,
-            'mistral' => getenv('MISTRAL_API_ENDPOINT') ?: $config->mistralEndpoint,
-            'deepseek' => getenv('DEEPSEEK_API_ENDPOINT') ?: $config->deepseekEndpoint,
-            'google' => getenv('GOOGLE_API_ENDPOINT') ?: $config->googleEndpoint,
-            'azure' => getenv('AZURE_API_ENDPOINT') ?: $config->azureEndpoint
+            'openai' => env('OPENAI_API_ENDPOINT', 'https://api.openai.com/v1/chat/completions'),
+            'anthropic' => env('ANTHROPIC_API_ENDPOINT', 'https://api.anthropic.com/v1/messages'),
+            'mistral' => env('MISTRAL_API_ENDPOINT', 'https://api.mistral.ai/v1/chat/completions'),
+            'deepseek' => env('DEEPSEEK_API_ENDPOINT', 'https://api.deepseek.com/v1/chat/completions'),
+            'google' => env('GOOGLE_API_ENDPOINT', 'https://generativelanguage.googleapis.com/v1/models'),
+            'azure' => env('AZURE_API_ENDPOINT', '')
         ];
 
-        // Set other configuration
-        $this->use_simulated_responses = getenv('USE_SIMULATED_RESPONSES') === 'true' || $config->useSimulatedResponses;
-        $this->allowed_origins = getenv('ALLOWED_ORIGINS') ?: $config->allowedOrigins;
-    }
-
-    /**
-     * Get LLM provider instance
-     */
-    private function _get_llm_provider($provider)
-    {
-        // Verificar que el provider tenga API key configurada
-        if (empty($this->api_keys[$provider])) {
-            log_message('error', 'API key not configured for provider', [
-                'provider' => $provider
-            ]);
-            throw new \Exception('API key not configured for provider');
-        }
-
-        switch ($provider) {
-            case 'openai':
-                return new OpenAiProvider($this->api_keys['openai'], $this->endpoints['openai']);
-            case 'anthropic':
-                return new AnthropicProvider($this->api_keys['anthropic'], $this->endpoints['anthropic']);
-            case 'mistral':
-                return new MistralProvider($this->api_keys['mistral'], $this->endpoints['mistral']);
-            case 'deepseek':
-                return new DeepseekProvider($this->api_keys['deepseek'], $this->endpoints['deepseek']);
-            case 'google':
-                return new GoogleProvider($this->api_keys['google'], $this->endpoints['google']);
-            case 'azure':
-                return new AzureProvider($this->api_keys['azure'], $this->endpoints['azure']);
-            default:
-                throw new \Exception("Invalid provider: {$provider}");
-        }
-    }
-
-    /**
-     * Prepare payload for LLM request
-     */
-    private function _prepare_payload($provider, $model, $messages, $temperature, $stream)
-    {
-        // Procesar mensajes multimodales
-        $processed_messages = array_map(function($message) {
-            if (is_array($message['content'])) {
-                // Extraer solo el texto de los mensajes multimodales
-                $text_parts = [];
-                foreach ($message['content'] as $content) {
-                    if (isset($content['text'])) {
-                        $text_parts[] = $content['text'];
-                    }
-                }
-                return [
-                    'role' => $message['role'],
-                    'content' => implode("\n", $text_parts)
-                ];
-            }
-            return $message;
-        }, $messages);
-
-        // Payload base
-        $payload = [
-            'model' => $model,
-            'messages' => $processed_messages,
-            'temperature' => floatval($temperature),
-            'stream' => $stream
-        ];
-
-        // Ajustar payload según el proveedor
-        switch ($provider) {
-            case 'openai':
-                $payload['max_tokens'] = 2000;
-                $payload['frequency_penalty'] = 0;
-                $payload['presence_penalty'] = 0;
-                break;
-
-            case 'anthropic':
-                $payload['max_tokens_to_sample'] = 2000;
-                break;
-
-            case 'mistral':
-                $payload['max_tokens'] = 2000;
-                break;
-
-            case 'deepseek':
-                $payload['max_tokens'] = 2000;
-                break;
-
-            case 'google':
-                $payload['max_output_tokens'] = 2000;
-                $payload['temperature'] = min($temperature, 1.0); // Google solo acepta hasta 1.0
-                break;
-
-            case 'azure':
-                $payload['max_tokens'] = 2000;
-                break;
-        }
-
-        return $payload;
-    }
-
-    /**
-     * Get quota information for tenant
-     */
-    public function quota()
-    {
-        // Verificar que sea una petición GET
-        if (service('request')->getMethod() !== 'get') {
-            return $this->response
-                ->setContentType('application/json')
-                ->setStatusCode(405)
-                ->setJSON(['error' => ['message' => 'Method not allowed']]);
-        }
-
-        try {
-            // Get domain from headers
-            $domain = $this->_extract_domain_from_headers();
-
-            // Ensure user exists
-            $tenant_id = $this->_ensure_user_exists($domain);
-
-            // Get tenant's quota information
-            $db = db_connect();
-            
-            // Get total tokens used from usage_logs
-            $tokens_used = $db->table('usage_logs')
-                ->selectSum('tokens_in + tokens_out', 'total_tokens')
-                ->where('tenant_id', $tenant_id)
-                ->get()
-                ->getRow();
-
-            // Get tenant info
-            $tenant = $db->table('tenants')
-                ->where('tenant_id', $tenant_id)
-                ->get()
-                ->getRowArray();
-
-            if (!$tenant) {
-                throw new \Exception('Tenant not found');
-            }
-
-            // Calculate quota
-            $quota_used = (int)($tokens_used->total_tokens ?? 0);
-            $quota_limit = 1000000; // 1M tokens by default
-
-            // Return quota information
-            return $this->response->setJSON([
-                'success' => true,
-                'data' => [
-                    'tenant_id' => $tenant_id,
-                    'domain' => $domain,
-                    'quota_used' => $quota_used,
-                    'quota_limit' => $quota_limit,
-                    'quota_remaining' => $quota_limit - $quota_used
-                ]
-            ]);
-
-        } catch (\Exception $e) {
-            log_error('QUOTA', 'Error getting quota information', [
-                'domain' => $domain ?? 'unknown',
-                'error' => $e->getMessage()
-            ]);
-
-            return $this->response->setStatusCode(500)->setJSON([
-                'success' => false,
-                'error' => $e->getMessage()
-            ]);
-        }
-    }
-
-    /**
-     * Install/update database tables
-     */
-    public function install()
-    {
-        try {
-            // Run migrations
-            $migrate = \Config\Services::migrations();
-            
-            // Run migrations
-            if ($migrate->latest() === false) {
-                throw new \Exception('Error running migrations');
-            }
-
-            return $this->response->setJSON([
-                'success' => true,
-                'message' => 'Database tables created/updated successfully'
-            ]);
-
-        } catch (\Exception $e) {
-            log_error('INSTALL', 'Error installing database tables', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return $this->response->setStatusCode(500)->setJSON([
-                'success' => false,
-                'error' => [
-                    'message' => 'Error installing database tables',
-                    'details' => $e->getMessage()
-                ]
-            ]);
-        }
-    }
-
-    /**
-     * Get proxy status
-     */
-    public function status()
-    {
-        $db = db_connect();
-
-        // Verificar si las API keys están configuradas
-        $api_keys_status = [];
-        foreach ($this->api_keys as $provider => $key) {
-            $api_keys_status[$provider] = !empty($key);
-        }
-
-        // Get database status
-        $db_status = false;
-        try {
-            $db->query('SELECT 1');
-            $db_status = true;
-        } catch (\Exception $e) {
-            log_error('STATUS', 'Database connection error', [
-                'error' => $e->getMessage()
-            ]);
-        }
-
-        // Get usage statistics
-        $stats = [
-            'total_requests' => 0,
-            'total_tokens' => 0,
-            'active_tenants' => 0,
-            'total_buttons' => 0
-        ];
-
-        try {
-            $stats['total_requests'] = $db->table('usage_logs')->countAll();
-            $stats['total_tokens'] = $db->table('usage_logs')
-                ->selectSum('tokens_in')
-                ->selectSum('tokens_out')
-                ->get()
-                ->getRowArray();
-            $stats['active_tenants'] = $db->table('tenants')->countAll();
-            $stats['total_buttons'] = $db->table('buttons')->countAll();
-        } catch (\Exception $e) {
-            log_error('STATUS', 'Error getting statistics', [
-                'error' => $e->getMessage()
-            ]);
-        }
-
-        return $this->response->setJSON([
-            'success' => true,
-            'data' => [
-                'version' => '1.0.0',
-                'environment' => ENVIRONMENT,
-                'database' => [
-                    'connected' => $db_status,
-                    'driver' => $db->DBDriver,
-                    'version' => $db->getVersion()
-                ],
-                'providers' => $api_keys_status,
-                'stats' => $stats,
-                'memory_usage' => [
-                    'current' => memory_get_usage(true),
-                    'peak' => memory_get_peak_usage(true)
-                ]
-            ]
-        ]);
-    }
-
-    /**
-     * Test connection to LLM providers
-     */
-    public function test_connection()
-    {
-        $results = [];
-
-        foreach ($this->api_keys as $provider => $key) {
-            if (empty($key)) {
-                $results[$provider] = [
-                    'status' => 'skipped',
-                    'message' => 'No API key configured'
-                ];
-                continue;
-            }
-
-            try {
-                $llm = $this->_get_llm_provider($provider);
-                $response = $llm->process_request(
-                    $provider === 'openai' ? 'gpt-3.5-turbo' : 'claude-2',
-                    [['role' => 'user', 'content' => 'test']]
-                );
-
-                $results[$provider] = [
-                    'status' => 'success',
-                    'message' => 'Connection successful'
-                ];
-
-            } catch (\Exception $e) {
-                $results[$provider] = [
-                    'status' => 'error',
-                    'message' => $e->getMessage()
-                ];
-            }
-        }
-
-        return $this->response->setJSON([
-            'success' => true,
-            'data' => $results
-        ]);
+        $this->use_simulated_responses = env('USE_SIMULATED_RESPONSES', false);
+        $this->allowed_origins = env('ALLOWED_ORIGINS', '*');
     }
 }
