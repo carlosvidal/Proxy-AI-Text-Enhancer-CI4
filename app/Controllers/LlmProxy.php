@@ -954,6 +954,27 @@ class LlmProxy extends Controller
             }
         }
 
+        // Al final del streaming, guardar el log
+        if (!empty($buffer)) {
+            $db = db_connect();
+            
+            // Log usage and get ID
+            $usage_result = $this->_check_and_update_quota($tenant_id, $external_id, 0, 0, $provider, $model);
+            $usage_log_id = $db->insertID();
+
+            // Log the prompt and response
+            $prompt_log = [
+                'usage_log_id' => $usage_log_id,
+                'tenant_id' => $tenant_id,
+                'button_id' => isset($this->request->getPost()['buttonId']) ? $this->request->getPost()['buttonId'] : null,
+                'messages' => json_encode($this->request->getPost()['messages'] ?? []),
+                'response' => json_encode(['content' => $buffer]),
+                'created_at' => date('Y-m-d H:i:s')
+            ];
+            
+            $db->table('prompt_logs')->insert($prompt_log);
+        }
+
         return strlen($data);
     }
 
@@ -1099,77 +1120,66 @@ class LlmProxy extends Controller
      */
     private function _check_and_update_quota($tenant_id, $external_id, $tokens_in = 0, $tokens_out = 0, $provider = '', $model = '')
     {
-        $request_id = uniqid('quota_update_');
-        log_info('QUOTA', 'Checking and updating quota', [
-            'request_id' => $request_id,
-            'tenant_id' => $tenant_id,
-            'external_id' => $external_id,
-            'tokens_in' => $tokens_in,
-            'tokens_out' => $tokens_out
-        ]);
+        $request_id = uniqid('quota_');
+        $db = db_connect();
+
+        // Calculate total tokens and cost
+        $result = $this->_calculate_request_cost($provider, $model, $tokens_in, $tokens_out);
+        $total_tokens = $result['tokens'];
+        $cost = $result['cost'];
 
         try {
-            // Get current quota
-            $quota = $this->llm_proxy_model->check_quota($tenant_id, $external_id);
+            // Get user information
+            $user = $db->table('api_users')
+                ->where('tenant_id', $tenant_id)
+                ->where('external_id', $external_id)
+                ->get()
+                ->getRow();
 
-            log_debug('QUOTA', 'Current quota status', [
-                'request_id' => $request_id,
-                'quota_limit' => $quota['limit'] ?? 0,
-                'quota_used' => $quota['used'] ?? 0,
-                'quota_remaining' => $quota['remaining'] ?? 0,
-                'reset_date' => $quota['reset_date'] ?? 'not set'
-            ]);
-
-            // Calculate token cost
-            $total_tokens = $tokens_in + $tokens_out;
-            if ($quota['remaining'] < $total_tokens) {
-                log_warning('QUOTA', 'Quota exceeded', [
+            if (!$user) {
+                log_error('QUOTA', 'User not found', [
                     'request_id' => $request_id,
                     'tenant_id' => $tenant_id,
-                    'external_id' => $external_id,
-                    'tokens_requested' => $total_tokens,
-                    'tokens_remaining' => $quota['remaining']
+                    'external_id' => $external_id
                 ]);
-                throw new \Exception('Quota exceeded');
+                return false;
             }
 
-            // Update quota usage
-            $this->llm_proxy_model->update_quota_usage($tenant_id, $external_id, $total_tokens);
-
             // Log usage
-            $cost = $this->_calculate_request_cost($provider, $model, $tokens_in, $tokens_out);
-            $this->llm_proxy_model->log_usage($tenant_id, $external_id, [
+            $usage_data = [
+                'tenant_id' => $tenant_id,
+                'user_id' => $user->user_id,
+                'external_id' => $external_id,
+                'button_id' => isset($this->request->getPost()['buttonId']) ? $this->request->getPost()['buttonId'] : null,
                 'provider' => $provider,
                 'model' => $model,
-                'tokens_in' => $tokens_in,
-                'tokens_out' => $tokens_out,
-                'cost' => $cost
-            ]);
+                'has_image' => isset($this->request->getPost()['hasImage']) ? $this->request->getPost()['hasImage'] : 0,
+                'status' => 'success',
+                'tokens' => $total_tokens,
+                'cost' => $cost,
+                'created_at' => date('Y-m-d H:i:s')
+            ];
+
+            $db->table('usage_logs')->insert($usage_data);
 
             log_info('QUOTA', 'Usage logged successfully', [
                 'request_id' => $request_id,
                 'tenant_id' => $tenant_id,
                 'external_id' => $external_id,
-                'provider' => $provider,
-                'model' => $model,
-                'total_tokens' => $total_tokens,
+                'tokens' => $total_tokens,
                 'cost' => $cost
             ]);
 
-            return [
-                'success' => true,
-                'tokens_used' => $total_tokens,
-                'tokens_remaining' => $quota['remaining'] - $total_tokens
-            ];
+            return true;
+
         } catch (\Exception $e) {
             log_error('QUOTA', 'Error updating quota', [
                 'request_id' => $request_id,
                 'tenant_id' => $tenant_id,
                 'external_id' => $external_id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'error' => $e->getMessage()
             ]);
-            throw $e;
+            return false;
         }
     }
 
@@ -1178,46 +1188,78 @@ class LlmProxy extends Controller
      */
     private function _calculate_request_cost($provider, $model, $tokens_in, $tokens_out)
     {
-        $request_id = uniqid('cost_calc_');
+        $total_tokens = $tokens_in + $tokens_out;
+        $cost = 0.0;
 
-        // Default rates per 1K tokens (in USD)
-        $rates = [
-            'openai' => [
-                'gpt-4' => ['input' => 0.03, 'output' => 0.06],
-                'gpt-4-32k' => ['input' => 0.06, 'output' => 0.12],
-                'gpt-3.5-turbo' => ['input' => 0.0015, 'output' => 0.002],
-                'gpt-3.5-turbo-16k' => ['input' => 0.003, 'output' => 0.004]
-            ],
-            'anthropic' => [
-                'claude-2' => ['input' => 0.008, 'output' => 0.024],
-                'claude-instant-1' => ['input' => 0.0008, 'output' => 0.0024]
-            ]
+        switch ($provider) {
+            case 'openai':
+                switch ($model) {
+                    case 'gpt-4-turbo':
+                    case 'gpt-4-vision':
+                        $cost = $total_tokens * 0.00003;
+                        break;
+                    case 'gpt-3.5-turbo':
+                        $cost = $total_tokens * 0.000002;
+                        break;
+                    default:
+                        $cost = $total_tokens * 0.00001;
+                }
+                break;
+
+            case 'anthropic':
+                switch ($model) {
+                    case 'claude-3-opus-20240229':
+                        $cost = $total_tokens * 0.00015;
+                        break;
+                    case 'claude-3-sonnet-20240229':
+                        $cost = $total_tokens * 0.00003;
+                        break;
+                    case 'claude-3-haiku-20240307':
+                        $cost = $total_tokens * 0.00001;
+                        break;
+                    default:
+                        $cost = $total_tokens * 0.00003;
+                }
+                break;
+
+            case 'mistral':
+                switch ($model) {
+                    case 'mistral-large':
+                        $cost = $total_tokens * 0.00002;
+                        break;
+                    case 'mistral-medium':
+                        $cost = $total_tokens * 0.000014;
+                        break;
+                    case 'mistral-small':
+                        $cost = $total_tokens * 0.000006;
+                        break;
+                    case 'mistral-tiny':
+                        $cost = $total_tokens * 0.000002;
+                        break;
+                    default:
+                        $cost = $total_tokens * 0.00001;
+                }
+                break;
+
+            case 'google':
+                switch ($model) {
+                    case 'gemini-pro':
+                    case 'gemini-pro-vision':
+                        $cost = $total_tokens * 0.000001;
+                        break;
+                    default:
+                        $cost = $total_tokens * 0.000001;
+                }
+                break;
+
+            default:
+                $cost = $total_tokens * 0.00001;
+        }
+
+        return [
+            'tokens' => $total_tokens,
+            'cost' => $cost
         ];
-
-        log_debug('COST', 'Calculating request cost', [
-            'request_id' => $request_id,
-            'provider' => $provider,
-            'model' => $model,
-            'tokens_in' => $tokens_in,
-            'tokens_out' => $tokens_out
-        ]);
-
-        // Get rates for provider/model
-        $model_rates = $rates[$provider][$model] ?? ['input' => 0, 'output' => 0];
-
-        // Calculate cost
-        $input_cost = ($tokens_in / 1000) * $model_rates['input'];
-        $output_cost = ($tokens_out / 1000) * $model_rates['output'];
-        $total_cost = $input_cost + $output_cost;
-
-        log_debug('COST', 'Cost calculation completed', [
-            'request_id' => $request_id,
-            'input_cost' => $input_cost,
-            'output_cost' => $output_cost,
-            'total_cost' => $total_cost
-        ]);
-
-        return $total_cost;
     }
 
     /**
