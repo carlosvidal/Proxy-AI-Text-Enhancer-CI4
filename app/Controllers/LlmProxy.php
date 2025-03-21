@@ -405,4 +405,246 @@ class LlmProxy extends Controller
                 throw new \Exception("Invalid provider: {$provider}");
         }
     }
+
+    /**
+     * Get quota information for tenant
+     */
+    public function quota()
+    {
+        // Verificar que sea una petición GET
+        if (service('request')->getMethod() !== 'get') {
+            return $this->response
+                ->setContentType('application/json')
+                ->setStatusCode(405)
+                ->setJSON(['error' => ['message' => 'Method not allowed']]);
+        }
+
+        try {
+            // Get domain from headers
+            $domain = $this->_extract_domain_from_headers();
+
+            // Ensure user exists
+            $tenant_id = $this->_ensure_user_exists($domain);
+
+            // Get tenant's quota information
+            $db = db_connect();
+            $tenant = $db->table('tenants')
+                ->where('tenant_id', $tenant_id)
+                ->get()
+                ->getRowArray();
+
+            if (!$tenant) {
+                throw new \Exception('Tenant not found');
+            }
+
+            // Return quota information
+            return $this->response->setJSON([
+                'success' => true,
+                'data' => [
+                    'tenant_id' => $tenant_id,
+                    'domain' => $domain,
+                    'quota_used' => (int)$tenant['quota_used'],
+                    'quota_limit' => (int)$tenant['quota_limit'],
+                    'quota_remaining' => (int)$tenant['quota_limit'] - (int)$tenant['quota_used']
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            log_error('QUOTA', 'Error getting quota information', [
+                'domain' => $domain ?? 'unknown',
+                'error' => $e->getMessage()
+            ]);
+
+            return $this->response->setStatusCode(500)->setJSON([
+                'success' => false,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Install/update database tables
+     */
+    public function install()
+    {
+        try {
+            $db = db_connect();
+
+            // Create tenants table if not exists
+            $db->query("CREATE TABLE IF NOT EXISTS tenants (
+                tenant_id VARCHAR(50) PRIMARY KEY,
+                domain VARCHAR(255) NOT NULL,
+                quota_used BIGINT DEFAULT 0,
+                quota_limit BIGINT DEFAULT 1000000,
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL
+            )");
+
+            // Create buttons table if not exists
+            $db->query("CREATE TABLE IF NOT EXISTS buttons (
+                button_id VARCHAR(50) PRIMARY KEY,
+                tenant_id VARCHAR(50) NOT NULL,
+                name VARCHAR(255) NOT NULL,
+                description TEXT,
+                provider VARCHAR(50) NOT NULL,
+                model VARCHAR(50) NOT NULL,
+                system_prompt TEXT,
+                active BOOLEAN DEFAULT TRUE,
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL,
+                FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id) ON DELETE CASCADE
+            )");
+
+            // Create usage_logs table if not exists
+            $db->query("CREATE TABLE IF NOT EXISTS usage_logs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                tenant_id VARCHAR(50) NOT NULL,
+                domain VARCHAR(255) NOT NULL,
+                provider VARCHAR(50) NOT NULL,
+                model VARCHAR(50) NOT NULL,
+                tokens_in INT NOT NULL,
+                tokens_out INT NOT NULL,
+                button_id VARCHAR(50),
+                created_at DATETIME NOT NULL,
+                FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id) ON DELETE CASCADE,
+                FOREIGN KEY (button_id) REFERENCES buttons(button_id) ON DELETE SET NULL
+            )");
+
+            // Create prompt_logs table if not exists
+            $db->query("CREATE TABLE IF NOT EXISTS prompt_logs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                usage_log_id INT NOT NULL,
+                messages TEXT NOT NULL,
+                system_prompt TEXT,
+                system_prompt_source VARCHAR(50),
+                response TEXT NOT NULL,
+                created_at DATETIME NOT NULL,
+                FOREIGN KEY (usage_log_id) REFERENCES usage_logs(id) ON DELETE CASCADE
+            )");
+
+            return $this->response->setJSON([
+                'success' => true,
+                'message' => 'Database tables created/updated successfully'
+            ]);
+
+        } catch (\Exception $e) {
+            log_error('INSTALL', 'Error installing database tables', [
+                'error' => $e->getMessage()
+            ]);
+
+            return $this->response->setStatusCode(500)->setJSON([
+                'success' => false,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
+     * Get proxy status
+     */
+    public function status()
+    {
+        $db = db_connect();
+
+        // Verificar si las API keys están configuradas
+        $api_keys_status = [];
+        foreach ($this->api_keys as $provider => $key) {
+            $api_keys_status[$provider] = !empty($key);
+        }
+
+        // Get database status
+        $db_status = false;
+        try {
+            $db->query('SELECT 1');
+            $db_status = true;
+        } catch (\Exception $e) {
+            log_error('STATUS', 'Database connection error', [
+                'error' => $e->getMessage()
+            ]);
+        }
+
+        // Get usage statistics
+        $stats = [
+            'total_requests' => 0,
+            'total_tokens' => 0,
+            'active_tenants' => 0,
+            'total_buttons' => 0
+        ];
+
+        try {
+            $stats['total_requests'] = $db->table('usage_logs')->countAll();
+            $stats['total_tokens'] = $db->table('usage_logs')
+                ->selectSum('tokens_in')
+                ->selectSum('tokens_out')
+                ->get()
+                ->getRowArray();
+            $stats['active_tenants'] = $db->table('tenants')->countAll();
+            $stats['total_buttons'] = $db->table('buttons')->countAll();
+        } catch (\Exception $e) {
+            log_error('STATUS', 'Error getting statistics', [
+                'error' => $e->getMessage()
+            ]);
+        }
+
+        return $this->response->setJSON([
+            'success' => true,
+            'data' => [
+                'version' => '1.0.0',
+                'environment' => ENVIRONMENT,
+                'database' => [
+                    'connected' => $db_status,
+                    'driver' => $db->DBDriver,
+                    'version' => $db->getVersion()
+                ],
+                'providers' => $api_keys_status,
+                'stats' => $stats,
+                'memory_usage' => [
+                    'current' => memory_get_usage(true),
+                    'peak' => memory_get_peak_usage(true)
+                ]
+            ]
+        ]);
+    }
+
+    /**
+     * Test connection to LLM providers
+     */
+    public function test_connection()
+    {
+        $results = [];
+
+        foreach ($this->api_keys as $provider => $key) {
+            if (empty($key)) {
+                $results[$provider] = [
+                    'status' => 'skipped',
+                    'message' => 'No API key configured'
+                ];
+                continue;
+            }
+
+            try {
+                $llm = $this->_get_llm_provider($provider);
+                $response = $llm->process_request(
+                    $provider === 'openai' ? 'gpt-3.5-turbo' : 'claude-2',
+                    [['role' => 'user', 'content' => 'test']]
+                );
+
+                $results[$provider] = [
+                    'status' => 'success',
+                    'message' => 'Connection successful'
+                ];
+
+            } catch (\Exception $e) {
+                $results[$provider] = [
+                    'status' => 'error',
+                    'message' => $e->getMessage()
+                ];
+            }
+        }
+
+        return $this->response->setJSON([
+            'success' => true,
+            'data' => $results
+        ]);
+    }
 }
