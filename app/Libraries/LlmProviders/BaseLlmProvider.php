@@ -70,7 +70,13 @@ abstract class BaseLlmProvider implements LlmProviderInterface
                 throw new \Exception('Provider API error: ' . $response);
             }
 
-            return json_decode($response, true);
+            // Ensure we get an array back, not an object
+            $decoded = json_decode($response, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                throw new \Exception('Error decoding JSON response: ' . json_last_error_msg());
+            }
+
+            return $decoded;
         }
     }
 
