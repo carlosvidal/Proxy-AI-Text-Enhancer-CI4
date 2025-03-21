@@ -5,6 +5,10 @@ namespace App\Controllers;
 use CodeIgniter\Controller;
 use CodeIgniter\HTTP\ResponseInterface;
 use App\Models\LlmProxyModel;
+use App\Libraries\LlmProviders\OpenAiProvider;
+use App\Libraries\LlmProviders\AnthropicProvider;
+use App\Libraries\LlmProviders\GoogleProvider;
+use App\Libraries\LlmProviders\AzureProvider;
 
 /**
  * LlmProxy Controller
@@ -49,6 +53,38 @@ class LlmProxy extends Controller
             'environment' => ENVIRONMENT,
             'providers_configured' => array_filter($this->api_keys, fn($key) => !empty($key))
         ]);
+    }
+
+    /**
+     * Initialize proxy configuration
+     * 
+     * Carga la configuración del proxy desde el archivo de configuración
+     * y establece las variables necesarias
+     */
+    private function _initialize_config()
+    {
+        // Load configuration
+        $config = config('Proxy');
+
+        // Set API keys
+        $this->api_keys = [
+            'openai' => getenv('OPENAI_API_KEY') ?: $config->openaiApiKey,
+            'anthropic' => getenv('ANTHROPIC_API_KEY') ?: $config->anthropicApiKey,
+            'google' => getenv('GOOGLE_API_KEY') ?: $config->googleApiKey,
+            'azure' => getenv('AZURE_API_KEY') ?: $config->azureApiKey
+        ];
+
+        // Set endpoints
+        $this->endpoints = [
+            'openai' => getenv('OPENAI_API_ENDPOINT') ?: $config->openaiEndpoint,
+            'anthropic' => getenv('ANTHROPIC_API_ENDPOINT') ?: $config->anthropicEndpoint,
+            'google' => getenv('GOOGLE_API_ENDPOINT') ?: $config->googleEndpoint,
+            'azure' => getenv('AZURE_API_ENDPOINT') ?: $config->azureEndpoint
+        ];
+
+        // Set other configuration
+        $this->use_simulated_responses = getenv('USE_SIMULATED_RESPONSES') === 'true' || $config->useSimulatedResponses;
+        $this->allowed_origins = getenv('ALLOWED_ORIGINS') ?: $config->allowedOrigins;
     }
 
     /**
@@ -269,6 +305,42 @@ class LlmProxy extends Controller
         }
 
         return strlen($data);
+    }
+
+    /**
+     * Get LLM provider instance
+     */
+    private function _get_llm_provider($provider)
+    {
+        switch ($provider) {
+            case 'openai':
+                return new OpenAiProvider($this->api_keys['openai'], $this->endpoints['openai']);
+            case 'anthropic':
+                return new AnthropicProvider($this->api_keys['anthropic'], $this->endpoints['anthropic']);
+            case 'google':
+                return new GoogleProvider($this->api_keys['google'], $this->endpoints['google']);
+            case 'azure':
+                return new AzureProvider($this->api_keys['azure'], $this->endpoints['azure']);
+            default:
+                throw new \Exception("Invalid provider: {$provider}");
+        }
+    }
+
+    /**
+     * Check and update quota for tenant
+     */
+    private function _check_and_update_quota($tenant_id, $external_id, $tokens_in, $tokens_out, $provider, $model)
+    {
+        // Get tenant's current quota usage
+        $quota = $this->llm_proxy_model->get_tenant_quota($tenant_id);
+        
+        // Check if tenant has exceeded their quota
+        if ($quota['tokens_used'] + $tokens_in + $tokens_out > $quota['tokens_limit']) {
+            throw new \Exception('Quota exceeded for tenant');
+        }
+
+        // Update quota usage
+        $this->llm_proxy_model->update_tenant_quota($tenant_id, $tokens_in + $tokens_out);
     }
 
     // ... resto del código ...
