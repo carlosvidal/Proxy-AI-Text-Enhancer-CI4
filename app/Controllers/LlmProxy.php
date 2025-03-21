@@ -30,7 +30,7 @@ class LlmProxy extends Controller
     public function __construct()
     {
         // Load necessary helpers
-        helper(['url', 'form', 'logger', 'jwt', 'api_key', 'image_proxy']);
+        helper(['url', 'form', 'logger', 'jwt', 'api_key', 'image_proxy', 'hash']);
 
         // Initialize proxy model
         $this->llm_proxy_model = new LlmProxyModel();
@@ -124,7 +124,7 @@ class LlmProxy extends Controller
 
         } catch (\Exception $e) {
             // Log error
-            log_message('error', 'Error processing LLM request', [
+            log_message('error', 'Error processing LLM request: ' . $e->getMessage(), [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -135,6 +135,41 @@ class LlmProxy extends Controller
                 'error' => $e->getMessage()
             ]);
         }
+    }
+
+    /**
+     * Ensures a user exists for a tenant, creating them if needed
+     */
+    private function _ensure_user_exists($domain)
+    {
+        $db = db_connect();
+
+        // Try to find existing tenant by domain
+        $tenant = $db->table('tenants')
+            ->where('name', $domain)
+            ->get()
+            ->getRowArray();
+
+        // If tenant doesn't exist, create one
+        if (!$tenant) {
+            $tenant_id = generate_hash_id('ten');
+            $db->table('tenants')->insert([
+                'tenant_id' => $tenant_id,
+                'name' => $domain,
+                'active' => true,
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s')
+            ]);
+
+            log_info('TENANT', 'Created new tenant', [
+                'tenant_id' => $tenant_id,
+                'domain' => $domain
+            ]);
+
+            return $tenant_id;
+        }
+
+        return $tenant['tenant_id'];
     }
 
     /**
@@ -331,5 +366,25 @@ class LlmProxy extends Controller
 
         $this->use_simulated_responses = env('USE_SIMULATED_RESPONSES', false);
         $this->allowed_origins = env('ALLOWED_ORIGINS', '*');
+    }
+
+    /**
+     * Process LLM request
+     */
+    public function process()
+    {
+        return $this->index();
+    }
+
+    /**
+     * Handle OPTIONS request for CORS
+     */
+    public function options()
+    {
+        return $this->response
+            ->setHeader('Access-Control-Allow-Origin', $this->allowed_origins)
+            ->setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization')
+            ->setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+            ->setStatusCode(200);
     }
 }
