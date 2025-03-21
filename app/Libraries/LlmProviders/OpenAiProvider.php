@@ -39,7 +39,13 @@ class OpenAiProvider extends BaseLlmProvider
             throw new \Exception('Unexpected response format from OpenAI');
         }
 
-        return $response;
+        // Devolver la respuesta en el formato esperado por el controlador
+        return [
+            'response' => $response['choices'][0]['message']['content'],
+            'tokens_in' => $response['usage']['prompt_tokens'] ?? 0,
+            'tokens_out' => $response['usage']['completion_tokens'] ?? 0,
+            'raw_response' => $response // Mantener la respuesta completa para referencia
+        ];
     }
 
     /**
@@ -69,9 +75,8 @@ class OpenAiProvider extends BaseLlmProvider
     {
         // Implementación básica - OpenAI proporciona el conteo en la respuesta
         return [
-            'prompt_tokens' => 0,
-            'completion_tokens' => 0,
-            'total_tokens' => 0
+            'tokens_in' => 0,
+            'tokens_out' => 0
         ];
     }
 }
