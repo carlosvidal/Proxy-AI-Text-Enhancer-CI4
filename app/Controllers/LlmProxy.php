@@ -312,48 +312,55 @@ class LlmProxy extends Controller
     private function _log_usage($tenant_id, $external_id, $button_id, $provider, $model, $total_tokens, $cost = null, $has_image = false)
     {
         try {
-            $usageModel = new \App\Models\UsageLogsModel();
             $db = db_connect();
+            
+            // Generate usage_id
+            helper('hash');
+            $usage_id = generate_hash_id('usage');
 
-            // Mock data para prueba
-            $mock_data = [
-                'usage_id' => 'usage-' . time() . '-test',
-                'tenant_id' => 'ten-67d88d1d-111ae225',
-                'user_id' => '1',
-                'external_id' => '12345',
-                'button_id' => 'BTN00001',
-                'provider' => 'openai',
-                'model' => 'gpt-4',
-                'tokens' => 100,
-                'cost' => 0.002,
-                'has_image' => 0,
+            // Calculate cost if not provided
+            if ($cost === null) {
+                $cost = $this->_calculate_cost($provider, $model, $total_tokens);
+            }
+
+            $data = [
+                'usage_id' => $usage_id,
+                'tenant_id' => $tenant_id,
+                'user_id' => $external_id,
+                'external_id' => $external_id,
+                'button_id' => $button_id,
+                'provider' => $provider,
+                'model' => $model,
+                'tokens' => $total_tokens,
+                'cost' => $cost ?? 0,
+                'has_image' => $has_image ? 1 : 0,
                 'status' => 'success',
                 'created_at' => date('Y-m-d H:i:s')
             ];
 
-            log_debug('USAGE', 'Intentando insertar mock log', [
-                'data' => $mock_data
+            log_debug('USAGE', 'Intentando insertar log', [
+                'data' => $data
             ]);
 
-            // Intento directo con Query Builder
-            $result = $db->table('usage_logs')->insert($mock_data);
+            $result = $db->table('usage_logs')->insert($data);
             
             if (!$result) {
                 $error = $db->error();
-                log_error('USAGE', 'Error al insertar mock log con Query Builder', [
+                log_error('USAGE', 'Error al insertar log', [
                     'error' => $error,
                     'last_query' => $db->getLastQuery() ? $db->getLastQuery()->getQuery() : 'No query available'
                 ]);
                 return false;
             }
 
-            log_debug('USAGE', 'Mock log insertado correctamente', [
+            log_debug('USAGE', 'Log insertado correctamente', [
+                'usage_id' => $usage_id,
                 'insert_id' => $db->insertID()
             ]);
 
             return true;
         } catch (\Exception $e) {
-            log_error('USAGE', 'Excepción al insertar mock log', [
+            log_error('USAGE', 'Excepción al insertar log', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
