@@ -122,44 +122,21 @@ class Usage extends Controller
         }
 
         $tenant_id = session()->get('tenant_id');
-        $data['title'] = 'Usage Logs';
 
-        // Get the latest 100 usage logs for the tenant
         $db = db_connect();
-        $query = $db->query(
-            "
-            SELECT 
-                ul.id,
-                ul.usage_id,
-                ul.tenant_id,
-                ul.user_id,
-                ul.external_id,
-                ul.button_id,
-                ul.provider,
-                ul.model,
-                ul.tokens,
-                ul.cost,
-                ul.status,
-                ul.created_at,
-                COALESCE(b.name, 'API Request') as button_name,
-                COALESCE(au.external_id, ul.external_id) as user_identifier,
-                COALESCE(pl.messages, '[]') as messages,
-                COALESCE(pl.system_prompt, '') as system_prompt,
-                COALESCE(pl.system_prompt_source, '') as system_prompt_source,
-                COALESCE(pl.response, '') as response
-            FROM usage_logs ul
-            LEFT JOIN buttons b ON ul.button_id = b.button_id
-            LEFT JOIN api_users au ON ul.user_id = au.id
-            LEFT JOIN prompt_logs pl ON pl.usage_log_id = ul.id
-            WHERE ul.tenant_id = ?
-            ORDER BY ul.created_at DESC
-            LIMIT 100",
-            [$tenant_id]
-        );
+        $logs = $db->table('usage_logs ul')
+            ->select('ul.*, pl.system_prompt, pl.system_prompt_source, pl.messages, pl.response, b.name as button_name')
+            ->join('prompt_logs pl', 'ul.id = pl.usage_log_id', 'left')
+            ->join('buttons b', 'ul.button_id = b.button_id', 'left')
+            ->where('ul.tenant_id', $tenant_id)
+            ->orderBy('ul.created_at', 'DESC')
+            ->get()
+            ->getResult();
 
-        $data['logs'] = $query->getResult();
-
-        return view('shared/usage/logs', $data);
+        return view('shared/usage/logs', [
+            'title' => 'Usage Logs',
+            'logs' => $logs
+        ]);
     }
 
     /**
