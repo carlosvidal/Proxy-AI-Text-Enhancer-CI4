@@ -148,17 +148,38 @@ class LlmProxy extends Controller
             // Get LLM provider instance
             $llm = $this->_get_llm_provider($provider);
 
-            // Process request through provider
-            $response = $llm->process_request($model, $messages, array_merge($options, ['stream' => $stream]));
+            if ($stream) {
+                // Set headers for streaming response
+                header('Content-Type: text/event-stream');
+                header('Cache-Control: no-cache');
+                header('Connection: keep-alive');
+                header('X-Accel-Buffering: no');
 
-            // Log usage
-            $this->_log_usage($tenant_id, $domain, $provider, $model, $response['tokens_in'], $response['tokens_out'], $messages, $response['response'], $button_id);
+                // Get streaming function
+                $stream_fn = $llm->process_stream_request($model, $messages, $options);
 
-            // Return successful response
-            return $this->response->setJSON([
-                'success' => true,
-                'data' => $response
-            ]);
+                // Start streaming
+                $response = $stream_fn();
+
+                // Log usage after streaming completes
+                $usage = $llm->get_token_usage($messages);
+                $this->_log_usage($tenant_id, $domain, $provider, $model, $usage['tokens_in'], $usage['tokens_out'], $messages, $response, $button_id);
+
+                // Return empty response since we've already sent the stream
+                return '';
+            } else {
+                // Process request normally
+                $response = $llm->process_request($model, $messages, $options);
+
+                // Log usage
+                $this->_log_usage($tenant_id, $domain, $provider, $model, $response['tokens_in'], $response['tokens_out'], $messages, $response['response'], $button_id);
+
+                // Return successful response
+                return $this->response->setJSON([
+                    'success' => true,
+                    'data' => $response
+                ]);
+            }
 
         } catch (\Exception $e) {
             // Log error
@@ -468,59 +489,9 @@ class LlmProxy extends Controller
     public function install()
     {
         try {
-            $db = db_connect();
-
-            // Create tenants table if not exists
-            $db->query("CREATE TABLE IF NOT EXISTS tenants (
-                tenant_id VARCHAR(50) PRIMARY KEY,
-                domain VARCHAR(255) NOT NULL,
-                quota_used BIGINT DEFAULT 0,
-                quota_limit BIGINT DEFAULT 1000000,
-                created_at DATETIME NOT NULL,
-                updated_at DATETIME NOT NULL
-            )");
-
-            // Create buttons table if not exists
-            $db->query("CREATE TABLE IF NOT EXISTS buttons (
-                button_id VARCHAR(50) PRIMARY KEY,
-                tenant_id VARCHAR(50) NOT NULL,
-                name VARCHAR(255) NOT NULL,
-                description TEXT,
-                provider VARCHAR(50) NOT NULL,
-                model VARCHAR(50) NOT NULL,
-                system_prompt TEXT,
-                active BOOLEAN DEFAULT TRUE,
-                created_at DATETIME NOT NULL,
-                updated_at DATETIME NOT NULL,
-                FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id) ON DELETE CASCADE
-            )");
-
-            // Create usage_logs table if not exists
-            $db->query("CREATE TABLE IF NOT EXISTS usage_logs (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                tenant_id VARCHAR(50) NOT NULL,
-                domain VARCHAR(255) NOT NULL,
-                provider VARCHAR(50) NOT NULL,
-                model VARCHAR(50) NOT NULL,
-                tokens_in INT NOT NULL,
-                tokens_out INT NOT NULL,
-                button_id VARCHAR(50),
-                created_at DATETIME NOT NULL,
-                FOREIGN KEY (tenant_id) REFERENCES tenants(tenant_id) ON DELETE CASCADE,
-                FOREIGN KEY (button_id) REFERENCES buttons(button_id) ON DELETE SET NULL
-            )");
-
-            // Create prompt_logs table if not exists
-            $db->query("CREATE TABLE IF NOT EXISTS prompt_logs (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                usage_log_id INT NOT NULL,
-                messages TEXT NOT NULL,
-                system_prompt TEXT,
-                system_prompt_source VARCHAR(50),
-                response TEXT NOT NULL,
-                created_at DATETIME NOT NULL,
-                FOREIGN KEY (usage_log_id) REFERENCES usage_logs(id) ON DELETE CASCADE
-            )");
+            // Run migrations
+            $migrate = \Config\Services::migrations();
+            $migrate->latest();
 
             return $this->response->setJSON([
                 'success' => true,

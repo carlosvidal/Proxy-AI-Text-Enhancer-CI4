@@ -30,6 +30,7 @@ class Filters extends BaseConfig
         'jwt' => \App\Filters\JwtFilter::class, // Added JWT filter
         'compress' => \App\Filters\CompressionFilter::class, // Added compression filter
         'language' => \App\Filters\LanguageFilter::class, // Added language filter
+        'admin' => \App\Filters\AdminFilter::class, // Added admin filter
     ];
 
     /**
@@ -102,6 +103,11 @@ class Filters extends BaseConfig
                 'api/quota/*',      // All quota endpoints
                 'api/*/stats',      // Any stats endpoints
                 'api/*/usage',      // Any usage endpoints
+            ]
+        ],
+        'admin' => [
+            'before' => [
+                // Add URI patterns for admin filter here
             ]
         ],
     ];

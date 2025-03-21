@@ -2,10 +2,10 @@
 
 namespace App\Libraries\LlmProviders;
 
-class OpenAiProvider extends BaseLlmProvider
+class GoogleProvider extends BaseLlmProvider
 {
     /**
-     * Process a request through OpenAI's API
+     * Process a request through Google's API
      */
     public function process_request(string $model, array $messages, array $options = []): array
     {
@@ -13,26 +13,25 @@ class OpenAiProvider extends BaseLlmProvider
             'model' => $model,
             'messages' => $messages,
             'temperature' => $options['temperature'] ?? 0.7,
-            'max_tokens' => $options['max_tokens'] ?? 2000,
-            'frequency_penalty' => $options['frequency_penalty'] ?? 0,
-            'presence_penalty' => $options['presence_penalty'] ?? 0,
+            'maxOutputTokens' => $options['max_tokens'] ?? 2000,
             'stream' => false
         ];
 
         $response = $this->make_request(
-            $this->endpoint . '/chat/completions',
-            $data
+            $this->endpoint . '/v1/models/' . $model . ':generateContent',
+            $data,
+            ['x-goog-api-key: ' . $this->api_key]
         );
 
         return [
-            'response' => $response['choices'][0]['message']['content'],
-            'tokens_in' => $response['usage']['prompt_tokens'],
-            'tokens_out' => $response['usage']['completion_tokens']
+            'response' => $response['candidates'][0]['content']['parts'][0]['text'],
+            'tokens_in' => $response['usage']['promptTokenCount'],
+            'tokens_out' => $response['usage']['candidatesTokenCount']
         ];
     }
 
     /**
-     * Process a streaming request through OpenAI's API
+     * Process a streaming request through Google's API
      */
     public function process_stream_request(string $model, array $messages, array $options = []): callable
     {
@@ -40,16 +39,14 @@ class OpenAiProvider extends BaseLlmProvider
             'model' => $model,
             'messages' => $messages,
             'temperature' => $options['temperature'] ?? 0.7,
-            'max_tokens' => $options['max_tokens'] ?? 2000,
-            'frequency_penalty' => $options['frequency_penalty'] ?? 0,
-            'presence_penalty' => $options['presence_penalty'] ?? 0,
+            'maxOutputTokens' => $options['max_tokens'] ?? 2000,
             'stream' => true
         ];
 
         return $this->make_request(
-            $this->endpoint . '/chat/completions',
+            $this->endpoint . '/v1/models/' . $model . ':generateContent',
             $data,
-            [],
+            ['x-goog-api-key: ' . $this->api_key],
             true
         );
     }

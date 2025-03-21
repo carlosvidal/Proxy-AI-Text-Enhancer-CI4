@@ -2,10 +2,10 @@
 
 namespace App\Libraries\LlmProviders;
 
-class OpenAiProvider extends BaseLlmProvider
+class AzureProvider extends BaseLlmProvider
 {
     /**
-     * Process a request through OpenAI's API
+     * Process a request through Azure's API
      */
     public function process_request(string $model, array $messages, array $options = []): array
     {
@@ -14,14 +14,13 @@ class OpenAiProvider extends BaseLlmProvider
             'messages' => $messages,
             'temperature' => $options['temperature'] ?? 0.7,
             'max_tokens' => $options['max_tokens'] ?? 2000,
-            'frequency_penalty' => $options['frequency_penalty'] ?? 0,
-            'presence_penalty' => $options['presence_penalty'] ?? 0,
             'stream' => false
         ];
 
         $response = $this->make_request(
-            $this->endpoint . '/chat/completions',
-            $data
+            $this->endpoint . '/openai/deployments/' . $model . '/chat/completions?api-version=2024-02-15-preview',
+            $data,
+            ['api-key: ' . $this->api_key]
         );
 
         return [
@@ -32,7 +31,7 @@ class OpenAiProvider extends BaseLlmProvider
     }
 
     /**
-     * Process a streaming request through OpenAI's API
+     * Process a streaming request through Azure's API
      */
     public function process_stream_request(string $model, array $messages, array $options = []): callable
     {
@@ -41,15 +40,13 @@ class OpenAiProvider extends BaseLlmProvider
             'messages' => $messages,
             'temperature' => $options['temperature'] ?? 0.7,
             'max_tokens' => $options['max_tokens'] ?? 2000,
-            'frequency_penalty' => $options['frequency_penalty'] ?? 0,
-            'presence_penalty' => $options['presence_penalty'] ?? 0,
             'stream' => true
         ];
 
         return $this->make_request(
-            $this->endpoint . '/chat/completions',
+            $this->endpoint . '/openai/deployments/' . $model . '/chat/completions?api-version=2024-02-15-preview',
             $data,
-            [],
+            ['api-key: ' . $this->api_key],
             true
         );
     }
