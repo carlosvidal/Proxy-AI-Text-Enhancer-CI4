@@ -97,7 +97,7 @@ class LlmProxy extends Controller
             }
 
             if (!$external_id) {
-                throw new \Exception('Missing user_id: User identifier is required');
+                throw new \Exception('Missing user_id in request');
             }
 
             // Get domain from headers
