@@ -89,7 +89,7 @@ class LlmProxy extends Controller
             $messages = $json->messages ?? [];
             $options = $json->options ?? [];
             $stream = $json->stream ?? false;
-            $external_id = $json->user_id ?? null; // Get user_id from request and store as external_id
+            $external_id = $json->userId ?? $json->user_id ?? null; // Aceptar tanto userId como user_id
 
             // Validate required parameters
             if (!$model || empty($messages)) {
