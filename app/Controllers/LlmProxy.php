@@ -408,18 +408,21 @@ class LlmProxy extends Controller
                 'created_at' => date('Y-m-d H:i:s')
             ];
 
-            log_debug('USAGE', 'Intentando insertar log', $data);
+            log_debug('USAGE', 'Intentando insertar log', [
+                'data' => $data,
+                'validation_rules' => $usageModel->getValidationRules()
+            ]);
 
             if (!$usageModel->insert($data)) {
                 $errors = $usageModel->errors();
+                $dbError = $db->error();
                 log_error('USAGE', 'Error al insertar log', [
-                    'error' => implode(', ', $errors),
+                    'validation_errors' => $errors,
                     'data' => $data,
-                    'validation_rules' => $usageModel->getValidationRules(),
-                    'last_query' => $db->getLastQuery(),
-                    'db_error' => $db->error(),
-                    'db_error_message' => $db->error()['message'] ?? 'No message',
-                    'model_errors' => $errors
+                    'db_error' => $dbError,
+                    'db_error_number' => $dbError['code'] ?? '',
+                    'db_error_message' => $dbError['message'] ?? '',
+                    'last_query' => $db->getLastQuery() ? $db->getLastQuery()->getQuery() : 'No query available'
                 ]);
                 return false;
             }
