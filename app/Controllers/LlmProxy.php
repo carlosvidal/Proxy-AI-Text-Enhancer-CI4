@@ -7,6 +7,7 @@ use CodeIgniter\HTTP\ResponseInterface;
 use App\Models\LlmProxyModel;
 use App\Libraries\LlmProviders\OpenAiProvider;
 use App\Libraries\LlmProviders\AnthropicProvider;
+use App\Libraries\LlmProviders\MistralProvider;
 use App\Libraries\LlmProviders\GoogleProvider;
 use App\Libraries\LlmProviders\AzureProvider;
 
@@ -70,6 +71,7 @@ class LlmProxy extends Controller
         $this->api_keys = [
             'openai' => getenv('OPENAI_API_KEY') ?: $config->openaiApiKey,
             'anthropic' => getenv('ANTHROPIC_API_KEY') ?: $config->anthropicApiKey,
+            'mistral' => getenv('MISTRAL_API_KEY') ?: $config->mistralApiKey,
             'google' => getenv('GOOGLE_API_KEY') ?: $config->googleApiKey,
             'azure' => getenv('AZURE_API_KEY') ?: $config->azureApiKey
         ];
@@ -78,6 +80,7 @@ class LlmProxy extends Controller
         $this->endpoints = [
             'openai' => getenv('OPENAI_API_ENDPOINT') ?: $config->openaiEndpoint,
             'anthropic' => getenv('ANTHROPIC_API_ENDPOINT') ?: $config->anthropicEndpoint,
+            'mistral' => getenv('MISTRAL_API_ENDPOINT') ?: $config->mistralEndpoint,
             'google' => getenv('GOOGLE_API_ENDPOINT') ?: $config->googleEndpoint,
             'azure' => getenv('AZURE_API_ENDPOINT') ?: $config->azureEndpoint
         ];
@@ -312,11 +315,21 @@ class LlmProxy extends Controller
      */
     private function _get_llm_provider($provider)
     {
+        // Verificar que el provider tenga API key configurada
+        if (empty($this->api_keys[$provider])) {
+            log_message('error', 'API key not configured for provider', [
+                'provider' => $provider
+            ]);
+            throw new \Exception('API key not configured for provider');
+        }
+
         switch ($provider) {
             case 'openai':
                 return new OpenAiProvider($this->api_keys['openai'], $this->endpoints['openai']);
             case 'anthropic':
                 return new AnthropicProvider($this->api_keys['anthropic'], $this->endpoints['anthropic']);
+            case 'mistral':
+                return new MistralProvider($this->api_keys['mistral'], $this->endpoints['mistral']);
             case 'google':
                 return new GoogleProvider($this->api_keys['google'], $this->endpoints['google']);
             case 'azure':

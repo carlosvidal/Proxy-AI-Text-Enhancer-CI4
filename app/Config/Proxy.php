@@ -11,6 +11,7 @@ class Proxy extends BaseConfig
      */
     public $openaiApiKey = '';
     public $anthropicApiKey = '';
+    public $mistralApiKey = '';
     public $googleApiKey = '';
     public $azureApiKey = '';
 
@@ -19,6 +20,7 @@ class Proxy extends BaseConfig
      */
     public $openaiEndpoint = 'https://api.openai.com/v1';
     public $anthropicEndpoint = 'https://api.anthropic.com';
+    public $mistralEndpoint = 'https://api.mistral.ai';
     public $googleEndpoint = 'https://generativelanguage.googleapis.com/v1';
     public $azureEndpoint = '';
 
@@ -38,11 +40,13 @@ class Proxy extends BaseConfig
         // Override configuration with environment variables if they exist
         $this->openaiApiKey = getenv('OPENAI_API_KEY') ?: $this->openaiApiKey;
         $this->anthropicApiKey = getenv('ANTHROPIC_API_KEY') ?: $this->anthropicApiKey;
+        $this->mistralApiKey = getenv('MISTRAL_API_KEY') ?: $this->mistralApiKey;
         $this->googleApiKey = getenv('GOOGLE_API_KEY') ?: $this->googleApiKey;
         $this->azureApiKey = getenv('AZURE_API_KEY') ?: $this->azureApiKey;
 
         $this->openaiEndpoint = getenv('OPENAI_API_ENDPOINT') ?: $this->openaiEndpoint;
         $this->anthropicEndpoint = getenv('ANTHROPIC_API_ENDPOINT') ?: $this->anthropicEndpoint;
+        $this->mistralEndpoint = getenv('MISTRAL_API_ENDPOINT') ?: $this->mistralEndpoint;
         $this->googleEndpoint = getenv('GOOGLE_API_ENDPOINT') ?: $this->googleEndpoint;
         $this->azureEndpoint = getenv('AZURE_API_ENDPOINT') ?: $this->azureEndpoint;
 
