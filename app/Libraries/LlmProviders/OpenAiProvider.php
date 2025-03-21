@@ -2,81 +2,135 @@
 
 namespace App\Libraries\LlmProviders;
 
-class OpenAiProvider extends BaseLlmProvider
+class OpenAiProvider extends BaseProvider
 {
-    /**
-     * Process a request through OpenAI
-     */
-    public function process_request(string $model, array $messages, array $options = []): array
+    private $api_key;
+    private $api_url = 'https://api.openai.com/v1/chat/completions';
+
+    public function __construct($api_key)
     {
-        $temperature = $options['temperature'] ?? 0.7;
-        $stream = $options['stream'] ?? false;
-
-        $data = [
-            'model' => $model,
-            'messages' => $messages,
-            'temperature' => floatval($temperature),
-            'stream' => $stream,
-            'max_tokens' => 2000,
-            'frequency_penalty' => 0,
-            'presence_penalty' => 0
-        ];
-
-        $response = $this->make_request($this->endpoint, $data);
-
-        if (isset($response['error'])) {
-            log_error('OPENAI', 'Error en respuesta de OpenAI', [
-                'error' => $response['error']
-            ]);
-            throw new \Exception($response['error']['message'] ?? 'Unknown error from OpenAI');
-        }
-
-        // Asegurarse de que la respuesta tiene la estructura esperada
-        if (!isset($response['choices']) || !isset($response['choices'][0]['message'])) {
-            log_error('OPENAI', 'Respuesta inesperada de OpenAI', [
-                'response' => $response
-            ]);
-            throw new \Exception('Unexpected response format from OpenAI');
-        }
-
-        // Devolver la respuesta en el formato esperado por el controlador
-        return [
-            'response' => $response['choices'][0]['message']['content'],
-            'tokens_in' => $response['usage']['prompt_tokens'] ?? 0,
-            'tokens_out' => $response['usage']['completion_tokens'] ?? 0,
-            'raw_response' => $response // Mantener la respuesta completa para referencia
-        ];
+        $this->api_key = $api_key;
     }
 
-    /**
-     * Process a streaming request through OpenAI
-     */
-    public function process_stream_request(string $model, array $messages, array $options = []): callable
+    public function process_request($model, $messages, $options = [])
     {
-        $temperature = $options['temperature'] ?? 0.7;
+        try {
+            // Prepare request payload
+            $payload = [
+                'model' => $model,
+                'messages' => $messages,
+                'temperature' => $options['temperature'] ?? 0.7,
+                'stream' => false
+            ];
 
-        $data = [
-            'model' => $model,
-            'messages' => $messages,
-            'temperature' => floatval($temperature),
-            'stream' => true,
-            'max_tokens' => 2000,
-            'frequency_penalty' => 0,
-            'presence_penalty' => 0
-        ];
+            // Make API request
+            $ch = curl_init($this->api_url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                'Content-Type: application/json',
+                'Authorization: Bearer ' . $this->api_key
+            ]);
 
-        return $this->make_request($this->endpoint, $data, [], true);
+            $response = curl_exec($ch);
+            $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($status !== 200) {
+                throw new \Exception('OpenAI API error: ' . $response);
+            }
+
+            $response = json_decode($response, true);
+
+            return [
+                'response' => $response['choices'][0]['message']['content'],
+                'tokens_in' => $response['usage']['prompt_tokens'] ?? 0,
+                'tokens_out' => $response['usage']['completion_tokens'] ?? 0,
+                'raw_response' => $response
+            ];
+        } catch (\Exception $e) {
+            throw new \Exception('Error processing OpenAI request: ' . $e->getMessage());
+        }
     }
 
-    /**
-     * Get token usage for a request
-     */
-    public function get_token_usage(array $messages): array
+    public function process_stream_request($model, $messages, $options = [])
     {
-        // Implementación básica - OpenAI proporciona el conteo en la respuesta
+        return function() use ($model, $messages, $options) {
+            try {
+                // Prepare request payload
+                $payload = [
+                    'model' => $model,
+                    'messages' => $messages,
+                    'temperature' => $options['temperature'] ?? 0.7,
+                    'stream' => true
+                ];
+
+                // Initialize curl
+                $ch = curl_init($this->api_url);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_POST, true);
+                curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+                curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                    'Content-Type: application/json',
+                    'Authorization: Bearer ' . $this->api_key,
+                    'Accept: text/event-stream'
+                ]);
+
+                // Set callback for streaming
+                curl_setopt($ch, CURLOPT_WRITEFUNCTION, function($ch, $data) {
+                    $lines = explode("\n", $data);
+                    foreach ($lines as $line) {
+                        if (strlen(trim($line)) === 0) continue;
+                        if (strpos($line, 'data: ') !== 0) continue;
+
+                        $line = substr($line, 6);
+                        if ($line === '[DONE]') {
+                            echo "data: [DONE]\n\n";
+                            flush();
+                            continue;
+                        }
+
+                        $response = json_decode($line, true);
+                        if (!$response) continue;
+
+                        if (isset($response['choices'][0]['delta']['content'])) {
+                            $chunk = $response['choices'][0]['delta']['content'];
+                            echo "data: " . $chunk . "\n\n";
+                            flush();
+                        }
+                    }
+                    return strlen($data);
+                });
+
+                // Execute request
+                curl_exec($ch);
+                $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
+
+                if ($status !== 200) {
+                    throw new \Exception('OpenAI API error: HTTP ' . $status);
+                }
+            } catch (\Exception $e) {
+                throw new \Exception('Error processing OpenAI stream: ' . $e->getMessage());
+            }
+        };
+    }
+
+    public function get_token_usage($messages)
+    {
+        // Estimate token usage based on message length
+        $total_chars = 0;
+        foreach ($messages as $message) {
+            $total_chars += strlen($message['content']);
+        }
+
+        // Rough estimate: 4 characters per token
+        $tokens = ceil($total_chars / 4);
+
         return [
-            'tokens_in' => 0,
-            'tokens_out' => 0
+            'tokens_in' => $tokens,
+            'tokens_out' => 0  // Will be updated after completion
         ];
     }
 }

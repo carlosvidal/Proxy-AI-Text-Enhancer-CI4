@@ -145,41 +145,10 @@ class LlmProxy extends Controller
                 }
             }
 
-            // Get LLM provider instance
-            $llm = $this->_get_llm_provider($provider);
+            // Procesa la solicitud al LLM
+            $response = $this->_process_llm_request($provider, $model, $messages, $options->temperature ?? 0.7, $stream, $tenant_id, $domain);
 
-            if ($stream) {
-                // Set headers for streaming response
-                header('Content-Type: text/event-stream');
-                header('Cache-Control: no-cache');
-                header('Connection: keep-alive');
-                header('X-Accel-Buffering: no');
-
-                // Get streaming function
-                $stream_fn = $llm->process_stream_request($model, $messages, $options);
-
-                // Start streaming
-                $response = $stream_fn();
-
-                // Log usage after streaming completes
-                $usage = $llm->get_token_usage($messages);
-                $this->_log_usage($tenant_id, $domain, $provider, $model, $usage['tokens_in'], $usage['tokens_out'], false);
-
-                // Return empty response since we've already sent the stream
-                return '';
-            } else {
-                // Process request normally
-                $response = $llm->process_request($model, $messages, $options);
-
-                // Log usage
-                $this->_log_usage($tenant_id, $domain, $provider, $model, $response['tokens_in'], $response['tokens_out'], false);
-
-                // Return successful response
-                return $this->response->setJSON([
-                    'success' => true,
-                    'data' => $response
-                ]);
-            }
+            return $response;
 
         } catch (\Exception $e) {
             // Log error
@@ -193,6 +162,84 @@ class LlmProxy extends Controller
                 'success' => false,
                 'error' => $e->getMessage()
             ]);
+        }
+    }
+
+    /**
+     * Procesa la solicitud al LLM
+     */
+    private function _process_llm_request($provider, $model, $messages, $temperature, $stream, $tenant_id, $external_id, $has_image = false)
+    {
+        try {
+            // Get LLM provider instance
+            $llm = $this->_get_llm_provider($provider);
+
+            // Set options
+            $options = [
+                'temperature' => $temperature,
+                'stream' => $stream
+            ];
+
+            // Process request
+            if ($stream) {
+                log_info('PROXY', 'Processing streaming request', [
+                    'provider' => $provider,
+                    'model' => $model
+                ]);
+
+                // Set headers for streaming
+                header('Content-Type: text/event-stream');
+                header('Cache-Control: no-cache');
+                header('Connection: keep-alive');
+                header('X-Accel-Buffering: no');
+
+                // Get streaming response
+                $response = $llm->process_stream_request($model, $messages, $options);
+                
+                // Process stream response
+                if (is_callable($response)) {
+                    $response();
+                } else {
+                    log_error('PROXY', 'Invalid stream response', [
+                        'provider' => $provider,
+                        'type' => gettype($response)
+                    ]);
+                    throw new \Exception('Invalid stream response from provider');
+                }
+
+                // Log usage after streaming completes
+                $usage = $llm->get_token_usage($messages);
+                $this->_log_usage($tenant_id, $external_id, $provider, $model, $usage['tokens_in'], $usage['tokens_out'], $has_image);
+
+                // Return empty response since we've already sent the stream
+                return '';
+            } else {
+                $response = $llm->process_request($model, $messages, $options);
+
+                // Log usage
+                $this->_log_usage($tenant_id, $external_id, $provider, $model, $response['tokens_in'], $response['tokens_out'], $has_image);
+
+                // Return successful response
+                return $this->response->setJSON([
+                    'success' => true,
+                    'response' => $response['response'],
+                    'tokens_in' => $response['tokens_in'],
+                    'tokens_out' => $response['tokens_out']
+                ]);
+            }
+        } catch (\Exception $e) {
+            log_error('PROXY', 'Error processing LLM request', [
+                'error' => $e->getMessage(),
+                'provider' => $provider,
+                'model' => $model
+            ]);
+
+            return $this->response
+                ->setStatusCode(500)
+                ->setJSON([
+                    'success' => false,
+                    'error' => $e->getMessage()
+                ]);
         }
     }
 
