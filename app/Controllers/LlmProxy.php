@@ -353,9 +353,41 @@ class LlmProxy extends Controller
                 return false;
             }
 
+            $usage_log_id = $db->insertID();
+
+            // Extraer system prompt y messages del request
+            $request = $this->request->getJSON();
+            if ($request && isset($request->messages)) {
+                $system_prompt = null;
+                foreach ($request->messages as $msg) {
+                    if ($msg->role === 'system') {
+                        $system_prompt = $msg->content;
+                        break;
+                    }
+                }
+
+                // Grabar en prompt_logs
+                $prompt_data = [
+                    'usage_log_id' => $usage_log_id,
+                    'tenant_id' => $tenant_id,
+                    'button_id' => $button_id,
+                    'messages' => json_encode($request->messages),
+                    'system_prompt' => $system_prompt,
+                    'created_at' => date('Y-m-d H:i:s')
+                ];
+
+                $result = $db->table('prompt_logs')->insert($prompt_data);
+                if (!$result) {
+                    log_error('USAGE', 'Error al insertar prompt log', [
+                        'error' => $db->error(),
+                        'data' => $prompt_data
+                    ]);
+                }
+            }
+
             log_debug('USAGE', 'Log insertado correctamente', [
                 'usage_id' => $usage_id,
-                'insert_id' => $db->insertID()
+                'insert_id' => $usage_log_id
             ]);
 
             return true;
