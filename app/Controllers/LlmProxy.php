@@ -156,8 +156,15 @@ class LlmProxy extends Controller
                 ->getRowArray();
 
             if (!$button) {
+                log_error('PROXY', 'Button not found or inactive', [
+                    'button_id' => $button_id,
+                    'tenant_id' => $button['tenant_id']
+                ]);
                 throw new \Exception('Invalid or inactive button');
             }
+
+            // Store the actual button_id from database
+            $actual_button_id = $button['button_id'];
 
             // Validate domain
             if ($button['domain'] !== '*' && $this->_normalize_domain($button['domain']) !== $this->_normalize_domain($domain)) {
@@ -202,7 +209,7 @@ class LlmProxy extends Controller
                 $stream,
                 $button['tenant_id'],
                 $external_id,
-                $button_id
+                $actual_button_id
             );
 
             return $response;
@@ -385,7 +392,9 @@ class LlmProxy extends Controller
                     'data' => $data,
                     'validation' => $usageModel->getValidationRules(),
                     'last_query' => $usageModel->getLastQuery(),
-                    'db_error' => db_connect()->error()
+                    'db_error' => db_connect()->error(),
+                    'db_error_message' => db_connect()->error()['message'] ?? 'No message',
+                    'table_structure' => $db->query('PRAGMA table_info(usage_logs)')->getResultArray()
                 ]);
                 return false;
             }
