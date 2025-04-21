@@ -397,10 +397,13 @@ class Admin extends BaseController
         }
 
         // Get API users (not system users) and convert to array
+        log_message('debug', '[tenantApiUsers] tenantId recibido: ' . $tenantId);
+        log_message('debug', '[tenantApiUsers] tenant encontrado: ' . print_r($tenant, true));
         $users = $this->apiUsersModel
             ->where('tenant_id', $tenant['tenant_id'])
             ->asArray()
             ->findAll();
+        log_message('debug', '[tenantApiUsers] usuarios encontrados: ' . print_r($users, true));
 
         $data = [
             'title' => 'API Users - ' . $tenant['name'],

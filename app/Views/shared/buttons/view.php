@@ -10,7 +10,7 @@
         <h2><?= esc($button['name']) ?> <span class="badge badge-tenant"><?= esc($button['domain']) ?></span></h2>
     </div>
     <div>
-        <a href="<?= site_url('buttons/edit/' . $button['button_id']) ?>" class="btn btn-warning text-white">
+        <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons/' . $button['button_id'] . '/edit') ?>" class="btn btn-warning text-white">
             <i class="fas fa-edit me-1"></i>Edit
         </a>
     </div>

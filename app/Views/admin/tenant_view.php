@@ -280,7 +280,7 @@
                                 </td>
                                 <td>
                                     <div class="btn-group">
-                                        <a href="<?= site_url('admin/buttons/edit/' . $button['button_id']) ?>" 
+                                        <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons/' . $button['button_id'] . '/edit') ?>" 
                                            class="btn btn-sm btn-warning text-white" 
                                            title="Edit Button">
                                             <i class="fas fa-edit"></i>
