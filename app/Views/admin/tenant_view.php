@@ -65,7 +65,19 @@
                     </dd>
 
                     <dt class="col-sm-4">Created</dt>
-                    <dd class="col-sm-8"><?= date('M j, Y', strtotime($tenant['created_at'])) ?></dd>
+<dd class="col-sm-8"><?= date('M j, Y', strtotime($tenant['created_at'])) ?></dd>
+
+<dt class="col-sm-4">Plan</dt>
+<dd class="col-sm-8">
+    <form method="post" action="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/update_plan') ?>" class="d-inline">
+        <select name="max_api_keys" class="form-select form-select-sm d-inline w-auto" style="display:inline-block;">
+            <option value="1" <?= ($tenant['max_api_keys'] == 1) ? 'selected' : '' ?>>Gratuito (1 API Key)</option>
+            <option value="3" <?= ($tenant['max_api_keys'] == 3) ? 'selected' : '' ?>>Pro (3 API Keys)</option>
+            <option value="10" <?= ($tenant['max_api_keys'] == 10) ? 'selected' : '' ?>>Enterprise (10 API Keys)</option>
+        </select>
+        <button type="submit" class="btn btn-sm btn-success">Actualizar</button>
+    </form>
+</dd>
                 </dl>
             </div>
         </div>
