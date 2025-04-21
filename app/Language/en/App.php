@@ -98,6 +98,7 @@ return [
     'auth_login_title' => 'Login - AI Text Enhancer Pro',
     'auth_app_name' => 'AI Text Enhancer Pro',
     'auth_sign_in' => 'Sign in to your account',
+    'auth_username_email' => 'User or Email',
     'auth_password' => 'Password',
     'auth_sign_in_button' => 'Sign In',
     'auth_remember_me' => 'Remember Me',
