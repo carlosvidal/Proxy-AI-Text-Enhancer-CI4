@@ -73,6 +73,17 @@
                 <small class="text-muted">If unchecked, the tenant will not be able to use the API.</small>
             </div>
 
+            <div class="mb-3">
+                <label for="max_api_keys" class="form-label">Plan</label>
+                <select class="form-select <?= session('errors.max_api_keys') ? 'is-invalid' : '' ?>" id="max_api_keys" name="max_api_keys">
+                    <option value="1" <?= old('max_api_keys', $tenant['max_api_keys']) == 1 ? 'selected' : '' ?>>Gratuito (1 API Key)</option>
+                    <option value="3" <?= old('max_api_keys', $tenant['max_api_keys']) == 3 ? 'selected' : '' ?>>Pro (3 API Keys)</option>
+                    <option value="10" <?= old('max_api_keys', $tenant['max_api_keys']) == 10 ? 'selected' : '' ?>>Enterprise (10 API Keys)</option>
+                </select>
+                <?php if (session('errors.max_api_keys')): ?>
+                    <div class="invalid-feedback"><?= session('errors.max_api_keys') ?></div>
+                <?php endif; ?>
+            </div>
             <button type="submit" class="btn btn-primary">Update Tenant</button>
             <a href="<?= site_url('admin/tenants') ?>" class="btn btn-secondary">Cancel</a>
         </form>
