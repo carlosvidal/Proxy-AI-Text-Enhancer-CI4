@@ -167,6 +167,7 @@ return [
     'tenants_edit' => 'Edit',
     'tenants_users' => 'users',
     'tenants_view_users' => 'View Users',
+    'tenants_subscription_active' => 'Active',
     'tenants_subscription_trial' => 'Trial',
     'tenants_subscription_free' => 'Free',
     'tenants_subscription_basic' => 'Basic',

@@ -160,6 +160,7 @@ return [
     'tenants_edit' => 'Editar',
     'tenants_users' => 'usuarios',
     'tenants_view_users' => 'Ver Usuarios',
+    'tenants_subscription_active' => 'Activo',
     'tenants_subscription_trial' => 'Prueba',
     'tenants_subscription_free' => 'Gratis',
     'tenants_subscription_basic' => 'Básico',
