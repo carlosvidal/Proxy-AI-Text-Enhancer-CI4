@@ -38,27 +38,40 @@
                     <thead>
                         <tr>
                             <th>Nombre</th>
-                            <th>Proveedor</th>
-                            <th>API Key</th>
-                            <th>Predeterminada</th>
-                            <th>Acciones</th>
+<th>Proveedor</th>
+<th>API Key</th>
+<th>Estado</th>
+<th>Fecha</th>
+<th>Predeterminada</th>
+<th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php foreach ($apiKeys as $key) : ?>
                             <tr>
                                 <td><?= esc($key['name']) ?></td>
-                                <td>
-                                    <span class="badge bg-<?= $key['provider'] === 'openai' ? 'success' : 'primary' ?>">
-                                        <?= ucfirst(esc($key['provider'])) ?>
-                                    </span>
-                                </td>
-                                <td>
-                                    <div class="input-group">
-                                        <input type="password" class="form-control" value="<?= esc($key['api_key']) ?>" readonly>
-                                        <button class="btn btn-outline-secondary toggle-password" type="button">
-                                            <i class="fas fa-eye"></i>
-                                        </button>
+<td>
+    <span class="badge bg-<?= $key['provider'] === 'openai' ? 'success' : ($key['provider'] === 'anthropic' ? 'warning' : ($key['provider'] === 'mistral' ? 'info' : ($key['provider'] === 'cohere' ? 'secondary' : ($key['provider'] === 'deepseek' ? 'dark' : 'primary')))) ?>">
+        <?= ucfirst(esc($key['provider'])) ?>
+    </span>
+</td>
+<td>
+    <?php 
+        $apiKey = esc($key['api_key']);
+        $shortKey = strlen($apiKey) > 12 ? substr($apiKey, 0, 4) . '...' . substr($apiKey, -4) : $apiKey;
+    ?>
+    <span class="font-monospace"><?= $shortKey ?></span>
+</td>
+<td>
+    <?php if ($key['active']): ?>
+        <span class="badge bg-success">Activo</span>
+    <?php else: ?>
+        <span class="badge bg-danger">Inactivo</span>
+    <?php endif; ?>
+</td>
+<td>
+    <?= isset($key['created_at']) ? date('Y-m-d', strtotime($key['created_at'])) : '' ?>
+</td>
                                     </div>
                                 </td>
                                 <td>
