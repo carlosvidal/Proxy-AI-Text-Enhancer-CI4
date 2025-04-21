@@ -155,6 +155,8 @@ return [
     'tenants_manage' => 'Manage Tenants',
     'tenants_add' => 'Add Tenant',
     'tenants_list' => 'Tenant List',
+    'tenants_name' => 'Name',
+    'tenants_email' => 'Email',
     'tenants_api_users' => 'API Users',
     'tenants_status' => 'Status',
     'tenants_subscription' => 'Subscription',
