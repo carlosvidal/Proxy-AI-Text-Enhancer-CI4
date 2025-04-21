@@ -937,10 +937,14 @@ class Admin extends BaseController
             }
         }
 
+        // Obtener las API Keys del tenant para el select
+        $apiKeys = model('App\Models\ApiKeysModel')->getTenantApiKeys($tenant['tenant_id']);
+
         $data = [
             'title' => 'Edit Button - ' . $tenant['name'],
             'tenant' => $tenant,
             'button' => $button,
+            'apiKeys' => $apiKeys,
             'providers' => [
                 'openai' => 'OpenAI',
                 'anthropic' => 'Anthropic Claude',
