@@ -76,7 +76,7 @@
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
-                        <h3 class="h5 mb-0"><?= count($apiUsers) ?> API Users</h3>
+                        <h3 class="h5 mb-0"><?= $tenant['api_users'] ?> API Users</h3>
                         <small class="text-muted">Manage API access and quotas</small>
                     </div>
                     <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/users') ?>" class="btn btn-primary btn-sm">
