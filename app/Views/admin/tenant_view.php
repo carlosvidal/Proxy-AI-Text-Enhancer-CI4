@@ -7,6 +7,9 @@
         <a href="<?= site_url('admin/tenants') ?>" class="btn btn-secondary btn-sm mb-2">
             <i class="fas fa-arrow-left me-1"></i>Back to Tenants
         </a>
+        <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/api_keys') ?>" class="btn btn-outline-primary mb-3">
+            <i class="fas fa-key me-1"></i>Gestionar API Keys
+        </a>
         <h2><?= esc($tenant['name']) ?></h2>
         <p class="text-muted mb-0">View tenant details and usage statistics</p>
     </div>

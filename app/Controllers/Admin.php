@@ -696,6 +696,44 @@ class Admin extends BaseController
         return view('admin/tenant_user_usage', $data);
     }
 
+    /**
+     * Vista y gestión de API Keys de un tenant (modo admin)
+     */
+    public function tenantApiKeys($tenantId)
+    {
+        // Solo admin
+        if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
+            return redirect()->to('/auth/login');
+        }
+        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->asArray()->first();
+        if (!$tenant) {
+            return redirect()->to('admin/tenants')->with('error', 'Tenant not found');
+        }
+        $apiKeys = model('App\\Models\\ApiKeysModel')->getTenantApiKeys($tenantId);
+        $data = [
+            'tenant' => $tenant,
+            'apiKeys' => $apiKeys
+        ];
+        return view('admin/tenant_api_keys', $data);
+    }
+
+    /**
+     * Actualiza el plan (max_api_keys) de un tenant
+     */
+    public function updateTenantPlan($tenantId)
+    {
+        if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
+            return redirect()->to('/auth/login');
+        }
+        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->asArray()->first();
+        if (!$tenant) {
+            return redirect()->to('admin/tenants')->with('error', 'Tenant not found');
+        }
+        $maxApiKeys = (int) $this->request->getPost('max_api_keys');
+        $this->tenantsModel->where('tenant_id', $tenantId)->set(['max_api_keys' => $maxApiKeys])->update();
+        return redirect()->to('admin/tenants/' . $tenantId)->with('success', 'Plan actualizado correctamente');
+    }
+
     public function tenantButtons($tenantId)
     {
         // Check if user is logged in and is superadmin
