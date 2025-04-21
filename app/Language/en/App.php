@@ -187,6 +187,8 @@ return [
     'tenant_users_add' => 'Add API User',
     'tenant_users_none' => 'No API users found for this tenant.',
     'tenant_users_id' => 'User ID',
+    'tenant_users_name' => 'Name',
+    'tenant_users_email' => 'Email',
     'tenant_users_quota' => 'Quota',
     'tenant_users_status' => 'Status',
     'tenant_users_actions' => 'Actions',
