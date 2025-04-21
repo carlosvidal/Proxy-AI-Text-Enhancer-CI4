@@ -84,7 +84,7 @@
                                     </span>
                                 </td>
                                 <td>
-                                    <?php if ($button['active']): ?>
+                                    <?php if (isset($button['active']) && $button['active']): ?>
                                         <span class="badge bg-success">Active</span>
                                     <?php else: ?>
                                         <span class="badge bg-danger">Inactive</span>
