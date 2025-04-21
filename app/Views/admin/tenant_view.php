@@ -65,19 +65,13 @@
                     </dd>
 
                     <dt class="col-sm-4">Created</dt>
-<dd class="col-sm-8"><?= date('M j, Y', strtotime($tenant['created_at'])) ?></dd>
+                    <dd class="col-sm-8"><?= date('M j, Y', strtotime($tenant['created_at'])) ?></dd>
 
-<dt class="col-sm-4">Plan</dt>
-<dd class="col-sm-8">
-    <form method="post" action="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/update_plan') ?>" class="d-inline">
-        <select name="max_api_keys" class="form-select form-select-sm d-inline w-auto" style="display:inline-block;">
-            <option value="1" <?= ($tenant['max_api_keys'] == 1) ? 'selected' : '' ?>>Gratuito (1 API Key)</option>
-            <option value="3" <?= ($tenant['max_api_keys'] == 3) ? 'selected' : '' ?>>Pro (3 API Keys)</option>
-            <option value="10" <?= ($tenant['max_api_keys'] == 10) ? 'selected' : '' ?>>Enterprise (10 API Keys)</option>
-        </select>
-        <button type="submit" class="btn btn-sm btn-success">Actualizar</button>
-    </form>
-</dd>
+                    <dt class="col-sm-4">Plan</dt>
+                    <dd class="col-sm-8">
+                        <?= ($tenant['max_api_keys'] == 1) ? 'Gratuito (1 API Key)' : (($tenant['max_api_keys'] == 3) ? 'Pro (3 API Keys)' : (($tenant['max_api_keys'] == 10) ? 'Enterprise (10 API Keys)' : $tenant['max_api_keys'] . ' API Keys')) ?>
+                        <a href="<?= site_url('admin/tenants/edit/' . $tenant['tenant_id']) ?>" class="btn btn-link btn-sm">Editar</a>
+                    </dd>
                 </dl>
             </div>
         </div>
@@ -100,26 +94,26 @@
                 </div>
 
                 <?php if (!empty($apiUsers)): ?>
-                <div class="mt-3">
-                    <div class="table-responsive">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>User ID</th>
-                                    <th>Usage</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($apiUsers as $user): ?>
-                                <tr>
-                                    <td><small><code><?= esc($user['user_id']) ?></code></small></td>
-                                    <td><small><?= number_format($user['usage']) ?> tokens</small></td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
+                    <div class="mt-3">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>User ID</th>
+                                        <th>Usage</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($apiUsers as $user): ?>
+                                        <tr>
+                                            <td><small><code><?= esc($user['user_id']) ?></code></small></td>
+                                            <td><small><?= number_format($user['usage']) ?> tokens</small></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
                 <?php endif; ?>
             </div>
         </div>
@@ -142,28 +136,28 @@
                 </div>
 
                 <?php if (!empty($buttons)): ?>
-                <div class="mt-3">
-                    <div class="table-responsive">
-                        <table class="table table-sm">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Requests</th>
-                                    <th>Tokens</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($buttons as $button): ?>
-                                <tr>
-                                    <td><small><code><?= esc($button['name']) ?></code></small></td>
-                                    <td><small><?= number_format($button['usage']['total_requests'] ?? 0) ?></small></td>
-                                    <td><small><?= number_format($button['usage']['total_tokens'] ?? 0) ?></small></td>
-                                </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
+                    <div class="mt-3">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Requests</th>
+                                        <th>Tokens</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($buttons as $button): ?>
+                                        <tr>
+                                            <td><small><code><?= esc($button['name']) ?></code></small></td>
+                                            <td><small><?= number_format($button['usage']['total_requests'] ?? 0) ?></small></td>
+                                            <td><small><?= number_format($button['usage']['total_tokens'] ?? 0) ?></small></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
                 <?php endif; ?>
             </div>
         </div>
@@ -295,15 +289,15 @@
                                 </td>
                                 <td>
                                     <div class="btn-group">
-                                        <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons/' . $button['button_id'] . '/edit') ?>" 
-                                           class="btn btn-sm btn-warning text-white" 
-                                           title="Edit Button">
+                                        <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons/' . $button['button_id'] . '/edit') ?>"
+                                            class="btn btn-sm btn-warning text-white"
+                                            title="Edit Button">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <a href="<?= site_url('admin/buttons/delete/' . $button['button_id']) ?>" 
-                                           class="btn btn-sm btn-danger" 
-                                           title="Delete Button"
-                                           onclick="return confirm('Are you sure you want to delete this button?')">
+                                        <a href="<?= site_url('admin/buttons/delete/' . $button['button_id']) ?>"
+                                            class="btn btn-sm btn-danger"
+                                            title="Delete Button"
+                                            onclick="return confirm('Are you sure you want to delete this button?')">
                                             <i class="fas fa-trash"></i>
                                         </a>
                                     </div>
@@ -336,7 +330,7 @@
                 </thead>
                 <tbody>
                     <?php foreach ($monthlyUsage ?? [] as $usage): ?>
-                        <?php 
+                        <?php
                         // Parse SQLite date format (YYYY-MM)
                         $month = $usage['month'];
                         $monthDisplay = date('F Y', strtotime($month . '-01'));
@@ -346,8 +340,8 @@
                             <td class="text-end"><?= number_format($usage['total_requests']) ?></td>
                             <td class="text-end"><?= number_format($usage['total_tokens']) ?></td>
                             <td class="text-end">
-                                <?= $usage['total_requests'] > 0 
-                                    ? number_format($usage['total_tokens'] / $usage['total_requests'], 1) 
+                                <?= $usage['total_requests'] > 0
+                                    ? number_format($usage['total_tokens'] / $usage['total_requests'], 1)
                                     : '0' ?>
                             </td>
                         </tr>
@@ -365,79 +359,78 @@
 
 <!-- Chart.js initialization -->
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const ctx = document.getElementById('monthlyUsageChart');
-    
-    // Parse SQLite date format (YYYY-MM)
-    const months = <?= json_encode(array_map(function($usage) {
-        return date('M Y', strtotime($usage['month'] . '-01'));
-    }, $monthlyUsage ?? [])) ?>;
-    
-    const requests = <?= json_encode(array_map(function($usage) {
-        return (int)$usage['total_requests'];
-    }, $monthlyUsage ?? [])) ?>;
-    
-    const tokens = <?= json_encode(array_map(function($usage) {
-        return (int)$usage['total_tokens'];
-    }, $monthlyUsage ?? [])) ?>;
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('monthlyUsageChart');
 
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: months,
-            datasets: [
-                {
-                    label: 'Requests',
-                    data: requests,
-                    borderColor: 'rgb(75, 192, 192)',
-                    backgroundColor: 'rgba(75, 192, 192, 0.1)',
-                    borderWidth: 2,
-                    tension: 0.1,
-                    yAxisID: 'requests'
-                },
-                {
-                    label: 'Tokens',
-                    data: tokens,
-                    borderColor: 'rgb(255, 99, 132)',
-                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
-                    borderWidth: 2,
-                    tension: 0.1,
-                    yAxisID: 'tokens'
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            interaction: {
-                mode: 'index',
-                intersect: false,
-            },
-            scales: {
-                requests: {
-                    type: 'linear',
-                    display: true,
-                    position: 'left',
-                    title: {
-                        display: true,
-                        text: 'Total Requests'
-                    }
-                },
-                tokens: {
-                    type: 'linear',
-                    display: true,
-                    position: 'right',
-                    title: {
-                        display: true,
-                        text: 'Total Tokens'
+        // Parse SQLite date format (YYYY-MM)
+        const months = <?= json_encode(array_map(function ($usage) {
+                            return date('M Y', strtotime($usage['month'] . '-01'));
+                        }, $monthlyUsage ?? [])) ?>;
+
+        const requests = <?= json_encode(array_map(function ($usage) {
+                                return (int)$usage['total_requests'];
+                            }, $monthlyUsage ?? [])) ?>;
+
+        const tokens = <?= json_encode(array_map(function ($usage) {
+                            return (int)$usage['total_tokens'];
+                        }, $monthlyUsage ?? [])) ?>;
+
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: months,
+                datasets: [{
+                        label: 'Requests',
+                        data: requests,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        yAxisID: 'requests'
                     },
-                    grid: {
-                        drawOnChartArea: false
+                    {
+                        label: 'Tokens',
+                        data: tokens,
+                        borderColor: 'rgb(255, 99, 132)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        yAxisID: 'tokens'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                scales: {
+                    requests: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Total Requests'
+                        }
+                    },
+                    tokens: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: {
+                            display: true,
+                            text: 'Total Tokens'
+                        },
+                        grid: {
+                            drawOnChartArea: false
+                        }
                     }
                 }
             }
-        }
+        });
     });
-});
 </script>
 
 <?= $this->endSection() ?>
