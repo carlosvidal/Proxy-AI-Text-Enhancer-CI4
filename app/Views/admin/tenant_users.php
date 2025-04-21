@@ -43,11 +43,11 @@
                         <?php foreach ($users as $user): ?>
                             <tr>
                                 <td><?= esc($user['user_id']) ?></td>
-                                <td><?= esc($user['name']) ?></td>
+                                <td><?= esc($user['name'] ?? 'N/A') ?></td>
                                 <td><?= esc($user['email'] ?? 'N/A') ?></td>
                                 <td><?= number_format($user['quota']) ?></td>
                                 <td>
-                                    <?php if ($user['active']): ?>
+                                    <?php if (isset($user['active']) && $user['active']): ?>
                                         <span class="badge bg-success"><?= lang('App.tenant_users_active') ?></span>
                                     <?php else: ?>
                                         <span class="badge bg-danger"><?= lang('App.tenant_users_inactive') ?></span>
