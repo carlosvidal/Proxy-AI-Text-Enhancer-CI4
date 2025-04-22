@@ -18,14 +18,38 @@ LLM Proxy es un servicio intermediario que unifica múltiples proveedores de LLM
 - **Soporte para Imágenes:** Compatible con modelos multimodales
 - **Panel de Administración:** Visualiza estadísticas de uso y gestiona cuotas
 
-## Proveedores Soportados
+## Proveedores Soportados y Modelos Disponibles (actualizado a abril 2025)
 
-- OpenAI (GPT-3.5-Turbo, GPT-4-Turbo)
-- Anthropic (Claude 3 Opus, Claude 3 Sonnet)
-- Mistral (Mistral Large, Medium, Small)
-- DeepSeek (DeepSeek Chat, DeepSeek Coder)
-- Cohere (Command, Command Light)
-- Google (Gemini Pro, Gemini Pro Vision)
+- **OpenAI:**
+  - gpt-3.5-turbo
+  - gpt-4-turbo
+  - gpt-4o (Omni)
+  - gpt-4-vision-preview
+  - gpt-4 (Legacy)
+- **Anthropic:**
+  - claude-3-opus-20240229
+  - claude-3-sonnet-20240229
+  - claude-3-haiku-20240307
+- **Mistral:**
+  - mistral-tiny
+  - mistral-small
+  - mistral-medium
+  - mistral-large
+  - mistral-next
+- **Cohere:**
+  - command
+  - command-light
+  - command-r
+  - command-r-plus
+- **DeepSeek:**
+  - deepseek-coder
+  - deepseek-coder-v2
+  - deepseek-chat
+- **Google Gemini:**
+  - gemini-1.5-pro-latest
+  - gemini-1.0-pro
+  - gemini-1.0-pro-vision
+  - gemini-pro (Legacy)
 
 ## Requisitos
 
