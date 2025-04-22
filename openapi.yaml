@@ -1,0 +1,282 @@
+openapi: 3.0.3
+info:
+  title: LLM Proxy API
+  version: '1.0.0'
+  description: |
+    API unificada para interactuar con múltiples proveedores de modelos de lenguaje (LLM) como OpenAI, Anthropic, Mistral, Cohere, DeepSeek y Google Gemini. Permite gestionar usuarios API, llaves, cuotas y realizar peticiones a modelos LLM.
+servers:
+  - url: https://your-llmproxy-domain.com
+    description: Producción
+  - url: http://localhost:8080
+    description: Local
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-KEY
+  schemas:
+    LlmRequest:
+      type: object
+      required:
+        - model
+        - messages
+      properties:
+        model:
+          type: string
+          description: Nombre del modelo LLM a utilizar
+        messages:
+          type: array
+          description: Conversación (formato OpenAI/Anthropic)
+          items:
+            type: object
+            properties:
+              role:
+                type: string
+                enum: [user, assistant, system]
+              content:
+                type: string
+        options:
+          type: object
+          description: Opciones adicionales (temperature, max_tokens, etc)
+    LlmResponse:
+      type: object
+      properties:
+        response:
+          type: string
+        tokens_in:
+          type: integer
+        tokens_out:
+          type: integer
+        raw_response:
+          type: object
+    TenantUser:
+      type: object
+      properties:
+        user_id:
+          type: string
+        name:
+          type: string
+        email:
+          type: string
+        quota:
+          type: integer
+        active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    ApiKey:
+      type: object
+      properties:
+        api_key_id:
+          type: string
+        tenant_id:
+          type: string
+        provider:
+          type: string
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /llm:
+    post:
+      summary: Realizar una petición a un modelo LLM
+      description: |
+        Envía mensajes a un modelo de lenguaje (OpenAI, Anthropic, Mistral, etc) y recibe una respuesta.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LlmRequest'
+      responses:
+        '200':
+          description: Respuesta generada por el modelo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LlmResponse'
+        '401':
+          description: API Key inválida o ausente
+        '400':
+          description: Error en la petición
+      security:
+        - ApiKeyAuth: []
+
+  /tenants/{tenantId}/users:
+    get:
+      summary: Listar usuarios API de un tenant
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista de usuarios API
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TenantUser'
+    post:
+      summary: Crear un usuario API para un tenant
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantUser'
+      responses:
+        '201':
+          description: Usuario creado
+        '400':
+          description: Error de validación
+
+  /tenants/{tenantId}/users/{userId}:
+    get:
+      summary: Obtener detalles de un usuario API
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Detalles del usuario
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantUser'
+        '404':
+          description: Usuario no encontrado
+    put:
+      summary: Actualizar usuario API
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantUser'
+      responses:
+        '200':
+          description: Usuario actualizado
+        '400':
+          description: Error de validación
+        '404':
+          description: Usuario no encontrado
+    delete:
+      summary: Eliminar usuario API
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Usuario eliminado
+        '404':
+          description: Usuario no encontrado
+
+  /tenants/{tenantId}/api-keys:
+    get:
+      summary: Listar llaves API de un tenant
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista de llaves API
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApiKey'
+    post:
+      summary: Crear una llave API para un tenant
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiKey'
+      responses:
+        '201':
+          description: Llave creada
+        '400':
+          description: Error de validación
+
+  /tenants/{tenantId}/api-keys/{apiKeyId}:
+    delete:
+      summary: Eliminar una llave API
+      parameters:
+        - in: path
+          name: tenantId
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: apiKeyId
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Llave eliminada
+        '404':
+          description: Llave no encontrada
