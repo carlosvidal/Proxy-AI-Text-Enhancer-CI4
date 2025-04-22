@@ -107,6 +107,38 @@ class LlmProxy extends Controller
             $external_id = $json->userId ?? $json->user_id ?? null; // Aceptar tanto userId como user_id
             $button_id = $json->buttonId ?? $json->button_id ?? null; // Aceptar tanto buttonId como button_id
 
+            // --- VALIDACIÓN DE IMÁGENES Y MODELOS MULTIMODAL ---
+            $multimodal_models = [
+                // OpenAI
+                'gpt-4-vision-preview', 'gpt-4o',
+                // Google
+                'gemini-1.0-pro-vision',
+                // Añadir aquí otros modelos multimodales soportados
+            ];
+            $has_image = false;
+            foreach ($messages as $msg) {
+                if (isset($msg->content) && is_array($msg->content)) {
+                    foreach ($msg->content as $part) {
+                        if (is_object($part) && isset($part->type) && $part->type === 'image_url') {
+                            $has_image = true;
+                            break 2;
+                        }
+                        // Opcional: detectar base64/URL
+                        if (is_string($part) && (preg_match('/^data:image\//', $part) || preg_match('/\.(jpg|jpeg|png|gif|webp)$/i', $part))) {
+                            $has_image = true;
+                            break 2;
+                        }
+                    }
+                }
+            }
+            if ($has_image && (!in_array(strtolower($model), $multimodal_models))) {
+                return $this->response->setStatusCode(400)->setJSON([
+                    'success' => false,
+                    'error' => 'El modelo o proveedor seleccionado no soporta imágenes. Usa un modelo multimodal como gpt-4-vision-preview, gpt-4o o gemini-1.0-pro-vision.'
+                ]);
+            }
+            // --- FIN VALIDACIÓN DE IMÁGENES ---
+
             log_message('error', '[PROXY] Extracted parameters: ' . print_r([
                 'provider' => $provider,
                 'model' => $model,
