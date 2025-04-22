@@ -264,7 +264,8 @@ class Admin extends BaseController
             'name' => 'required|min_length[3]',
             'email' => 'required|valid_email',
             'subscription_status' => 'required|in_list[trial,active,expired]',
-            'active' => 'permit_empty|in_list[0,1]'
+            'active' => 'permit_empty|in_list[0,1]',
+            'max_api_keys' => 'required|integer|in_list[1,3,10]'
         ];
 
         if ($this->validate($rules)) {
@@ -335,7 +336,8 @@ class Admin extends BaseController
             'name' => 'required|min_length[3]',
             'email' => 'required|valid_email',
             'subscription_status' => 'required|in_list[trial,active,expired]',
-            'active' => 'permit_empty|in_list[0,1]'
+            'active' => 'permit_empty|in_list[0,1]',
+            'max_api_keys' => 'required|integer|in_list[1,3,10]'
         ];
 
         if ($this->validate($rules)) {
@@ -346,6 +348,7 @@ class Admin extends BaseController
                     'email' => $this->request->getPost('email'),
                     'subscription_status' => $this->request->getPost('subscription_status'),
                     'active' => $this->request->getPost('active') ?? 1,
+                    'max_api_keys' => $this->request->getPost('max_api_keys'),
                     'updated_at' => date('Y-m-d H:i:s')
                 ])->update();
 
