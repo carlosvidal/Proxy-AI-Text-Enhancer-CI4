@@ -36,12 +36,14 @@ class Buttons extends Controller
             'google' => 'Google Gemini'
         ];
 
-        // Define available models per provider
+        // Define available models per provider (actualizado a abril 2025)
         $this->models = [
             'openai' => [
                 'gpt-3.5-turbo' => 'GPT-3.5 Turbo',
                 'gpt-4-turbo' => 'GPT-4 Turbo',
-                'gpt-4-vision' => 'GPT-4 Vision',
+                'gpt-4o' => 'GPT-4o (Omni)',
+                'gpt-4-vision-preview' => 'GPT-4 Vision Preview',
+                'gpt-4' => 'GPT-4 (Legacy)',
             ],
             'anthropic' => [
                 'claude-3-opus-20240229' => 'Claude 3 Opus',
@@ -53,19 +55,24 @@ class Buttons extends Controller
                 'mistral-small' => 'Mistral Small',
                 'mistral-medium' => 'Mistral Medium',
                 'mistral-large' => 'Mistral Large',
+                'mistral-next' => 'Mistral Next',
             ],
             'cohere' => [
                 'command' => 'Command',
                 'command-light' => 'Command Light',
                 'command-r' => 'Command-R',
+                'command-r-plus' => 'Command-R Plus',
             ],
             'deepseek' => [
                 'deepseek-coder' => 'DeepSeek Coder',
+                'deepseek-coder-v2' => 'DeepSeek Coder v2',
                 'deepseek-chat' => 'DeepSeek Chat',
             ],
             'google' => [
-                'gemini-pro' => 'Gemini Pro',
-                'gemini-pro-vision' => 'Gemini Pro Vision',
+                'gemini-1.5-pro-latest' => 'Gemini 1.5 Pro (Latest)',
+                'gemini-1.0-pro' => 'Gemini 1.0 Pro',
+                'gemini-1.0-pro-vision' => 'Gemini 1.0 Pro Vision',
+                'gemini-pro' => 'Gemini Pro (Legacy)',
             ]
         ];
     }
