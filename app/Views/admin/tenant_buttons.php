@@ -4,14 +4,14 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <a href="<?= site_url('admin/tenants/view/' . $tenant['tenant_id']) ?>" class="btn btn-secondary btn-sm mb-2">
+        <a href="<?= site_url('tenants/view/' . $tenant['tenant_id']) ?>" class="btn btn-secondary btn-sm mb-2">
             <i class="fas fa-arrow-left me-1"></i>Back to Tenant
         </a>
         <h2>Manage Buttons - <?= esc($tenant['name']) ?></h2>
         <p class="text-muted mb-0">Create and manage text enhancement buttons</p>
     </div>
     <div>
-        <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons/create') ?>" class="btn btn-primary">
+        <a href="<?= site_url('tenants/' . $tenant['tenant_id'] . '/buttons/create') ?>" class="btn btn-primary">
             <i class="fas fa-plus me-1"></i>Create Button
         </a>
     </div>
@@ -42,7 +42,7 @@
             <div class="text-center py-4">
                 <i class="fas fa-code fa-3x text-muted mb-3"></i>
                 <p class="text-muted">No buttons found for this tenant.</p>
-                <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons/create') ?>" class="btn btn-primary">
+                <a href="<?= site_url('tenants/' . $tenant['tenant_id'] . '/buttons/create') ?>" class="btn btn-primary">
                     <i class="fas fa-plus me-1"></i>Create First Button
                 </a>
             </div>
@@ -116,12 +116,12 @@
                                 </td>
                                 <td>
                                     <div class="btn-group">
-                                        <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons/' . $button['button_id'] . '/edit') ?>" 
+                                        <a href="<?= site_url('tenants/' . $tenant['tenant_id'] . '/buttons/' . $button['button_id'] . '/edit') ?>" 
                                            class="btn btn-sm btn-outline-primary"
                                            title="Edit Button">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons/' . $button['button_id'] . '/delete') ?>" 
+                                        <a href="<?= site_url('tenants/' . $tenant['tenant_id'] . '/buttons/' . $button['button_id'] . '/delete') ?>" 
                                            class="btn btn-sm btn-outline-danger"
                                            onclick="return confirm('Are you sure you want to delete this button? This will also delete all associated usage logs.')"
                                            title="Delete Button">
