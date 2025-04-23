@@ -6,7 +6,7 @@
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center">
                 <h1><?= $title ?></h1>
-                <a href="/tenants/add_user" class="btn btn-primary">
+                <a href="/users/add" class="btn btn-primary">
                     <i class="fas fa-plus me-1"></i>
                     Add API User
                 </a>
@@ -79,7 +79,7 @@
                                 <a href="/usage/user/<?= $user->user_id ?>" class="btn btn-sm btn-info" title="View Usage">
                                     <i class="fas fa-chart-line"></i>
                                 </a>
-                                <a href="/tenants/edit_user/<?= $user->user_id ?>" class="btn btn-sm btn-primary" title="Edit User">
+                                <a href="/users/edit/<?= $user->user_id ?>" class="btn btn-sm btn-primary" title="Edit User">
                                     <i class="fas fa-edit"></i>
                                 </a>
                                 <button type="button" class="btn btn-sm btn-danger" title="Delete User" 
@@ -119,7 +119,7 @@
 <script>
 function confirmDelete(userId, userName) {
     document.getElementById('userName').textContent = userName;
-    document.getElementById('deleteButton').href = '/tenants/delete_user/' + userId;
+    document.getElementById('deleteButton').href = '/users/delete/' + userId;
     new bootstrap.Modal(document.getElementById('deleteModal')).show();
 }
 </script>

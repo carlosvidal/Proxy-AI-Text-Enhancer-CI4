@@ -11,7 +11,7 @@
                         <i class="fas fa-arrow-left me-1"></i>
                         Back to API Users
                     </a>
-                    <a href="/tenants/edit_user/<?= $user->user_id ?>" class="btn btn-primary ms-2">
+                    <a href="/users/edit/<?= $user->user_id ?>" class="btn btn-primary ms-2">
                         <i class="fas fa-edit me-1"></i>
                         Edit User
                     </a>
