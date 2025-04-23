@@ -120,22 +120,30 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="model" class="form-label">LLM Model</label>
-                        <select class="form-select <?= session('errors.model') ? 'is-invalid' : '' ?>"
-                            id="model" name="model" required>
-                            <option value="">Select Model</option>
-                            <?php foreach ($models as $provider => $providerModels): ?>
-                                <optgroup label="<?= $providers[$provider] ?>" class="model-group" data-provider="<?= $provider ?>">
-                                    <?php foreach ($providerModels as $key => $label): ?>
-                                        <option value="<?= $key ?>" <?= old('model', $button['model']) == $key ? 'selected' : '' ?>><?= $label ?></option>
-                                    <?php endforeach; ?>
-                                </optgroup>
-                            <?php endforeach; ?>
-                        </select>
-                        <?php if (session('errors.model')): ?>
-                            <div class="invalid-feedback"><?= session('errors.model') ?></div>
-                        <?php endif; ?>
-                    </div>
+    <label for="model" class="form-label">LLM Model</label>
+    <select class="form-select <?= session('errors.model') ? 'is-invalid' : '' ?>"
+        id="model" name="model" required>
+        <option value="">Select Model</option>
+        <?php foreach ($models as $provider => $providerModels): ?>
+            <optgroup label="<?= $providers[$provider] ?>" class="model-group" data-provider="<?= $provider ?>">
+                <?php foreach ($providerModels as $key => $label): ?>
+                    <option value="<?= $key ?>" <?= old('model', $button['model']) == $key ? 'selected' : '' ?>><?= $label ?></option>
+                <?php endforeach; ?>
+            </optgroup>
+        <?php endforeach; ?>
+    </select>
+    <?php if (session('errors.model')): ?>
+        <div class="invalid-feedback"><?= session('errors.model') ?></div>
+    <?php endif; ?>
+</div>
+<!-- Campo Temperatura -->
+<div class="mb-3">
+    <label for="temperature" class="form-label">Temperatura
+        <span id="temperature-value" class="ms-2 fw-bold"><?= old('temperature', $button['temperature'] ?? '0.7') ?></span>
+    </label>
+    <input type="range" class="form-range" min="0" max="1" step="0.01" id="temperature" name="temperature" value="<?= old('temperature', $button['temperature'] ?? '0.7') ?>" oninput="document.getElementById('temperature-value').textContent = this.value">
+    <div class="form-text">Controla la creatividad del modelo (0 = determinista, 1 = más creativo).</div>
+</div>
                 </div>
 
                 <div class="col-md-6">
@@ -150,16 +158,29 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="status" class="form-label">Status</label>
-                        <select class="form-select <?= session('errors.status') ? 'is-invalid' : '' ?>" 
-                                id="status" name="status" required>
-                            <option value="active" <?= old('status', $button['status']) == 'active' ? 'selected' : '' ?>>Active</option>
-                            <option value="inactive" <?= old('status', $button['status']) == 'inactive' ? 'selected' : '' ?>>Inactive</option>
-                        </select>
-                        <?php if (session('errors.status')): ?>
-                            <div class="invalid-feedback"><?= session('errors.status') ?></div>
-                        <?php endif; ?>
-                    </div>
+    <label for="status" class="form-label">Status</label><br>
+    <div class="form-check form-switch">
+        <input class="form-check-input" type="checkbox" id="status" name="status" value="active" <?= old('status', $button['status']) == 'active' ? 'checked' : '' ?>>
+        <label class="form-check-label" for="status">
+            <span id="status-label">Active</span>
+        </label>
+    </div>
+    <?php if (session('errors.status')): ?>
+        <div class="invalid-feedback d-block"><?= session('errors.status') ?></div>
+    <?php endif; ?>
+</div>
+<script>
+    // Cambia el texto del label según el estado del toggle
+    document.addEventListener('DOMContentLoaded', function() {
+        var statusCheckbox = document.getElementById('status');
+        var statusLabel = document.getElementById('status-label');
+        function updateLabel() {
+            statusLabel.textContent = statusCheckbox.checked ? 'Active' : 'Inactive';
+        }
+        statusCheckbox.addEventListener('change', updateLabel);
+        updateLabel();
+    });
+</script>
                 </div>
             </div>
 

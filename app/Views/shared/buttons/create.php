@@ -110,6 +110,28 @@
                             <div class="invalid-feedback"><?= session('errors.model') ?></div>
                         <?php endif; ?>
                     </div>
+
+                    <!-- Campo Temperatura -->
+                    <div class="mb-3">
+                        <label for="temperature" class="form-label">Temperatura
+                            <span id="temperature-value" class="ms-2 fw-bold"><?= old('temperature', '0.7') ?></span>
+                        </label>
+                        <input type="range" class="form-range" min="0" max="1" step="0.01" id="temperature" name="temperature" value="<?= old('temperature', '0.7') ?>" oninput="document.getElementById('temperature-value').textContent = this.value">
+                        <div class="form-text">Controla la creatividad del modelo (0 = determinista, 1 = más creativo).</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="status" class="form-label">Status</label><br>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="status" name="status" value="active" <?= old('status', 'active') == 'active' ? 'checked' : '' ?>>
+                            <label class="form-check-label" for="status">
+                                <span id="status-label">Active</span>
+                            </label>
+                        </div>
+                        <?php if (session('errors.status')): ?>
+                            <div class="invalid-feedback d-block"> <?= session('errors.status') ?> </div>
+                        <?php endif; ?>
+                    </div>
                 </div>
 
                 <div class="col-md-6">
