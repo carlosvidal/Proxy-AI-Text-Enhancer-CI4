@@ -1087,6 +1087,15 @@ class Admin extends BaseController
 
     public function editButton($tenantId, $buttonId)
     {
+        // LOG: Inicio de edición de botón
+        log_message('debug', '[editButton] INICIO - user_id: ' . session()->get('user_id') . ', role: ' . session()->get('role') . ', session_tenant_id: ' . session()->get('tenant_id'));
+        log_message('debug', '[editButton] tenantId recibido: ' . $tenantId . ', buttonId recibido: ' . $buttonId);
+
+        // LOG: Inicio de edición de botón
+        log_message('debug', '[editButton] INICIO - user_id: ' . session()->get('user_id') . ', role: ' . session()->get('role') . ', session_tenant_id: ' . session()->get('tenant_id'));
+        log_message('debug', '[editButton] tenantId recibido: ' . $tenantId . ', buttonId recibido: ' . $buttonId);
+        //
+
         // Permitir acceso a superadmin o al tenant propietario
         if (!session()->get('isLoggedIn')) {
             return redirect()->to('/auth/login');
