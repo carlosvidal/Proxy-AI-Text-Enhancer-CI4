@@ -23,12 +23,27 @@ components:
         - model
         - messages
       properties:
+        provider:
+          type: string
+          description: Proveedor LLM (openai, anthropic, google, etc). Opcional si se determina por el botón.
         model:
           type: string
-          description: Nombre del modelo LLM a utilizar
+          description: Nombre del modelo LLM a utilizar. Para imágenes, debe ser uno de los modelos multimodales soportados.
+        temperature:
+          type: number
+          description: Temperatura de generación. Puede ir aquí o dentro de options.
+        systemPrompt:
+          type: string
+          description: Prompt de sistema. Si se provee y no hay mensaje 'system' en messages, se insertará automáticamente.
+        context:
+          type: string
+          description: Contexto adicional relevante (campos del formulario, ficha de producto, etc). Si se provee, se antepone al primer mensaje de usuario.
+        image:
+          type: string
+          description: Imagen (base64 o URL). Si se provee y no hay imagen en messages, se inserta automáticamente en el primer mensaje de usuario.
         messages:
           type: array
-          description: Conversación (formato OpenAI/Anthropic)
+          description: Conversación (formato OpenAI/Anthropic). El backend puede modificar este array para insertar systemPrompt, context o image si se proveen en la raíz.
           items:
             type: object
             properties:
@@ -36,10 +51,72 @@ components:
                 type: string
                 enum: [user, assistant, system]
               content:
-                type: string
+                oneOf:
+                  - type: string
+                  - type: array
+                    items:
+                      oneOf:
+                        - type: string
+                        - type: object
+                          properties:
+                            type:
+                              type: string
+                              enum: [image_url]
+                            image_url:
+                              type: string
+          example:
+            - role: system
+              content: "¡Mejora este texto para mi tienda!"
+            - role: user
+              content:
+                - "Zapatos deportivos para niños"
+                - type: image_url
+                  image_url: "https://ejemplo.com/imagen.jpg"
         options:
           type: object
-          description: Opciones adicionales (temperature, max_tokens, etc)
+          description: Opciones adicionales (temperature, max_tokens, etc). Si temperature viene aquí o en la raíz, se usará el valor recibido.
+        userId:
+          type: string
+          description: ID del usuario API (API user, no usuario del sistema)
+        buttonId:
+          type: string
+          description: ID del botón (componentId)
+        tenantId:
+          type: string
+          description: ID del tenant (opcional, normalmente se infiere por el botón)
+        [otros campos opcionales permitidos]
+      description: |
+        Payload flexible para enviar mensajes a un modelo LLM. El backend soporta:
+        - `temperature` en raíz o en options
+        - `systemPrompt` en raíz: si no hay mensaje 'system', se inserta automáticamente
+        - `context` en raíz: se antepone al primer mensaje de usuario
+        - `image` en raíz: se inserta en el primer mensaje de usuario si no existe ya una imagen
+        - Campos adicionales son ignorados si no se usan
+        
+        **Modelos multimodales soportados para imágenes:**
+        - OpenAI: gpt-4o, gpt-4-vision-preview, gpt-4-vision, gpt-4-turbo-vision
+        - Google: gemini-1.5-pro-latest, gemini-1.0-pro, gemini-1.0-pro-vision
+        - Anthropic: claude-3-opus-20240229, claude-3-sonnet-20240229, claude-3-haiku-20240307, claude-3-7-sonnet-20250219
+        
+        Si se envía una imagen y el modelo no es multimodal, el backend responderá con error 400.
+        
+        Ejemplo de payload:
+        ```json
+        {
+          "provider": "openai",
+          "model": "gpt-4-vision-preview",
+          "temperature": 0.6,
+          "systemPrompt": "¡Mejora este texto para mi tienda!",
+          "context": "Zapatos deportivos para niños, SKU: 1234, Marca: Nike, Precio: 99.99",
+          "image": "https://ejemplo.com/imagen.jpg",
+          "messages": [
+            { "role": "user", "content": "Quiero una descripción atractiva para estos zapatos deportivos para niños." }
+          ],
+          "userId": "usuario123",
+          "buttonId": "componente-1"
+        }
+        ```
+
     LlmResponse:
       type: object
       properties:

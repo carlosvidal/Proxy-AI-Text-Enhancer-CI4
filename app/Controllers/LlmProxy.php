@@ -107,13 +107,134 @@ class LlmProxy extends Controller
             $external_id = $json->userId ?? $json->user_id ?? null; // Aceptar tanto userId como user_id
             $button_id = $json->buttonId ?? $json->button_id ?? null; // Aceptar tanto buttonId como button_id
 
+            // --- FLEXIBILIDAD DE TEMPERATURE ---
+            // Permitir temperature en raíz o en options
+            if (isset($json->temperature)) {
+                $options = (array)$options;
+                $options['temperature'] = $json->temperature;
+            }
+            // --- FIN FLEXIBILIDAD TEMPERATURE ---
+
+            // --- FLEXIBILIDAD SYSTEM PROMPT ---
+            if (isset($json->systemPrompt)) {
+                $has_system = false;
+                foreach ($messages as $msg) {
+                    if (isset($msg->role) && $msg->role === 'system') {
+                        $has_system = true;
+                        break;
+                    }
+                }
+                if (!$has_system) {
+                    // Insertar systemPrompt como primer mensaje system
+                    array_unshift($messages, (object)[
+                        'role' => 'system',
+                        'content' => $json->systemPrompt
+                    ]);
+                }
+            }
+            // --- FIN FLEXIBILIDAD SYSTEM PROMPT ---
+
+            // --- FLEXIBILIDAD IMAGEN ---
+            if (isset($json->image) && $json->image) {
+                $has_image_in_messages = false;
+                foreach ($messages as $msg) {
+                    if (isset($msg->content) && is_array($msg->content)) {
+                        foreach ($msg->content as $part) {
+                            if ((is_object($part) && isset($part->type) && $part->type === 'image_url') ||
+                                (is_string($part) && (preg_match('/^data:image\//', $part) || preg_match('/\.(jpg|jpeg|png|gif|webp)$/i', $part)))) {
+                                $has_image_in_messages = true;
+                                break 2;
+                            }
+                        }
+                    }
+                }
+                if (!$has_image_in_messages) {
+                    // Insertar imagen en el primer mensaje de usuario, o crear uno
+                    $image_part = null;
+                    if (is_string($json->image)) {
+                        if (preg_match('/^data:image\//', $json->image)) {
+                            // Base64
+                            $image_part = (object)[ 'type' => 'image_url', 'image_url' => $json->image ];
+                        } elseif (preg_match('/^https?:\/\//', $json->image)) {
+                            // URL
+                            $image_part = (object)[ 'type' => 'image_url', 'image_url' => $json->image ];
+                        }
+                    }
+                    if ($image_part) {
+                        // Buscar primer mensaje de usuario
+                        $user_found = false;
+                        foreach ($messages as &$msg) {
+                            if (isset($msg->role) && $msg->role === 'user') {
+                                // Si el content ya es array, agregar la imagen
+                                if (is_array($msg->content)) {
+                                    $msg->content[] = $image_part;
+                                } else {
+                                    // Si el content es string, convertirlo en array multimodal
+                                    $msg->content = [$msg->content, $image_part];
+                                }
+                                $user_found = true;
+                                break;
+                            }
+                        }
+                        unset($msg);
+                        // Si no hay mensaje de usuario, crear uno
+                        if (!$user_found) {
+                            $messages[] = (object)[
+                                'role' => 'user',
+                                'content' => [$image_part]
+                            ];
+                        }
+                    }
+                }
+            }
+            // --- FIN FLEXIBILIDAD IMAGEN ---
+
+            // --- ANTEPONER CONTEXTO AL PRIMER MENSAJE DE USUARIO ---
+            if (isset($json->context) && $json->context) {
+                $context = trim($json->context);
+                $user_found = false;
+                foreach ($messages as &$msg) {
+                    if (isset($msg->role) && $msg->role === 'user') {
+                        // Si el contenido es array multimodal
+                        if (is_array($msg->content)) {
+                            // Anteponer el contexto como string al inicio del array
+                            array_unshift($msg->content, $context);
+                        } else {
+                            // Si el contenido es string, anteponer el contexto
+                            $msg->content = $context . "\n" . $msg->content;
+                        }
+                        $user_found = true;
+                        break;
+                    }
+                }
+                unset($msg);
+                // Si no hay mensaje de usuario, crear uno
+                if (!$user_found) {
+                    $messages[] = (object)[
+                        'role' => 'user',
+                        'content' => $context
+                    ];
+                }
+            }
+            // --- FIN ANTEPONER CONTEXTO ---
+
             // --- VALIDACIÓN DE IMÁGENES Y MODELOS MULTIMODAL ---
             $multimodal_models = [
                 // OpenAI
-                'gpt-4-vision-preview', 'gpt-4o',
-                // Google
+                'gpt-4o',
+                'gpt-4-vision-preview',
+                'gpt-4-vision',
+                'gpt-4-turbo-vision',
+                // Google Gemini (multimodal)
+                'gemini-1.5-pro-latest',
+                'gemini-1.0-pro',
                 'gemini-1.0-pro-vision',
-                // Añadir aquí otros modelos multimodales soportados
+                // Anthropic Claude 3 (multimodal)
+                'claude-3-opus-20240229',
+                'claude-3-sonnet-20240229',
+                'claude-3-haiku-20240307',
+                'claude-3-7-sonnet-20250219',
+                // Futuro: Mistral (si lanzan multimodal), otros proveedores...
             ];
             $has_image = false;
             foreach ($messages as $msg) {
@@ -345,7 +466,7 @@ class LlmProxy extends Controller
     {
         try {
             $db = db_connect();
-            
+
             // Generate usage_id
             helper('hash');
             $usage_id = generate_hash_id('usage');
@@ -375,7 +496,7 @@ class LlmProxy extends Controller
             ]);
 
             $result = $db->table('usage_logs')->insert($data);
-            
+
             if (!$result) {
                 $error = $db->error();
                 log_error('USAGE', 'Error al insertar log', [
@@ -489,7 +610,7 @@ class LlmProxy extends Controller
     /**
      * Normaliza un dominio para comparación
      */
-    private function _normalize_domain($domain) 
+    private function _normalize_domain($domain)
     {
         // Si el dominio es '*', retornarlo tal cual
         if ($domain === '*') {
@@ -499,7 +620,7 @@ class LlmProxy extends Controller
         // Remover protocolo y www si existen
         $domain = preg_replace('#^https?://#', '', $domain);
         $domain = preg_replace('#^www\.#', '', $domain);
-        
+
         return $domain;
     }
 
