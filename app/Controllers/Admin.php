@@ -37,7 +37,17 @@ class Admin extends BaseController
 
     public function dashboard()
     {
-        // Check if user is logged in and is superadmin
+        // Permitir acceso a superadmin o al tenant propietario
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
+        }
+        $role = session()->get('role');
+        $sessionTenantId = session()->get('tenant_id');
+        if ($role !== 'superadmin' && !($role === 'tenant' && $sessionTenantId === $tenantId)) {
+            // No es superadmin ni es el tenant propietario
+            return redirect()->to('/auth/login');
+        }
+        //
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
             return redirect()->to('/auth/login');
         }
@@ -93,7 +103,17 @@ class Admin extends BaseController
 
     public function tenants()
     {
-        // Check if user is logged in and is superadmin
+        // Permitir acceso a superadmin o al tenant propietario
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
+        }
+        $role = session()->get('role');
+        $sessionTenantId = session()->get('tenant_id');
+        if ($role !== 'superadmin' && !($role === 'tenant' && $sessionTenantId === $tenantId)) {
+            // No es superadmin ni es el tenant propietario
+            return redirect()->to('/auth/login');
+        }
+        //
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
             return redirect()->to('/auth/login');
         }
@@ -130,7 +150,17 @@ class Admin extends BaseController
 
     public function viewTenant($tenantId)
     {
-        // Check if user is logged in and is superadmin
+        // Permitir acceso a superadmin o al tenant propietario
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
+        }
+        $role = session()->get('role');
+        $sessionTenantId = session()->get('tenant_id');
+        if ($role !== 'superadmin' && !($role === 'tenant' && $sessionTenantId === $tenantId)) {
+            // No es superadmin ni es el tenant propietario
+            return redirect()->to('/auth/login');
+        }
+        //
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
             return redirect()->to('/auth/login');
         }
@@ -240,7 +270,17 @@ class Admin extends BaseController
 
     public function createTenant()
     {
-        // Check if user is logged in and is superadmin
+        // Permitir acceso a superadmin o al tenant propietario
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
+        }
+        $role = session()->get('role');
+        $sessionTenantId = session()->get('tenant_id');
+        if ($role !== 'superadmin' && !($role === 'tenant' && $sessionTenantId === $tenantId)) {
+            // No es superadmin ni es el tenant propietario
+            return redirect()->to('/auth/login');
+        }
+        //
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
             return redirect()->to('/auth/login');
         }
@@ -254,7 +294,17 @@ class Admin extends BaseController
 
     public function storeTenant()
     {
-        // Check if user is logged in and is superadmin
+        // Permitir acceso a superadmin o al tenant propietario
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
+        }
+        $role = session()->get('role');
+        $sessionTenantId = session()->get('tenant_id');
+        if ($role !== 'superadmin' && !($role === 'tenant' && $sessionTenantId === $tenantId)) {
+            // No es superadmin ni es el tenant propietario
+            return redirect()->to('/auth/login');
+        }
+        //
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
             return redirect()->to('/auth/login');
         }
@@ -301,7 +351,17 @@ class Admin extends BaseController
 
     public function editTenant($tenantId)
     {
-        // Check if user is logged in and is superadmin
+        // Permitir acceso a superadmin o al tenant propietario
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
+        }
+        $role = session()->get('role');
+        $sessionTenantId = session()->get('tenant_id');
+        if ($role !== 'superadmin' && !($role === 'tenant' && $sessionTenantId === $tenantId)) {
+            // No es superadmin ni es el tenant propietario
+            return redirect()->to('/auth/login');
+        }
+        //
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
             return redirect()->to('/auth/login');
         }
@@ -321,7 +381,17 @@ class Admin extends BaseController
 
     public function updateTenant($tenantId)
     {
-        // Check if user is logged in and is superadmin
+        // Permitir acceso a superadmin o al tenant propietario
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
+        }
+        $role = session()->get('role');
+        $sessionTenantId = session()->get('tenant_id');
+        if ($role !== 'superadmin' && !($role === 'tenant' && $sessionTenantId === $tenantId)) {
+            // No es superadmin ni es el tenant propietario
+            return redirect()->to('/auth/login');
+        }
+        //
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
             return redirect()->to('/auth/login');
         }
@@ -369,7 +439,17 @@ class Admin extends BaseController
 
     public function deleteTenant($tenantId)
     {
-        // Check if user is logged in and is superadmin
+        // Permitir acceso a superadmin o al tenant propietario
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
+        }
+        $role = session()->get('role');
+        $sessionTenantId = session()->get('tenant_id');
+        if ($role !== 'superadmin' && !($role === 'tenant' && $sessionTenantId === $tenantId)) {
+            // No es superadmin ni es el tenant propietario
+            return redirect()->to('/auth/login');
+        }
+        //
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
             return redirect()->to('/auth/login');
         }
@@ -388,7 +468,17 @@ class Admin extends BaseController
 
     public function tenantApiUsers($tenantId)
     {
-        // Check if user is logged in and is superadmin
+        // Permitir acceso a superadmin o al tenant propietario
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
+        }
+        $role = session()->get('role');
+        $sessionTenantId = session()->get('tenant_id');
+        if ($role !== 'superadmin' && !($role === 'tenant' && $sessionTenantId === $tenantId)) {
+            // No es superadmin ni es el tenant propietario
+            return redirect()->to('/auth/login');
+        }
+        //
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
             return redirect()->to('/auth/login');
         }
@@ -419,7 +509,17 @@ class Admin extends BaseController
 
     public function createApiUser($tenantId)
     {
-        // Check if user is logged in and is superadmin
+        // Permitir acceso a superadmin o al tenant propietario
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
+        }
+        $role = session()->get('role');
+        $sessionTenantId = session()->get('tenant_id');
+        if ($role !== 'superadmin' && !($role === 'tenant' && $sessionTenantId === $tenantId)) {
+            // No es superadmin ni es el tenant propietario
+            return redirect()->to('/auth/login');
+        }
+        //
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
             return redirect()->to('/auth/login');
         }
@@ -440,7 +540,17 @@ class Admin extends BaseController
 
     public function storeApiUser($tenantId)
     {
-        // Check if user is logged in and is superadmin
+        // Permitir acceso a superadmin o al tenant propietario
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
+        }
+        $role = session()->get('role');
+        $sessionTenantId = session()->get('tenant_id');
+        if ($role !== 'superadmin' && !($role === 'tenant' && $sessionTenantId === $tenantId)) {
+            // No es superadmin ni es el tenant propietario
+            return redirect()->to('/auth/login');
+        }
+        //
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
             return redirect()->to('/auth/login');
         }
@@ -571,7 +681,17 @@ class Admin extends BaseController
 
     public function editApiUser($tenantId, $userId)
     {
-        // Check if user is logged in and is superadmin
+        // Permitir acceso a superadmin o al tenant propietario
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
+        }
+        $role = session()->get('role');
+        $sessionTenantId = session()->get('tenant_id');
+        if ($role !== 'superadmin' && !($role === 'tenant' && $sessionTenantId === $tenantId)) {
+            // No es superadmin ni es el tenant propietario
+            return redirect()->to('/auth/login');
+        }
+        //
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
             return redirect()->to('/auth/login');
         }
@@ -629,7 +749,17 @@ class Admin extends BaseController
 
     public function deleteApiUser($tenantId, $userId)
     {
-        // Check if user is logged in and is superadmin
+        // Permitir acceso a superadmin o al tenant propietario
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
+        }
+        $role = session()->get('role');
+        $sessionTenantId = session()->get('tenant_id');
+        if ($role !== 'superadmin' && !($role === 'tenant' && $sessionTenantId === $tenantId)) {
+            // No es superadmin ni es el tenant propietario
+            return redirect()->to('/auth/login');
+        }
+        //
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
             return redirect()->to('/auth/login');
         }
@@ -659,7 +789,17 @@ class Admin extends BaseController
 
     public function apiUserUsage($tenantId, $userId)
     {
-        // Check if user is logged in and is superadmin
+        // Permitir acceso a superadmin o al tenant propietario
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
+        }
+        $role = session()->get('role');
+        $sessionTenantId = session()->get('tenant_id');
+        if ($role !== 'superadmin' && !($role === 'tenant' && $sessionTenantId === $tenantId)) {
+            // No es superadmin ni es el tenant propietario
+            return redirect()->to('/auth/login');
+        }
+        //
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
             return redirect()->to('/auth/login');
         }
@@ -739,7 +879,17 @@ class Admin extends BaseController
 
     public function tenantButtons($tenantId)
     {
-        // Check if user is logged in and is superadmin
+        // Permitir acceso a superadmin o al tenant propietario
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
+        }
+        $role = session()->get('role');
+        $sessionTenantId = session()->get('tenant_id');
+        if ($role !== 'superadmin' && !($role === 'tenant' && $sessionTenantId === $tenantId)) {
+            // No es superadmin ni es el tenant propietario
+            return redirect()->to('/auth/login');
+        }
+        //
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
             return redirect()->to('/auth/login');
         }
@@ -798,7 +948,17 @@ class Admin extends BaseController
 
     public function createButton($tenantId)
     {
-        // Check if user is logged in and is superadmin
+        // Permitir acceso a superadmin o al tenant propietario
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
+        }
+        $role = session()->get('role');
+        $sessionTenantId = session()->get('tenant_id');
+        if ($role !== 'superadmin' && !($role === 'tenant' && $sessionTenantId === $tenantId)) {
+            // No es superadmin ni es el tenant propietario
+            return redirect()->to('/auth/login');
+        }
+        //
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
             return redirect()->to('/auth/login');
         }
@@ -855,7 +1015,17 @@ class Admin extends BaseController
 
     public function storeButton($tenantId)
     {
-        // Check if user is logged in and is superadmin
+        // Permitir acceso a superadmin o al tenant propietario
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
+        }
+        $role = session()->get('role');
+        $sessionTenantId = session()->get('tenant_id');
+        if ($role !== 'superadmin' && !($role === 'tenant' && $sessionTenantId === $tenantId)) {
+            // No es superadmin ni es el tenant propietario
+            return redirect()->to('/auth/login');
+        }
+        //
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
             return redirect()->to('/auth/login');
         }
@@ -917,7 +1087,17 @@ class Admin extends BaseController
 
     public function editButton($tenantId, $buttonId)
     {
-        // Check if user is logged in and is superadmin
+        // Permitir acceso a superadmin o al tenant propietario
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
+        }
+        $role = session()->get('role');
+        $sessionTenantId = session()->get('tenant_id');
+        if ($role !== 'superadmin' && !($role === 'tenant' && $sessionTenantId === $tenantId)) {
+            // No es superadmin ni es el tenant propietario
+            return redirect()->to('/auth/login');
+        }
+        //
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
             return redirect()->to('/auth/login');
         }
@@ -1031,7 +1211,17 @@ class Admin extends BaseController
 
     public function viewButton($tenantId, $buttonId)
     {
-        // Check if user is logged in and is superadmin
+        // Permitir acceso a superadmin o al tenant propietario
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
+        }
+        $role = session()->get('role');
+        $sessionTenantId = session()->get('tenant_id');
+        if ($role !== 'superadmin' && !($role === 'tenant' && $sessionTenantId === $tenantId)) {
+            // No es superadmin ni es el tenant propietario
+            return redirect()->to('/auth/login');
+        }
+        //
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
             return redirect()->to('/auth/login');
         }
@@ -1099,7 +1289,17 @@ class Admin extends BaseController
 
     public function deleteButton($tenantId, $buttonId)
     {
-        // Check if user is logged in and is superadmin
+        // Permitir acceso a superadmin o al tenant propietario
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
+        }
+        $role = session()->get('role');
+        $sessionTenantId = session()->get('tenant_id');
+        if ($role !== 'superadmin' && !($role === 'tenant' && $sessionTenantId === $tenantId)) {
+            // No es superadmin ni es el tenant propietario
+            return redirect()->to('/auth/login');
+        }
+        //
         if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
             return redirect()->to('/auth/login');
         }
