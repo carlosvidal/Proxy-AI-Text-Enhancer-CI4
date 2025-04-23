@@ -58,7 +58,7 @@
                                     <a href="<?= site_url('buttons/view/' . $button['button_id']) ?>" class="btn btn-sm btn-info text-white" title="View">
                                         <i class="fas fa-eye"></i>
                                     </a>
-                                    <a href="<?= site_url('tenants/' . $tenant['tenant_id'] . '/buttons/' . $button['button_id'] . '/edit') ?>" class="btn btn-sm btn-warning text-white" title="Edit">
+                                    <a href="<?= site_url('buttons/edit/' . $button['button_id']) ?>" class="btn btn-sm btn-warning text-white" title="Edit">
                                         <i class="fas fa-edit"></i>
                                     </a>
                                     <a href="<?= site_url('buttons/delete/' . $button['button_id']) ?>" class="btn btn-sm btn-danger" title="Delete" onclick="return confirm('Are you sure you want to delete this button?')">
