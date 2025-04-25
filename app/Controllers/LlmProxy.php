@@ -107,6 +107,25 @@ class LlmProxy extends Controller
             $external_id = $json->userId ?? $json->user_id ?? null; // Aceptar tanto userId como user_id
             $button_id = $json->buttonId ?? $json->button_id ?? null; // Aceptar tanto buttonId como button_id
 
+            // --- SOPORTE PARA NUEVO PAYLOAD: prompt, content, context ---
+            if ((empty($messages) || count($messages) === 0) && (isset($json->prompt) || isset($json->content) || isset($json->context))) {
+                $user_content = '';
+                if (isset($json->context) && $json->context) {
+                    $user_content .= trim($json->context) . "\n";
+                }
+                if (isset($json->content) && $json->content) {
+                    $user_content .= trim($json->content) . "\n";
+                }
+                if (isset($json->prompt) && $json->prompt) {
+                    $user_content .= trim($json->prompt);
+                }
+                $messages[] = (object)[
+                    'role' => 'user',
+                    'content' => trim($user_content)
+                ];
+            }
+            // --- FIN SOPORTE NUEVO PAYLOAD ---
+
             // --- FLEXIBILIDAD DE TEMPERATURE ---
             // Permitir temperature en raíz o en options
             if (isset($json->temperature)) {
