@@ -27,7 +27,7 @@ class ApiKeysModel extends Model
 
     protected $validationRules = [
         'api_key_id' => 'required|alpha_numeric_punct|min_length[10]|max_length[100]',
-        'tenant_id' => 'required|alpha_numeric_punct|min_length[10]|max_length[100]',
+        'tenant_id' => 'required|alpha_numeric_punct|min_length[3]|max_length[100]',
         'name' => 'required|min_length[3]|max_length[100]',
         'provider' => 'required|in_list[openai,anthropic,cohere,mistral,deepseek,google]',
         'api_key' => 'required',

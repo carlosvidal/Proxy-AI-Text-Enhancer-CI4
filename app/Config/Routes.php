@@ -118,6 +118,8 @@ $routes->group('admin', ['filter' => 'auth:superadmin'], function ($routes) {
     $routes->get('tenants/view/(:segment)', 'Admin::viewTenant/$1');
     // API Keys Management (admin)
     $routes->get('tenants/(:segment)/api_keys', 'Admin::tenantApiKeys/$1');
+    $routes->get('tenants/(:segment)/api_keys/add', 'Admin::addTenantApiKey/$1');
+    $routes->post('tenants/(:segment)/api_keys/add', 'Admin::storeTenantApiKey/$1');
     $routes->post('tenants/(:segment)/update_plan', 'Admin::updateTenantPlan/$1');
     $routes->get('tenants/create', 'Admin::createTenant');
     $routes->post('tenants/store', 'Admin::storeTenant');

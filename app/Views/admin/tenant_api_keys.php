@@ -3,7 +3,7 @@
 <div class="container-fluid px-4">
     <h1 class="mt-4">API Keys para <?= esc($tenant['name']) ?></h1>
     <ol class="breadcrumb mb-4">
-        <li class="breadcrumb-item"><a href="<?= site_url('/admin/tenants/'.$tenant['tenant_id']) ?>">Detalles del Tenant</a></li>
+        <li class="breadcrumb-item"><a href="<?= site_url('/admin/tenants/view/'.$tenant['tenant_id']) ?>">Detalles del Tenant</a></li>
         <li class="breadcrumb-item active">API Keys</li>
     </ol>
 
@@ -24,9 +24,9 @@
                 <i class="fas fa-key me-1"></i> API Keys del Tenant
             </div>
             <?php if (count($apiKeys) < $tenant['max_api_keys']): ?>
-            <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/api_keys/add') ?>" class="btn btn-primary">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addApiKeyModal">
                 <i class="fas fa-plus me-1"></i> Agregar API Key
-            </a>
+            </button>
             <?php endif; ?>
         </div>
         <div class="card-body">
@@ -85,6 +85,46 @@
                     </tbody>
                 </table>
             </div>
+        </div>
+    </div>
+</div>
+<!-- Modal para agregar API Key -->
+<div class="modal fade" id="addApiKeyModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/api_keys/add') ?>" method="post">
+                <input type="hidden" name="tenant_id" value="<?= esc($tenant['tenant_id']) ?>">
+                <div class="modal-header">
+                    <h5 class="modal-title">Agregar API Key</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Nombre</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="provider" class="form-label">Proveedor</label>
+                        <select class="form-select" id="provider" name="provider" required>
+                            <option value="">Seleccione Proveedor</option>
+                            <option value="openai">OpenAI</option>
+                            <option value="anthropic">Anthropic</option>
+                            <option value="cohere">Cohere</option>
+                            <option value="mistral">Mistral</option>
+                            <option value="deepseek">DeepSeek</option>
+                            <option value="google">Google</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="api_key" class="form-label">API Key</label>
+                        <input type="text" class="form-control" id="api_key" name="api_key" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar API Key</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

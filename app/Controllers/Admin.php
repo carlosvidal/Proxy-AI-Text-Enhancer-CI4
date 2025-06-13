@@ -12,6 +12,74 @@ use App\Models\ApiUsersModel;
 
 class Admin extends BaseController
 {
+    /**
+     * Muestra el formulario para agregar una API Key a un tenant (admin)
+     */
+    public function addTenantApiKey($tenantId)
+    {
+        // Aquí puedes cargar datos del tenant si lo deseas
+        $data = [
+            'title' => 'Agregar API Key',
+            'tenantId' => $tenantId
+        ];
+        return view('admin/add_tenant_api_key', $data);
+    }
+
+    /**
+     * Procesa el guardado de una nueva API Key para un tenant (admin)
+     */
+    public function storeTenantApiKey($tenantId)
+    {
+        helper(['form', 'url', 'hash']);
+        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->first();
+        if (!$tenant) {
+            return redirect()->back()->withInput()->with('error', 'Tenant no encontrado');
+        }
+
+        // Verificar límite de API Keys
+        $apiKeysModel = model('App\Models\ApiKeysModel');
+        $current_keys = $apiKeysModel->where('tenant_id', $tenantId)->findAll();
+        $maxApiKeys = $tenant['max_api_keys'] ?? 1;
+        if (count($current_keys) >= $maxApiKeys) {
+            return redirect()->to('admin/tenants/' . $tenantId . '/api_keys')
+                ->with('error', "Has alcanzado el límite de {$maxApiKeys} API Keys para este tenant.");
+        }
+
+        $rules = [
+            'name' => 'required|min_length[3]|max_length[100]',
+            'provider' => 'required|in_list[openai,anthropic,cohere,mistral,deepseek,google]',
+            'api_key' => 'required|min_length[10]'
+        ];
+        if (!$this->validate($rules)) {
+            return redirect()->back()->withInput()->with('error', implode('<br>', $this->validator->getErrors()));
+        }
+
+        // Generate a unique API key ID
+        $api_key_id = generate_hash_id('key');
+
+        // Encrypt the API key
+        $encrypter = \Config\Services::encrypter();
+        $encrypted_key = base64_encode($encrypter->encrypt($this->request->getPost('api_key')));
+
+        $data = [
+            'api_key_id' => $api_key_id,
+            'tenant_id' => $tenantId,
+            'name' => $this->request->getPost('name'),
+            'provider' => $this->request->getPost('provider'),
+            'api_key' => $encrypted_key,
+            'is_default' => count($current_keys) === 0 ? 1 : 0,
+            'active' => 1,
+            'created_at' => date('Y-m-d H:i:s'),
+            'updated_at' => date('Y-m-d H:i:s'),
+        ];
+        if ($apiKeysModel->insert($data)) {
+            return redirect()->to('admin/tenants/' . $tenantId . '/api_keys')
+                ->with('success', 'API Key agregada correctamente.');
+        }
+        return redirect()->to('admin/tenants/' . $tenantId . '/api_keys')
+            ->withInput()
+            ->with('error', 'Error al agregar la API Key: ' . implode('<br>', $apiKeysModel->errors()));
+    }
     protected $tenantsModel;
     protected $usersModel;
     protected $buttonsModel;
