@@ -16,7 +16,7 @@ class App extends BaseConfig
      *
      * E.g., http://example.com/
      */
-    public string $baseURL = 'http://llmproxy2.test:8080/';
+    public string $baseURL = 'http://llmproxy.test:8080/';
 
     /**
      * Allowed Hostnames in the Site URL other than the hostname in the baseURL.
@@ -29,7 +29,7 @@ class App extends BaseConfig
      *
      * @var list<string>
      */
-    public array $allowedHostnames = ['127.0.0.1:54323', 'localhost:8080', 'localhost:8081', 'localhost:8082', 'localhost:8083', 'localhost:8084'];
+    public array $allowedHostnames = ['127.0.0.1:5500', '127.0.0.1:54323', 'localhost:8080', 'localhost:8081', 'localhost:8082', 'localhost:8083', 'localhost:8084'];
 
     /**
      * --------------------------------------------------------------------------

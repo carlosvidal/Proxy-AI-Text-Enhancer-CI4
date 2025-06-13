@@ -96,6 +96,10 @@ class CorsFilter implements FilterInterface
         // Get origin from request
         $origin = $request->getHeaderLine('Origin');
         
+        // Leer orígenes permitidos desde .env y procesar la lista
+        $allowedOriginsEnv = env('ALLOWED_ORIGINS', '*');
+        $allowedOrigins = array_map('trim', explode(',', $allowedOriginsEnv));
+        
         // Log the requesting origin
         log_message('debug', 'Request origin: ' . ($origin ?: 'none'));
         
@@ -112,40 +116,51 @@ class CorsFilter implements FilterInterface
             
             // Get allowed domains from configuration + database
             $allowedDomains = $this->getAllowedDomains();
-            
+
+            // Fusionar allowedOrigins (.env) y allowedDomains (DB/config)
+            $allAllowed = array_merge($allowedOrigins, $allowedDomains);
+
             log_debug('CORS', 'Checking domain access', [
                 'origin' => $origin,
-                'domain' => $originDomain,
+                'allowed_env' => $allowedOrigins,
                 'allowed_domains' => $allowedDomains,
+                'all_allowed' => $allAllowed,
                 'allow_wildcard' => $allowWildcard ? 'true' : 'false'
             ]);
-            
-            // Allow access if wildcard is enabled or if the domain is in our allowed list
+
+            // Allow access if wildcard is enabled or if the origin is in our allowed list
             if ($allowWildcard) {
                 header('Access-Control-Allow-Origin: *');
                 log_debug('CORS header set: Access-Control-Allow-Origin: *', '');
             } else {
-                // Special case: We may have domains with wildcards (*.example.com)
                 $domainAllowed = false;
-                
-                foreach ($allowedDomains as $allowedDomain) {
-                    // Check for exact match
-                    if ($allowedDomain === $originDomain) {
+                // Comparar el Origin completo (protocolo, host y puerto)
+                foreach ($allAllowed as $allowed) {
+                    if ($origin === $allowed) {
                         $domainAllowed = true;
                         break;
                     }
-                    
-                    // Check for wildcard subdomain match
-                    if (strpos($allowedDomain, '*.') === 0) {
-                        $mainDomain = substr($allowedDomain, 2); // Remove *. prefix
-                        if (substr($originDomain, -strlen($mainDomain)) === $mainDomain && 
-                            substr_count($originDomain, '.') >= substr_count($mainDomain, '.') + 1) {
+                }
+                // Compatibilidad: si no hay coincidencia exacta, probar lógica original (host y wildcard)
+                if (!$domainAllowed) {
+                    $originHost = parse_url($origin, PHP_URL_HOST);
+                    foreach ($allAllowed as $allowedDomain) {
+                        // Coincidencia exacta solo host
+                        if ($allowedDomain === $originHost) {
                             $domainAllowed = true;
                             break;
                         }
+                        // Coincidencia wildcard subdominio
+                        if (strpos($allowedDomain, '*.') === 0) {
+                            $mainDomain = substr($allowedDomain, 2); // Remove *. prefix
+                            if (substr($originHost, -strlen($mainDomain)) === $mainDomain && 
+                                substr_count($originHost, '.') >= substr_count($mainDomain, '.') + 1) {
+                                $domainAllowed = true;
+                                break;
+                            }
+                        }
                     }
                 }
-                
                 if ($domainAllowed) {
                     header("Access-Control-Allow-Origin: {$origin}");
                     header('Access-Control-Allow-Credentials: true');

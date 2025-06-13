@@ -43,6 +43,14 @@
             </div>
 
             <div class="mb-3">
+                <label for="max_api_keys" class="form-label">Max API Keys</label>
+                <input type="number" min="1" class="form-control <?= session('errors.max_api_keys') ? 'is-invalid' : '' ?>" id="max_api_keys" name="max_api_keys" value="<?= old('max_api_keys', 1) ?>" required>
+                <?php if (session('errors.max_api_keys')): ?>
+                    <div class="invalid-feedback"><?= session('errors.max_api_keys') ?></div>
+                <?php endif; ?>
+            </div>
+
+            <div class="mb-3">
                 <label for="email" class="form-label">Email</label>
                 <input type="email" class="form-control <?= session('errors.email') ? 'is-invalid' : '' ?>" id="email" name="email" value="<?= old('email') ?>" required>
                 <?php if (session('errors.email')): ?>
