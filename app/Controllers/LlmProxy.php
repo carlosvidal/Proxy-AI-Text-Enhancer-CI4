@@ -360,6 +360,38 @@ class LlmProxy extends Controller
                 ->get()
                 ->getRowArray();
 
+            // Si no existe, intentar crear si el botón lo permite
+            if (!$api_user) {
+                if (!empty($button['auto_create_api_users'])) {
+                    // Crear usuario API en caliente
+                    $apiUsersModel = new \App\Models\ApiUsersModel();
+                    $userData = [
+                        'tenant_id' => $button['tenant_id'],
+                        'external_id' => $external_id,
+                        'name' => $external_id,
+                        'active' => 1,
+                        'quota' => 10000, // Fix: requerido por el modelo
+                        // 'created_at' y 'updated_at' se manejan por el modelo
+                    ];
+                    $insertResult = $apiUsersModel->insert($userData);
+                    if (!$insertResult) {
+                        $modelErrors = $apiUsersModel->errors();
+                        $insertResultStr = print_r($insertResult, true);
+                        $errorsJson = json_encode($modelErrors);
+                        $errorsPrintR = print_r($modelErrors, true);
+                        log_message('error', '[PROXY] Error al crear usuario API automáticamente | InsertResult: ' . $insertResultStr . ' | Errors(json): ' . $errorsJson . ' | Errors(print_r): ' . $errorsPrintR . ' | UserData: ' . json_encode($userData));
+                        throw new \Exception('No se pudo crear el usuario API automáticamente');
+                    }
+                    $api_user = $db->table('api_users')
+                        ->where('tenant_id', $button['tenant_id'])
+                        ->where('external_id', $external_id)
+                        ->where('active', 1)
+                        ->get()
+                        ->getRowArray();
+                    log_message('info', '[PROXY] API user auto-created for external_id=' . $external_id . ' en tenant=' . $button['tenant_id']);
+                }
+            }
+
             if (!$api_user) {
                 log_error('PROXY', 'API user not found or inactive', [
                     'tenant_id' => $button['tenant_id'],

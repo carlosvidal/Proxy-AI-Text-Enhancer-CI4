@@ -161,9 +161,10 @@ class Buttons extends Controller
             'domain' => $this->request->getPost('domain'),
             'provider' => $provider,
             'model' => $model,
-            'prompt' => $this->request->getPost('prompt'),
+            'system_prompt' => $this->request->getPost('system_prompt'),
             'api_key_id' => $api_key_id,
-            'status' => 'active'
+            'status' => 'active',
+            'auto_create_api_users' => $this->request->getPost('auto_create_api_users') ? 1 : 0
         ];
 
         try {
@@ -310,8 +311,9 @@ class Buttons extends Controller
             'domain' => $this->request->getPost('domain'),
             'provider' => $provider,
             'model' => $model,
-            'prompt' => $this->request->getPost('prompt'),
-            'status' => 'active'
+            'system_prompt' => $this->request->getPost('system_prompt'),
+            'status' => 'active',
+            'auto_create_api_users' => $this->request->getPost('auto_create_api_users') ? 1 : 0
         ];
 
         try {

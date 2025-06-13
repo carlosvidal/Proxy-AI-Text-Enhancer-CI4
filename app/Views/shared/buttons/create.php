@@ -147,6 +147,17 @@
                 </div>
             </div>
 
+            <!-- Checkbox para auto_create_api_users -->
+            <div class="mb-3">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="auto_create_api_users" id="auto_create_api_users" value="1"
+                        <?= old('auto_create_api_users', 0) ? 'checked' : '' ?>>
+                    <label class="form-check-label" for="auto_create_api_users">
+                        Crear usuarios API automáticamente si no existen
+                    </label>
+                </div>
+                <div class="form-text">Si está activado, los usuarios API se crearán automáticamente al usarse por primera vez con este botón.</div>
+            </div>
             <div class="d-flex justify-content-between mt-4">
                 <a href="<?= site_url('buttons') ?>" class="btn btn-secondary">Cancel</a>
                 <button type="submit" class="btn btn-primary">Create Button</button>

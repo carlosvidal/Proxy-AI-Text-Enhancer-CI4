@@ -148,11 +148,11 @@
 
                 <div class="col-md-6">
                     <div class="mb-3">
-                        <label for="prompt" class="form-label">System Prompt</label>
-                        <textarea class="form-control <?= session('errors.prompt') ? 'is-invalid' : '' ?>" 
-                                  id="prompt" name="prompt" rows="8"><?= old('prompt', $button['prompt']) ?></textarea>
-                        <?php if (session('errors.prompt')): ?>
-                            <div class="invalid-feedback"><?= session('errors.prompt') ?></div>
+                        <label for="system_prompt" class="form-label">System Prompt</label>
+                        <textarea class="form-control <?= session('errors.system_prompt') ? 'is-invalid' : '' ?>" 
+                                  id="system_prompt" name="system_prompt" rows="8"><?= old('system_prompt', $button['system_prompt'] ?? '') ?></textarea>
+                        <?php if (session('errors.system_prompt')): ?>
+                            <div class="invalid-feedback"><?= session('errors.system_prompt') ?></div>
                         <?php endif; ?>
                         <div class="form-text">System instructions for the model that define its behavior</div>
                     </div>
@@ -168,6 +168,17 @@
     <?php if (session('errors.status')): ?>
         <div class="invalid-feedback d-block"><?= session('errors.status') ?></div>
     <?php endif; ?>
+</div>
+<!-- Checkbox para auto_create_api_users -->
+<div class="mb-3">
+    <div class="form-check">
+        <input class="form-check-input" type="checkbox" name="auto_create_api_users" id="auto_create_api_users" value="1"
+            <?= old('auto_create_api_users', $button['auto_create_api_users'] ?? 0) ? 'checked' : '' ?>>
+        <label class="form-check-label" for="auto_create_api_users">
+            Crear usuarios API automáticamente si no existen
+        </label>
+    </div>
+    <div class="form-text">Si está activado, los usuarios API se crearán automáticamente al usarse por primera vez con este botón.</div>
 </div>
 <script>
     // Cambia el texto del label según el estado del toggle

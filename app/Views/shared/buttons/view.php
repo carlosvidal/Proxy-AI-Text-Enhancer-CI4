@@ -63,6 +63,16 @@
                         </td>
                     </tr>
                     <tr>
+                        <th>Auto-crear usuarios API:</th>
+                        <td>
+                            <?php if (!empty($button['auto_create_api_users'])): ?>
+                                <span class="badge bg-success">Sí</span>
+                            <?php else: ?>
+                                <span class="badge bg-secondary">No</span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <tr>
                         <th>Created:</th>
                         <td><?= date('Y-m-d H:i', strtotime($button['created_at'])) ?></td>
                     </tr>

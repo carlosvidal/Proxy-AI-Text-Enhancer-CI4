@@ -22,6 +22,7 @@ class ButtonsModel extends Model
         'model',
         'api_key_id',
         'status',
+        'auto_create_api_users',
         'created_at',
         'updated_at'
     ];
