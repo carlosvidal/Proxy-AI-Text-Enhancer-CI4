@@ -51,6 +51,52 @@
             </div>
 
             <div class="mb-3">
+                <label for="quota" class="form-label">Token Quota</label>
+                <input type="number" min="1" class="form-control <?= session('errors.quota') ? 'is-invalid' : '' ?>" id="quota" name="quota" value="<?= old('quota', 100000) ?>" required>
+                <?php if (session('errors.quota')): ?>
+                    <div class="invalid-feedback"><?= session('errors.quota') ?></div>
+                <?php endif; ?>
+            </div>
+
+            <div class="mb-3">
+                <label for="max_domains" class="form-label">Max Domains</label>
+                <input type="number" min="1" class="form-control <?= session('errors.max_domains') ? 'is-invalid' : '' ?>" id="max_domains" name="max_domains" value="<?= old('max_domains', 1) ?>" required>
+                <?php if (session('errors.max_domains')): ?>
+                    <div class="invalid-feedback"><?= session('errors.max_domains') ?></div>
+                <?php endif; ?>
+            </div>
+
+            <div class="mb-3">
+                <label for="plan_code" class="form-label">Plan</label>
+                <select class="form-select <?= session('errors.plan_code') ? 'is-invalid' : '' ?>" id="plan_code" name="plan_code" required>
+                    <option value="">Select a plan</option>
+                    <?php
+                    $planOptions = [
+                        'small' => 'Small',
+                        'medium' => 'Medium',
+                        'large' => 'Large'
+                    ];
+                    foreach ($planOptions as $code => $label): ?>
+                        <option value="<?= $code ?>" <?= old('plan_code') === $code ? 'selected' : '' ?>><?= $label ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <?php if (session('errors.plan_code')): ?>
+                    <div class="invalid-feedback"><?= session('errors.plan_code') ?></div>
+                <?php endif; ?>
+            </div>
+
+            <div class="mb-3">
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input <?= session('errors.auto_create_users') ? 'is-invalid' : '' ?>" id="auto_create_users" name="auto_create_users" value="1" <?= old('auto_create_users', '1') ? 'checked' : '' ?>>
+                    <label class="form-check-label" for="auto_create_users">Auto-create API users</label>
+                    <?php if (session('errors.auto_create_users')): ?>
+                        <div class="invalid-feedback"><?= session('errors.auto_create_users') ?></div>
+                    <?php endif; ?>
+                </div>
+                <small class="text-muted">If checked, API users will be created automatically as needed.</small>
+            </div>
+
+            <div class="mb-3">
                 <label for="email" class="form-label">Email</label>
                 <input type="email" class="form-control <?= session('errors.email') ? 'is-invalid' : '' ?>" id="email" name="email" value="<?= old('email') ?>" required>
                 <?php if (session('errors.email')): ?>

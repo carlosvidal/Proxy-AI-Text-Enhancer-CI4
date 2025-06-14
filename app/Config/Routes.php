@@ -145,7 +145,10 @@ $routes->group('admin', ['filter' => 'auth:superadmin'], function ($routes) {
     $routes->get('tenants/(:segment)/buttons/(:segment)/delete', 'Admin::deleteButton/$1/$2');
 
     // Admin Domain Management Routes
-    $routes->get('tenants/(:segment)/domains', 'Domains::manageTenantDomains/$1');
+    $routes->get('tenants/(:segment)/domains', 'AdminDomains::index/$1');
+    $routes->get('tenants/(:segment)/domains/create', 'AdminDomains::create/$1');
+    $routes->post('tenants/(:segment)/domains/store', 'AdminDomains::store/$1');
+    $routes->get('tenants/(:segment)/domains/delete/(:segment)', 'AdminDomains::delete/$1/$2');
     $routes->post('tenants/(:segment)/domains/max', 'Domains::updateMaxDomains/$1');
 
     // Rutas de usuarios de autenticación

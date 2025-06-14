@@ -11,7 +11,7 @@
         <p class="text-muted mb-0">Create and manage text enhancement buttons</p>
     </div>
     <div>
-        <a href="<?= site_url('tenants/' . $tenant['tenant_id'] . '/buttons/create') ?>" class="btn btn-primary">
+        <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons/create') ?>" class="btn btn-primary">
             <i class="fas fa-plus me-1"></i>Create Button
         </a>
     </div>
@@ -42,7 +42,7 @@
             <div class="text-center py-4">
                 <i class="fas fa-code fa-3x text-muted mb-3"></i>
                 <p class="text-muted">No buttons found for this tenant.</p>
-                <a href="<?= site_url('tenants/' . $tenant['tenant_id'] . '/buttons/create') ?>" class="btn btn-primary">
+                <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons/create') ?>" class="btn btn-primary">
                     <i class="fas fa-plus me-1"></i>Create First Button
                 </a>
             </div>

@@ -17,7 +17,7 @@
         Create New Button
     </div>
     <div class="card-body">
-        <?php if (session()->has('error')): ?>
+        <?php if (session('error')): ?>
             <div class="alert alert-danger">
                 <?= session('error') ?>
             </div>
@@ -39,34 +39,35 @@
                     </div>
 
                     <div class="mb-3">
-                        <?php 
-                        // Obtener dominios del tenant actual
-                        $tenantsModel = new \App\Models\TenantsModel();
-                        $tenant = $tenantsModel->find(session('tenant_id'));
-                        $domains = $tenantsModel->getDomains(session('tenant_id'));
-                        
-                        if(empty($domains)): ?>
-                            <div class="alert alert-warning">
-                                No hay dominios configurados. Por favor, configure al menos un dominio.
-                            </div>
-                            <input type="text" class="form-control" name="domain" required 
-                                   placeholder="Ingrese un dominio para este botón">
-                        <?php else: ?>
-                            <label class="form-label">Dominio Permitido</label>
-                            <?php if(isset($tenant['max_domains']) && $tenant['max_domains'] > 1 && count($domains) > 1): ?>
-                                <select name="domain" class="form-select" required>
-                                    <?php foreach($domains as $domain): ?>
-                                        <option value="<?= $domain['domain'] ?>">
-                                            <?= $domain['domain'] ?>
-                                            <?= isset($domain['verified']) && $domain['verified'] ? '' : ' (Pendiente de Verificación)' ?>
-                                        </option>
-                                    <?php endforeach ?>
-                                </select>
-                            <?php else: ?>
-                                <input type="hidden" name="domain" value="<?= $domains[0]['domain'] ?>">
-                                <input type="text" class="form-control" value="<?= $domains[0]['domain'] ?>" disabled>
-                            <?php endif ?>
-                        <?php endif ?>
+                        <?php
+// Usar $domains pasado desde el controlador si existe, si no, obtenerlo del modelo por compatibilidad legacy
+if (!isset($domains)) {
+    if (isset($tenant['tenant_id'])) {
+        $tenantsModel = new \App\Models\TenantsModel();
+        $domains = $tenantsModel->getDomains($tenant['tenant_id']);
+    } else {
+        $domains = [];
+    }
+}
+?>
+<?php if (empty($domains)) { ?>
+    <div class="alert alert-warning">
+        No hay dominios configurados para este tenant. Pídale al superadmin que registre al menos uno desde la administración.
+    </div>
+    <select name="domain" class="form-select" required disabled>
+        <option value="">Sin dominios disponibles</option>
+    </select>
+<?php } else { ?>
+    <label class="form-label">Dominio Permitido</label>
+    <select name="domain" class="form-select" required>
+        <?php foreach ($domains as $domain) { ?>
+            <option value="<?= $domain['domain'] ?>" <?= old('domain') == $domain['domain'] ? 'selected' : '' ?>>
+                <?= $domain['domain'] ?>
+                <?= isset($domain['verified']) && $domain['verified'] ? '' : ' (Pendiente de Verificación)' ?>
+            </option>
+        <?php } ?>
+    </select>
+<?php } ?>
                     </div>
 
                     <div class="mb-3">
@@ -136,9 +137,12 @@
 
                 <div class="col-md-6">
                     <div class="mb-3">
-                        <label for="prompt" class="form-label">System Prompt</label>
-                        <textarea class="form-control <?= session('errors.prompt') ? 'is-invalid' : '' ?>" 
-                                  id="prompt" name="prompt" rows="8"><?= old('prompt') ?></textarea>
+                        <label for="system_prompt" class="form-label">System Prompt <span class="text-danger">*</span></label>
+<textarea class="form-control <?= session('errors.system_prompt') ? 'is-invalid' : '' ?>" 
+          id="system_prompt" name="system_prompt" rows="8" required><?= old('system_prompt') ?></textarea>
+<?php if (session('errors.system_prompt')): ?>
+    <div class="invalid-feedback"><?= session('errors.system_prompt') ?></div>
+<?php endif; ?>
                         <?php if (session('errors.prompt')): ?>
                             <div class="invalid-feedback"><?= session('errors.prompt') ?></div>
                         <?php endif; ?>

@@ -11,7 +11,12 @@
             <i class="fas fa-key me-1"></i>Gestionar API Keys
         </a>
         <h2><?= esc($tenant['name']) ?></h2>
-        <p class="text-muted mb-0">View tenant details and usage statistics</p>
+<p class="mb-2">
+    <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/domains') ?>" class="btn btn-outline-secondary btn-sm">
+        <i class="fas fa-globe me-1"></i>Gestionar Dominios
+    </a>
+</p>
+<p class="text-muted mb-0">View tenant details and usage statistics</p>
     </div>
     <div>
         <a href="<?= site_url('admin/tenants/edit/' . $tenant['tenant_id']) ?>" class="btn btn-primary">

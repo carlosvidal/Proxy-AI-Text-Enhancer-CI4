@@ -11,11 +11,11 @@
         </div>
     </div>
     
-    <?php if (session()->has('error')): ?>
+    <?php if (session('error')): ?>
         <div class="alert alert-danger"><?= session('error') ?></div>
     <?php endif; ?>
 
-    <?php if (session()->has('success')): ?>
+    <?php if (session('success')): ?>
         <div class="alert alert-success"><?= session('success') ?></div>
     <?php endif; ?>
 
@@ -25,39 +25,12 @@
             <?= isset($button) ? 'Edit' : 'Create' ?> Button
         </div>
         <div class="card-body">
-            <form action="<?= isset($button) 
-                ? site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons/' . $button['button_id'] . '/update')
-                : site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons/store') ?>" 
-                method="post">
-                <?= csrf_field() ?>
-
-                <div class="row">
-                    <div class="col-md-6">
-                        <div class="mb-3">
-                            <label for="name" class="form-label">Button Name</label>
-                            <input type="text" class="form-control <?= session('errors.name') ? 'is-invalid' : '' ?>" 
-                                   id="name" name="name" value="<?= old('name', $button['name'] ?? '') ?>" required>
-                            <?php if (session('errors.name')): ?>
-                                <div class="invalid-feedback"><?= session('errors.name') ?></div>
-                            <?php endif; ?>
-                            <div class="form-text">A descriptive name for this button</div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="domain" class="form-label">Domain</label>
-                            <input type="text" class="form-control <?= session('errors.domain') ? 'is-invalid' : '' ?>" 
-                                   id="domain" name="domain" value="<?= old('domain', $button['domain'] ?? '') ?>" required>
-                            <?php if (session('errors.domain')): ?>
-                                <div class="invalid-feedback"><?= session('errors.domain') ?></div>
-                            <?php endif; ?>
-                            <div class="form-text">Domain where this button will be used (e.g., example.com)</div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="provider" class="form-label">LLM Provider</label>
-                            <select class="form-select <?= session('errors.provider') ? 'is-invalid' : '' ?>" 
-                                    id="provider" name="provider" required>
-                                <option value="">Select Provider</option>
+            <?php
+// Reutilizar el formulario avanzado de shared/buttons/create.php
+// Se debe asegurar que las variables $tenant, $apiKeys, $providers, $models estén definidas
+// Si no están, cargarlas aquí (opcional, según el controlador)
+include(APPPATH . 'Views/shared/buttons/create.php');
+?>
                                 <?php foreach ($providers as $key => $label): ?>
                                     <option value="<?= $key ?>" <?= old('provider', $button['provider'] ?? '') == $key ? 'selected' : '' ?>><?= $label ?></option>
                                 <?php endforeach; ?>

@@ -6,7 +6,7 @@
     <div>
         <h2>Buttons for <?= esc($tenant['name']) ?></h2>
     </div>
-    <a href="<?= site_url('buttons/create') ?>" class="btn btn-primary">
+    <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons/create') ?>" class="btn btn-primary">
         <i class="fas fa-plus me-1"></i>Create Button
     </a>
 </div>
