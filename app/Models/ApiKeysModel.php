@@ -127,9 +127,29 @@ class ApiKeysModel extends Model
      */
     protected function beforeInsert(array $data): array
     {
-        if (isset($data['data']['api_key'])) {
+        if (isset($data['data']['api_key']) && !empty($data['data']['api_key'])) {
             $encrypter = \Config\Services::encrypter();
-            $data['data']['api_key'] = base64_encode($encrypter->encrypt($data['data']['api_key']));
+            // Only encrypt if it's not already encrypted (doesn't look like base64)
+            $api_key = $data['data']['api_key'];
+            if (!preg_match('/^[A-Za-z0-9+\/]*={0,2}$/', $api_key) || strlen($api_key) < 40) {
+                $data['data']['api_key'] = base64_encode($encrypter->encrypt($api_key));
+            }
+        }
+        return $data;
+    }
+
+    /**
+     * Encrypt API key before updating
+     */
+    protected function beforeUpdate(array $data): array
+    {
+        if (isset($data['data']['api_key']) && !empty($data['data']['api_key'])) {
+            $encrypter = \Config\Services::encrypter();
+            // Only encrypt if it's not already encrypted (doesn't look like base64)
+            $api_key = $data['data']['api_key'];
+            if (!preg_match('/^[A-Za-z0-9+\/]*={0,2}$/', $api_key) || strlen($api_key) < 40) {
+                $data['data']['api_key'] = base64_encode($encrypter->encrypt($api_key));
+            }
         }
         return $data;
     }
@@ -146,12 +166,26 @@ class ApiKeysModel extends Model
         $encrypter = \Config\Services::encrypter();
 
         if (is_array($data)) {
-            foreach ($data as &$row) {
-                if (isset($row['api_key'])) {
-                    try {
-                        $row['api_key'] = $encrypter->decrypt(base64_decode($row['api_key']));
-                    } catch (\Exception $e) {
-                        log_message('error', 'Error decrypting API key: ' . $e->getMessage());
+            // Check if this is a single record (has api_key field directly)
+            if (isset($data['api_key'])) {
+                try {
+                    $data['api_key'] = $encrypter->decrypt(base64_decode($data['api_key']));
+                } catch (\Exception $e) {
+                    log_message('error', 'Error decrypting API key: ' . $e->getMessage());
+                    // Set to empty string if decryption fails
+                    $data['api_key'] = '';
+                }
+            } else {
+                // This is an array of records
+                foreach ($data as &$row) {
+                    if (isset($row['api_key'])) {
+                        try {
+                            $row['api_key'] = $encrypter->decrypt(base64_decode($row['api_key']));
+                        } catch (\Exception $e) {
+                            log_message('error', 'Error decrypting API key: ' . $e->getMessage());
+                            // Set to empty string if decryption fails
+                            $row['api_key'] = '';
+                        }
                     }
                 }
             }

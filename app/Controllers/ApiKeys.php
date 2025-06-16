@@ -70,16 +70,12 @@ class ApiKeys extends BaseController
         // Generate a unique API key ID
         $api_key_id = generate_hash_id('key');
 
-        // Encrypt the API key
-        $encrypter = \Config\Services::encrypter();
-        $encrypted_key = base64_encode($encrypter->encrypt($this->request->getPost('api_key')));
-
         $data = [
             'api_key_id' => $api_key_id,
             'tenant_id' => $tenant_id,
             'name' => $this->request->getPost('name'),
             'provider' => $this->request->getPost('provider'),
-            'api_key' => $encrypted_key,
+            'api_key' => $this->request->getPost('api_key'), // Let the model handle encryption
             'is_default' => count($current_keys) === 0 ? 1 : 0, // Set as default if it's the first key
             'active' => 1
         ];

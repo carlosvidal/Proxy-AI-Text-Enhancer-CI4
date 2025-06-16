@@ -63,6 +63,9 @@ class LlmProxy extends Controller
             'method' => service('request')->getMethod()
         ]);
 
+        // Ensure CORS headers are set for all responses
+        $this->_set_cors_headers();
+
         // Verify this is a POST request
         if (service('request')->getMethod() !== 'post') {
             log_error('PROXY', 'Method not allowed', [
@@ -329,8 +332,7 @@ class LlmProxy extends Controller
 
             if (!$button) {
                 log_error('PROXY', 'Button not found or inactive', [
-                    'button_id' => $button_id,
-                    'tenant_id' => $button['tenant_id']
+                    'button_id' => $button_id
                 ]);
                 throw new \Exception('Invalid or inactive button');
             }
@@ -338,18 +340,31 @@ class LlmProxy extends Controller
             // Store the actual button_id from database
             $actual_button_id = $button['button_id'];
 
-            // Validate domain
-            if ($button['domain'] !== '*' && $this->_normalize_domain($button['domain']) !== $this->_normalize_domain($domain)) {
-                log_error('PROXY', 'Domain mismatch', [
-                    'request_domain' => $domain,
-                    'normalized_request_domain' => $this->_normalize_domain($domain),
-                    'button_domain' => $button['domain'],
-                    'normalized_button_domain' => $this->_normalize_domain($button['domain']),
-                    'origin' => service('request')->getHeaderLine('Origin'),
-                    'referer' => service('request')->getHeaderLine('Referer'),
-                    'button' => $button
-                ]);
-                throw new \Exception('Invalid domain for this button');
+            // Validate domain - support multiple domains separated by commas
+            if ($button['domain'] !== '*') {
+                $allowed_domains = explode(',', $button['domain']);
+                $is_domain_allowed = false;
+                
+                foreach ($allowed_domains as $allowed_domain) {
+                    $allowed_domain = trim($allowed_domain);
+                    if ($this->_normalize_domain($allowed_domain) === $this->_normalize_domain($domain)) {
+                        $is_domain_allowed = true;
+                        break;
+                    }
+                }
+                
+                if (!$is_domain_allowed) {
+                    log_error('PROXY', 'Domain mismatch', [
+                        'request_domain' => $domain,
+                        'normalized_request_domain' => $this->_normalize_domain($domain),
+                        'button_domain' => $button['domain'],
+                        'allowed_domains' => $allowed_domains,
+                        'origin' => service('request')->getHeaderLine('Origin'),
+                        'referer' => service('request')->getHeaderLine('Referer'),
+                        'button' => $button
+                    ]);
+                    throw new \Exception('Invalid domain for this button');
+                }
             }
 
             // Get API user
@@ -439,7 +454,7 @@ class LlmProxy extends Controller
     {
         try {
             // Get LLM provider instance
-            $llm = $this->_get_llm_provider($provider);
+            $llm = $this->_get_llm_provider($provider, $tenant_id);
 
             // Set options
             $options = [
@@ -454,18 +469,27 @@ class LlmProxy extends Controller
                     'model' => $model
                 ]);
 
+                // Set CORS headers first for streaming
+                $this->_set_cors_headers();
+                
                 // Set headers for streaming
                 header('Content-Type: text/event-stream');
                 header('Cache-Control: no-cache');
                 header('Connection: keep-alive');
                 header('X-Accel-Buffering: no');
 
+                // Log usage before streaming starts (approximate token count)
+                $usage = $llm->get_token_usage($messages);
+                $this->_log_usage($tenant_id, $external_id, $button_id, $provider, $model, $usage['tokens_in'] + $usage['tokens_out'], null, $has_image);
+
                 // Get streaming response
                 $response = $llm->process_stream_request($model, $messages, $options);
 
                 // Process stream response
                 if (is_callable($response)) {
+                    log_message('debug', '[PROXY] Starting streaming response execution');
                     $response();
+                    log_message('debug', '[PROXY] Streaming response completed');
                 } else {
                     log_error('PROXY', 'Invalid stream response', [
                         'provider' => $provider,
@@ -474,12 +498,9 @@ class LlmProxy extends Controller
                     throw new \Exception('Invalid stream response from provider');
                 }
 
-                // Log usage after streaming completes
-                $usage = $llm->get_token_usage($messages);
-                $this->_log_usage($tenant_id, $external_id, $button_id, $provider, $model, $usage['tokens_in'] + $usage['tokens_out'], null, $has_image);
-
-                // Return empty response since we've already sent the stream
-                return '';
+                // For streaming responses, we need to exit after sending the stream
+                // to prevent CodeIgniter from trying to send additional response data
+                exit;
             } else {
                 $response = $llm->process_request($model, $messages, $options);
 
@@ -539,7 +560,8 @@ class LlmProxy extends Controller
                 'cost' => $cost ?? 0,
                 'has_image' => $has_image ? 1 : 0,
                 'status' => 'success',
-                'created_at' => date('Y-m-d H:i:s')
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s')
             ];
 
             log_debug('USAGE', 'Intentando insertar log', [
@@ -570,7 +592,9 @@ class LlmProxy extends Controller
                     }
                 }
 
-                // Grabar en prompt_logs
+                // TODO: Crear tabla prompt_logs para logging detallado de prompts
+                // Temporalmente comentado hasta crear la tabla
+                /*
                 $prompt_data = [
                     'usage_log_id' => $usage_log_id,
                     'tenant_id' => $tenant_id,
@@ -587,6 +611,7 @@ class LlmProxy extends Controller
                         'data' => $prompt_data
                     ]);
                 }
+                */
             }
 
             log_debug('USAGE', 'Log insertado correctamente', [
@@ -644,9 +669,17 @@ class LlmProxy extends Controller
         $referer = service('request')->getHeaderLine('Referer');
 
         if (!empty($origin)) {
-            $domain = parse_url($origin, PHP_URL_HOST);
+            $parsed = parse_url($origin);
+            $domain = $parsed['host'];
+            if (isset($parsed['port'])) {
+                $domain .= ':' . $parsed['port'];
+            }
         } elseif (!empty($referer)) {
-            $domain = parse_url($referer, PHP_URL_HOST);
+            $parsed = parse_url($referer);
+            $domain = $parsed['host'];
+            if (isset($parsed['port'])) {
+                $domain .= ':' . $parsed['port'];
+            }
         } else {
             $domain = service('request')->getIPAddress();
         }
@@ -678,25 +711,65 @@ class LlmProxy extends Controller
     /**
      * Get LLM provider instance
      */
-    private function _get_llm_provider($provider)
+    private function _get_llm_provider($provider, $tenant_id = null)
     {
-        if (!isset($this->api_keys[$provider]) || empty($this->api_keys[$provider])) {
-            throw new \Exception('Provider not configured: ' . $provider);
+        $api_key = null;
+        
+        // First try to get API key from database if tenant_id is provided
+        if ($tenant_id) {
+            $apiKeysModel = new \App\Models\ApiKeysModel();
+            $apiKeyRecord = $apiKeysModel->getDefaultKey($tenant_id, $provider);
+            
+            log_debug('PROXY', 'Database API key lookup result', [
+                'provider' => $provider,
+                'tenant_id' => $tenant_id,
+                'found_record' => !empty($apiKeyRecord),
+                'has_api_key' => !empty($apiKeyRecord['api_key']) ? 'yes' : 'no',
+                'api_key_length' => !empty($apiKeyRecord['api_key']) ? strlen($apiKeyRecord['api_key']) : 0,
+                'record_data' => $apiKeyRecord ? array_merge($apiKeyRecord, ['api_key' => '***REDACTED***']) : null
+            ]);
+            
+            if ($apiKeyRecord && !empty($apiKeyRecord['api_key'])) {
+                $api_key = $apiKeyRecord['api_key']; // Already decrypted by the model's afterFind method
+                log_info('PROXY', 'Using database API key for provider', [
+                    'provider' => $provider,
+                    'tenant_id' => $tenant_id,
+                    'api_key_name' => $apiKeyRecord['name'] ?? 'Unknown',
+                    'api_key_id' => $apiKeyRecord['api_key_id'] ?? 'Unknown'
+                ]);
+            } else {
+                log_warning('PROXY', 'No database API key found for provider, falling back to environment', [
+                    'provider' => $provider,
+                    'tenant_id' => $tenant_id,
+                    'available_keys_query' => $apiKeysModel->where('tenant_id', $tenant_id)->where('active', 1)->findAll()
+                ]);
+            }
+        }
+        
+        // Fallback to environment variables if no database key found
+        if (!$api_key) {
+            if (!isset($this->api_keys[$provider]) || empty($this->api_keys[$provider])) {
+                throw new \Exception('Provider not configured: ' . $provider . ' (no API key found in database or environment)');
+            }
+            $api_key = $this->api_keys[$provider];
+            log_debug('PROXY', 'Using environment API key for provider', [
+                'provider' => $provider
+            ]);
         }
 
         switch ($provider) {
             case 'openai':
-                return new OpenAiProvider($this->api_keys[$provider], $this->endpoints[$provider]);
+                return new OpenAiProvider($api_key, $this->endpoints[$provider]);
             case 'anthropic':
-                return new AnthropicProvider($this->api_keys[$provider], $this->endpoints[$provider]);
+                return new AnthropicProvider($api_key, $this->endpoints[$provider]);
             case 'mistral':
-                return new MistralProvider($this->api_keys[$provider], $this->endpoints[$provider]);
+                return new MistralProvider($api_key, $this->endpoints[$provider]);
             case 'deepseek':
-                return new DeepseekProvider($this->api_keys[$provider], $this->endpoints[$provider]);
+                return new DeepseekProvider($api_key, $this->endpoints[$provider]);
             case 'google':
-                return new GoogleProvider($this->api_keys[$provider], $this->endpoints[$provider]);
+                return new GoogleProvider($api_key, $this->endpoints[$provider]);
             case 'azure':
-                return new AzureProvider($this->api_keys[$provider], $this->endpoints[$provider]);
+                return new AzureProvider($api_key, $this->endpoints[$provider]);
             default:
                 throw new \Exception('Unsupported provider: ' . $provider);
         }
@@ -742,10 +815,58 @@ class LlmProxy extends Controller
      */
     public function options()
     {
+        $this->_set_cors_headers();
         return $this->response
-            ->setHeader('Access-Control-Allow-Origin', $this->allowed_origins)
-            ->setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization')
-            ->setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
             ->setStatusCode(200);
+    }
+
+    /**
+     * Set CORS headers for all responses
+     */
+    private function _set_cors_headers()
+    {
+        $origin = service('request')->getHeaderLine('Origin');
+        
+        if (!empty($origin)) {
+            // Get allowed domains from database same as CorsFilter
+            $db = db_connect();
+            $buttonsQuery = $db->query("SELECT DISTINCT domain FROM buttons WHERE status = 'active'");
+            $allowedDomains = [];
+            
+            if ($buttonsQuery) {
+                $buttonRows = $buttonsQuery->getResultArray();
+                foreach ($buttonRows as $row) {
+                    if (!empty($row['domain'])) {
+                        // Handle comma-separated domains
+                        $domains = explode(',', $row['domain']);
+                        foreach ($domains as $domain) {
+                            $domain = trim($domain);
+                            if (!empty($domain)) {
+                                $allowedDomains[] = $domain;
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Check if origin is allowed
+            if (in_array($origin, $allowedDomains) || $this->allowed_origins === '*') {
+                header("Access-Control-Allow-Origin: {$origin}");
+                header('Access-Control-Allow-Credentials: true');
+                log_debug('PROXY', 'CORS headers set for streaming', [
+                    'origin' => $origin,
+                    'allowed' => true
+                ]);
+            }
+        } else {
+            // Fallback to wildcard if no origin (development)
+            if ($this->allowed_origins === '*') {
+                header('Access-Control-Allow-Origin: *');
+            }
+        }
+        
+        header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+        header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin');
+        header('Access-Control-Max-Age: 86400');
     }
 }

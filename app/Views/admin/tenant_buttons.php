@@ -116,12 +116,17 @@
                                 </td>
                                 <td>
                                     <div class="btn-group">
-                                        <a href="<?= site_url('tenants/' . $tenant['tenant_id'] . '/buttons/' . $button['button_id'] . '/edit') ?>" 
+                                        <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons/' . $button['button_id'] . '/view') ?>" 
+                                           class="btn btn-sm btn-outline-info"
+                                           title="View Button">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons/' . $button['button_id'] . '/edit') ?>" 
                                            class="btn btn-sm btn-outline-primary"
                                            title="Edit Button">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <a href="<?= site_url('tenants/' . $tenant['tenant_id'] . '/buttons/' . $button['button_id'] . '/delete') ?>" 
+                                        <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons/' . $button['button_id'] . '/delete') ?>" 
                                            class="btn btn-sm btn-outline-danger"
                                            onclick="return confirm('Are you sure you want to delete this button? This will also delete all associated usage logs.')"
                                            title="Delete Button">

@@ -25,19 +25,79 @@
             <?= isset($button) ? 'Edit' : 'Create' ?> Button
         </div>
         <div class="card-body">
-            <?php
-// Reutilizar el formulario avanzado de shared/buttons/create.php
-// Se debe asegurar que las variables $tenant, $apiKeys, $providers, $models estén definidas
-// Si no están, cargarlas aquí (opcional, según el controlador)
-include(APPPATH . 'Views/shared/buttons/create.php');
-?>
-                                <?php foreach ($providers as $key => $label): ?>
-                                    <option value="<?= $key ?>" <?= old('provider', $button['provider'] ?? '') == $key ? 'selected' : '' ?>><?= $label ?></option>
+            <?php if (session('error')): ?>
+                <div class="alert alert-danger"><?= session('error') ?></div>
+            <?php endif; ?>
+
+            <form action="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons/store') ?>" method="post">
+                <?= csrf_field() ?>
+                <input type="hidden" name="tenant_id" value="<?= $tenant['tenant_id'] ?>">
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Button Name</label>
+                            <input type="text" class="form-control <?= session('errors.name') ? 'is-invalid' : '' ?>" 
+                                   id="name" name="name" value="<?= old('name', $button['name'] ?? '') ?>" required>
+                            <?php if (session('errors.name')): ?>
+                                <div class="invalid-feedback"><?= session('errors.name') ?></div>
+                            <?php endif; ?>
+                            <div class="form-text">A descriptive name for your button</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <?php
+                            // Usar $domains pasado desde el controlador si existe, si no, obtenerlo del modelo por compatibilidad legacy
+                            if (!isset($domains)) {
+                                if (isset($tenant['tenant_id'])) {
+                                    $tenantsModel = new \App\Models\TenantsModel();
+                                    $domains = $tenantsModel->getDomains($tenant['tenant_id']);
+                                } else {
+                                    $domains = [];
+                                }
+                            }
+                            ?>
+                            <?php if (empty($domains)) { ?>
+                                <div class="alert alert-warning">
+                                    No hay dominios configurados para este tenant. Pídale al superadmin que registre al menos uno desde la administración.
+                                </div>
+                                <select name="domain" class="form-select" required disabled>
+                                    <option value="">Sin dominios disponibles</option>
+                                </select>
+                            <?php } else { ?>
+                                <label class="form-label">Dominio Permitido</label>
+                                <select name="domain" class="form-select" required>
+                                    <?php foreach ($domains as $domain) { ?>
+                                        <option value="<?= $domain['domain'] ?>" <?= old('domain') == $domain['domain'] ? 'selected' : '' ?>>
+                                            <?= $domain['domain'] ?>
+                                            <?= isset($domain['verified']) && $domain['verified'] ? '' : ' (Pendiente de Verificación)' ?>
+                                        </option>
+                                    <?php } ?>
+                                </select>
+                            <?php } ?>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="api_key_id" class="form-label">API Key</label>
+                            <select class="form-select <?= session('errors.api_key_id') ? 'is-invalid' : '' ?>" 
+                                   id="api_key_id" name="api_key_id" required>
+                                <option value="">Select API Key</option>
+                                <?php foreach ($apiKeys as $apiKey): ?>
+                                    <?php if ($apiKey['active'] == 1): ?>
+                                        <option value="<?= $apiKey['api_key_id'] ?>" 
+                                                data-provider="<?= $apiKey['provider'] ?>"
+                                                <?= old('api_key_id') == $apiKey['api_key_id'] ? 'selected' : '' ?>>
+                                            <?= $apiKey['name'] ?> (<?= $providers[$apiKey['provider']] ?>)
+                                        </option>
+                                    <?php endif; ?>
                                 <?php endforeach; ?>
                             </select>
-                            <?php if (session('errors.provider')): ?>
-                                <div class="invalid-feedback"><?= session('errors.provider') ?></div>
+                            <?php if (session('errors.api_key_id')): ?>
+                                <div class="invalid-feedback"><?= session('errors.api_key_id') ?></div>
                             <?php endif; ?>
+                            <div class="form-text">
+                                Select an API key from the tenant's configured keys.
+                            </div>
                         </div>
 
                         <div class="mb-3">
@@ -57,32 +117,53 @@ include(APPPATH . 'Views/shared/buttons/create.php');
                                 <div class="invalid-feedback"><?= session('errors.model') ?></div>
                             <?php endif; ?>
                         </div>
+
+                        <!-- Campo Temperatura -->
+                        <div class="mb-3">
+                            <label for="temperature" class="form-label">Temperatura
+                                <span id="temperature-value" class="ms-2 fw-bold"><?= old('temperature', $button['temperature'] ?? '0.7') ?></span>
+                            </label>
+                            <input type="range" class="form-range" min="0" max="1" step="0.01" id="temperature" name="temperature" value="<?= old('temperature', $button['temperature'] ?? '0.7') ?>" oninput="document.getElementById('temperature-value').textContent = this.value">
+                            <div class="form-text">Controla la creatividad del modelo (0 = determinista, 1 = más creativo).</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="status" class="form-label">Status</label><br>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="status" name="status" value="active" <?= old('status', $button['status'] ?? 'active') == 'active' ? 'checked' : '' ?>>
+                                <label class="form-check-label" for="status">
+                                    <span id="status-label">Active</span>
+                                </label>
+                            </div>
+                            <?php if (session('errors.status')): ?>
+                                <div class="invalid-feedback d-block"> <?= session('errors.status') ?> </div>
+                            <?php endif; ?>
+                        </div>
                     </div>
 
                     <div class="col-md-6">
                         <div class="mb-3">
-                            <label for="api_key" class="form-label">Provider API Key</label>
-                            <input type="password" class="form-control <?= session('errors.api_key') ? 'is-invalid' : '' ?>" 
-                                   id="api_key" name="api_key" <?= isset($button) ? '' : 'required' ?>>
-                            <?php if (session('errors.api_key')): ?>
-                                <div class="invalid-feedback"><?= session('errors.api_key') ?></div>
-                            <?php endif; ?>
-                            <div class="form-text">
-                                <?= isset($button) ? 'Leave blank to keep current API key' : 'API key for the selected provider' ?>.
-                                This key will be securely encrypted before storage.
-                            </div>
-                        </div>
-
-                        <div class="mb-3">
-                            <label for="system_prompt" class="form-label">System Prompt</label>
+                            <label for="system_prompt" class="form-label">System Prompt <span class="text-danger">*</span></label>
                             <textarea class="form-control <?= session('errors.system_prompt') ? 'is-invalid' : '' ?>" 
-                                      id="system_prompt" name="system_prompt" rows="8"><?= old('system_prompt', $button['system_prompt'] ?? '') ?></textarea>
+                                      id="system_prompt" name="system_prompt" rows="8" required><?= old('system_prompt', $button['system_prompt'] ?? '') ?></textarea>
                             <?php if (session('errors.system_prompt')): ?>
                                 <div class="invalid-feedback"><?= session('errors.system_prompt') ?></div>
                             <?php endif; ?>
                             <div class="form-text">System instructions for the model that define its behavior</div>
                         </div>
                     </div>
+                </div>
+
+                <!-- Checkbox para auto_create_api_users -->
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="auto_create_api_users" id="auto_create_api_users" value="1"
+                            <?= old('auto_create_api_users', $button['auto_create_api_users'] ?? 0) ? 'checked' : '' ?>>
+                        <label class="form-check-label" for="auto_create_api_users">
+                            Crear usuarios API automáticamente si no existen
+                        </label>
+                    </div>
+                    <div class="form-text">Si está activado, los usuarios API se crearán automáticamente al usarse por primera vez con este botón.</div>
                 </div>
 
                 <div class="d-flex justify-content-between mt-4">
@@ -96,23 +177,19 @@ include(APPPATH . 'Views/shared/buttons/create.php');
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const providerSelect = document.getElementById('provider');
+        const apiKeySelect = document.getElementById('api_key_id');
         const modelSelect = document.getElementById('model');
         const modelGroups = document.querySelectorAll('.model-group');
 
-        // Function to filter models based on selected provider
+        // Function to filter models based on selected API key's provider
         function filterModels() {
-            const selectedProvider = providerSelect.value;
+            const selectedOption = apiKeySelect.options[apiKeySelect.selectedIndex];
+            const selectedProvider = selectedOption ? selectedOption.getAttribute('data-provider') : null;
 
             // Hide all model groups
             modelGroups.forEach(group => {
                 group.style.display = 'none';
-
-                // Disable all options in hidden groups
-                const options = group.querySelectorAll('option');
-                options.forEach(option => {
-                    option.disabled = true;
-                });
+                group.querySelectorAll('option').forEach(option => option.disabled = true);
             });
 
             // Show only the selected provider's models
@@ -120,29 +197,24 @@ include(APPPATH . 'Views/shared/buttons/create.php');
                 const selectedGroup = document.querySelector(`.model-group[data-provider="${selectedProvider}"]`);
                 if (selectedGroup) {
                     selectedGroup.style.display = '';
+                    selectedGroup.querySelectorAll('option').forEach(option => option.disabled = false);
 
-                    // Enable options in the selected group
-                    const options = selectedGroup.querySelectorAll('option');
-                    options.forEach(option => {
-                        option.disabled = false;
-                    });
-
-                    // Select the first option of the group if none selected
+                    // Select first option if none selected
                     if (!modelSelect.value || !selectedGroup.querySelector(`option[value="${modelSelect.value}"]`)) {
                         const firstOption = selectedGroup.querySelector('option');
                         if (firstOption) {
-                            firstOption.selected = true;
+                            modelSelect.value = firstOption.value;
                         }
                     }
                 }
             }
         }
 
+        // Filter models on API key change
+        apiKeySelect.addEventListener('change', filterModels);
+
         // Initial filter
         filterModels();
-
-        // Add event listener to provider select
-        providerSelect.addEventListener('change', filterModels);
     });
 </script>
 

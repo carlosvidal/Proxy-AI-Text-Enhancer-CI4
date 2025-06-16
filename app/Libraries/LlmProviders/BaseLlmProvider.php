@@ -19,12 +19,6 @@ abstract class BaseLlmProvider implements LlmProviderInterface
      */
     protected function make_request(string $url, array $data, array $headers = [], bool $stream = false)
     {
-        // Ensure proper headers for SSE
-        header('Content-Type: text/event-stream');
-        header('Cache-Control: no-cache');
-        header('Connection: keep-alive');
-        header('X-Accel-Buffering: no'); // Disable nginx buffering
-
         $curl = curl_init();
 
         curl_setopt_array($curl, [
@@ -51,67 +45,34 @@ abstract class BaseLlmProvider implements LlmProviderInterface
             // For streaming responses, return a callable that will yield chunks
             return function () use ($curl, $data) {
                 try {
-                    // Important: Set output headers before any content
-                    header('Content-Type: text/event-stream');
-                    header('Cache-Control: no-cache');
-                    header('Connection: keep-alive');
-                    header('X-Accel-Buffering: no');
-
-                    $response = curl_exec($curl);
-                    $err = curl_error($curl);
-                    $status_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
-                    curl_close($curl);
-
-                    if ($err) {
-                        throw new \Exception('Error making request to provider: ' . $err);
-                    }
-
-                    if ($status_code >= 400) {
-                        throw new \Exception('Provider returned error status: ' . $status_code);
-                    }
-
-                    // Send initial response
-                    $startJson = json_encode([
-                        'id' => 'chatcmpl-' . uniqid(),
-                        'object' => 'chat.completion.chunk',
-                        'created' => time(),
-                        'model' => $data['model'],
-                        'choices' => [
-                            [
-                                'index' => 0,
-                                'delta' => [
-                                    'role' => 'assistant'
-                                ],
-                                'finish_reason' => null
-                            ]
-                        ]
-                    ]);
-                    echo "data: " . $startJson . "\n\n";
-                    flush();
-                    ob_flush();
-
-                    // Process stream response
-                    $lines = explode("\n", $response);
-                    $buffer = '';
+                    log_message('debug', '[STREAMING] Starting streaming request to provider');
                     
-                    foreach ($lines as $line) {
-                        $line = trim($line);
-                        if (empty($line)) continue;
+                    // Set up streaming with callback
+                    curl_setopt($curl, CURLOPT_WRITEFUNCTION, function($ch, $data_chunk) use ($data) {
+                        // Process each chunk as it comes in
+                        $lines = explode("\n", $data_chunk);
+                        
+                        foreach ($lines as $line) {
+                            $line = trim($line);
+                            if (empty($line)) continue;
 
-                        // Check if it's an error response
-                        if (strpos($line, '{') === 0) {
-                            $error = json_decode($line, true);
-                            if (isset($error['error'])) {
-                                throw new \Exception($error['error']['message'] ?? 'Unknown provider error');
-                            }
-                        }
+                            // Process SSE data
+                            if (strpos($line, 'data: ') === 0) {
+                                $line = substr($line, 6);
+                                if ($line === '[DONE]') {
+                                    echo "data: [DONE]\n\n";
+                                    flush();
+                                    ob_flush();
+                                    log_message('debug', '[STREAMING] Sent [DONE] marker');
+                                    continue;
+                                }
 
-                        // Process SSE data
-                        if (strpos($line, 'data: ') === 0) {
-                            $line = substr($line, 6);
-                            if ($line === '[DONE]') {
-                                if (!empty($buffer)) {
-                                    $data = [
+                                $chunk = json_decode($line, true);
+                                if ($chunk && isset($chunk['choices'][0]['delta']['content'])) {
+                                    $content = $chunk['choices'][0]['delta']['content'];
+                                    
+                                    // Reformat the chunk for our client
+                                    $response_chunk = [
                                         'id' => 'chatcmpl-' . uniqid(),
                                         'object' => 'chat.completion.chunk',
                                         'created' => time(),
@@ -120,75 +81,47 @@ abstract class BaseLlmProvider implements LlmProviderInterface
                                             [
                                                 'index' => 0,
                                                 'delta' => [
-                                                    'content' => $buffer
+                                                    'content' => $content
                                                 ],
-                                                'finish_reason' => 'stop'
+                                                'finish_reason' => null
                                             ]
                                         ]
                                     ];
-                                    echo "data: " . json_encode($data) . "\n\n";
+                                    echo "data: " . json_encode($response_chunk) . "\n\n";
                                     flush();
                                     ob_flush();
+                                    log_message('debug', '[STREAMING] Sent chunk: ' . substr($content, 0, 50) . '...');
                                 }
-                                echo "data: [DONE]\n\n";
-                                flush();
-                                ob_flush();
-                                continue;
-                            }
-
-                            $chunk = json_decode($line, true);
-                            if (!$chunk || !isset($chunk['choices'][0]['delta']['content'])) continue;
-
-                            $content = $chunk['choices'][0]['delta']['content'];
-                            $buffer .= $content;
-
-                            // Si tenemos un espacio o puntuación, o el buffer es muy largo, enviamos
-                            if (preg_match('/[\s\.,!?;:]$/', $content) || strlen($buffer) > 20) {
-                                $data = [
-                                    'id' => 'chatcmpl-' . uniqid(),
-                                    'object' => 'chat.completion.chunk',
-                                    'created' => time(),
-                                    'model' => $data['model'],
-                                    'choices' => [
-                                        [
-                                            'index' => 0,
-                                            'delta' => [
-                                                'content' => $buffer
-                                            ],
-                                            'finish_reason' => null
-                                        ]
-                                    ]
-                                ];
-                                echo "data: " . json_encode($data) . "\n\n";
-                                flush();
-                                ob_flush();
-                                $buffer = '';
                             }
                         }
+                        
+                        return strlen($data_chunk);
+                    });
+
+                    // Execute the streaming request
+                    log_message('debug', '[STREAMING] Executing curl request');
+                    $result = curl_exec($curl);
+                    $err = curl_error($curl);
+                    $status_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+                    
+                    log_message('debug', '[STREAMING] Curl completed - Status: ' . $status_code . ', Error: ' . ($err ?: 'none'));
+                    
+                    curl_close($curl);
+
+                    if ($err) {
+                        log_message('error', '[STREAMING] Curl error: ' . $err);
+                        throw new \Exception('Error making request to provider: ' . $err);
                     }
 
-                    // Enviar cualquier contenido restante en el buffer
-                    if (!empty($buffer)) {
-                        $data = [
-                            'id' => 'chatcmpl-' . uniqid(),
-                            'object' => 'chat.completion.chunk',
-                            'created' => time(),
-                            'model' => $data['model'],
-                            'choices' => [
-                                [
-                                    'index' => 0,
-                                    'delta' => [
-                                        'content' => $buffer
-                                    ],
-                                    'finish_reason' => 'stop'
-                                ]
-                            ]
-                        ];
-                        echo "data: " . json_encode($data) . "\n\n";
-                        flush();
-                        ob_flush();
+                    if ($status_code >= 400) {
+                        log_message('error', '[STREAMING] Provider error status: ' . $status_code);
+                        throw new \Exception('Provider returned error status: ' . $status_code);
                     }
+
+                    log_message('debug', '[STREAMING] Request completed successfully');
+
                 } catch (\Exception $e) {
+                    log_message('error', '[STREAMING] Exception: ' . $e->getMessage());
                     // Send error as SSE event
                     echo "event: error\n";
                     echo "data: " . json_encode(['error' => $e->getMessage()]) . "\n\n";

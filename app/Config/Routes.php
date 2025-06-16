@@ -140,6 +140,7 @@ $routes->group('admin', ['filter' => 'auth:superadmin'], function ($routes) {
     $routes->get('tenants/(:segment)/buttons', 'Admin::tenantButtons/$1');
     $routes->get('tenants/(:segment)/buttons/create', 'Admin::createButton/$1');
     $routes->post('tenants/(:segment)/buttons/store', 'Admin::storeButton/$1');
+    $routes->get('tenants/(:segment)/buttons/(:segment)/view', 'Admin::viewButton/$1/$2');
     $routes->get('tenants/(:segment)/buttons/(:segment)/edit', 'Admin::editButton/$1/$2');
     $routes->post('tenants/(:segment)/buttons/(:segment)/update', 'Admin::updateButton/$1/$2');
     $routes->get('tenants/(:segment)/buttons/(:segment)/delete', 'Admin::deleteButton/$1/$2');
@@ -196,6 +197,10 @@ $routes->group('api', function ($routes) {
     $routes->options('quota', 'LlmProxy::options');
     $routes->options('quota/secure', 'LlmProxy::options');
 });
+
+// Temporary fix: additional routes to handle index.php prefixed URLs from the web component
+$routes->post('index.php/api/llm-proxy', 'LlmProxy::index');
+$routes->options('index.php/api/llm-proxy', 'LlmProxy::options');
 
 /*
  * --------------------------------------------------------------------

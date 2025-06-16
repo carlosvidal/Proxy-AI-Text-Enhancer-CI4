@@ -4,15 +4,27 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <a href="<?= site_url('buttons') ?>" class="btn btn-secondary btn-sm mb-2">
-            <i class="fas fa-arrow-left me-1"></i>Back to Buttons
-        </a>
+        <?php if (session()->get('role') === 'superadmin'): ?>
+            <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons') ?>" class="btn btn-secondary btn-sm mb-2">
+                <i class="fas fa-arrow-left me-1"></i>Back to Buttons
+            </a>
+        <?php else: ?>
+            <a href="<?= site_url('buttons') ?>" class="btn btn-secondary btn-sm mb-2">
+                <i class="fas fa-arrow-left me-1"></i>Back to Buttons
+            </a>
+        <?php endif; ?>
         <h2><?= esc($button['name']) ?> <span class="badge badge-tenant"><?= esc($button['domain']) ?></span></h2>
     </div>
     <div>
-        <a href="<?= site_url('buttons/edit/' . $button['button_id']) ?>" class="btn btn-warning text-white">
-            <i class="fas fa-edit me-1"></i>Edit
-        </a>
+        <?php if (session()->get('role') === 'superadmin'): ?>
+            <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons/' . $button['button_id'] . '/edit') ?>" class="btn btn-warning text-white">
+                <i class="fas fa-edit me-1"></i>Edit
+            </a>
+        <?php else: ?>
+            <a href="<?= site_url('buttons/edit/' . $button['button_id']) ?>" class="btn btn-warning text-white">
+                <i class="fas fa-edit me-1"></i>Edit
+            </a>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -43,12 +55,28 @@
                         <td><?= esc($button['domain']) ?></td>
                     </tr>
                     <tr>
+                        <th>API Key:</th>
+                        <td>
+                            <?php if (isset($api_key) && $api_key): ?>
+                                <div class="api-key-status">
+                                    <span class="badge bg-success"><?= esc($api_key['name']) ?></span>
+                                    <span class="text-muted ms-2">(<?= esc($providers[$api_key['provider']] ?? ucfirst($api_key['provider'])) ?>)</span>
+                                </div>
+                            <?php elseif (!empty($button['api_key_id'])): ?>
+                                <span class="badge bg-info">API Key Configured</span>
+                                <span class="text-muted ms-2">(ID: <?= esc($button['api_key_id']) ?>)</span>
+                            <?php else: ?>
+                                <span class="badge bg-warning">No API Key Configured</span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <tr>
                         <th>Provider:</th>
-                        <td><span class="badge badge-provider"><?= esc($button['provider']) ?></span></td>
+                        <td><span class="badge bg-primary"><?= esc($providers[$button['provider']] ?? ucfirst($button['provider'])) ?></span></td>
                     </tr>
                     <tr>
                         <th>Model:</th>
-                        <td><span class="badge badge-model"><?= esc($button['model']) ?></span></td>
+                        <td><span class="badge bg-secondary"><?= esc($button['model']) ?></span></td>
                     </tr>
                     <tr>
                         <th>Status:</th>
@@ -82,21 +110,6 @@
                             <td><?= date('Y-m-d H:i', strtotime($button['updated_at'])) ?></td>
                         </tr>
                     <?php endif; ?>
-                    <tr>
-                        <th>API Key:</th>
-                        <td>
-                            <?php if (isset($api_key) && $api_key): ?>
-                                <div class="api-key-status">
-                                    <span class="badge bg-success">Custom API Key Set</span>
-                                    <span class="text-muted ms-2">••••••<?= substr($api_key['api_key'], -4) ?></span>
-                                    <a href="<?= site_url('buttons/api-key/' . $button['button_id']) ?>" class="btn btn-sm btn-link">Manage API Key</a>
-                                </div>
-                            <?php else: ?>
-                                <span class="badge bg-secondary">Using Global API Key</span>
-                                <a href="<?= site_url('buttons/api-key/' . $button['button_id']) ?>" class="btn btn-sm btn-link">Set Custom API Key</a>
-                            <?php endif; ?>
-                        </td>
-                    </tr>
                 </table>
             </div>
         </div>
@@ -150,10 +163,10 @@
                 <h5>Web Component Integration</h5>
                 <p>You can easily integrate this button in your website using our Web Component:</p>
                 <pre class="bg-light p-3 rounded"><code>&lt;ai-text-enhancer  
-    id="<?= esc($button['button_id']) ?>" 
+    id="<?= esc($button['button_id']) ?>"
+    tenant-id="<?= esc($tenant['tenant_id']) ?>"
     editor-id="[TARGET-INPUT]" 
     language="es"
-    tenant-id="<?= esc($tenant['tenant_id']) ?>"
     user-id="[USER_ID]"
     proxy-endpoint="<?= base_url('api/llm-proxy') ?>"&gt;
 &lt;/ai-text-enhancer&gt;

@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sqlite3:*)",
+      "Bash(ls:*)",
+      "Bash(find:*)",
+      "Bash(php:*)",
+      "Bash(cp:*)",
+      "Bash(grep:*)",
+      "Bash(rm:*)",
+      "Bash(curl:*)"
+    ],
+    "deny": []
+  }
+}

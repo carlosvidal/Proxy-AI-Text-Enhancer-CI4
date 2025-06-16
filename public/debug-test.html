@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Streaming Test</title>
+</head>
+<body>
+    <h1>Debug Streaming Test</h1>
+    <button id="testBtn">Test Streaming</button>
+    <div id="response"></div>
+    
+    <script>
+        document.getElementById('testBtn').addEventListener('click', async () => {
+            console.log('Testing streaming...');
+            
+            try {
+                const response = await fetch('http://llmproxy.test:8080/api/llm-proxy', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': 'http://127.0.0.1:5501'
+                    },
+                    body: JSON.stringify({
+                        model: "gpt-3.5-turbo",
+                        messages: [
+                            {"role": "system", "content": "You are a helpful assistant."},
+                            {"role": "user", "content": "Say hello briefly"}
+                        ],
+                        temperature: 0.7,
+                        stream: true,
+                        tenantId: "ten-684cc05b-5d6457e5",
+                        userId: "DEMO",
+                        buttonId: "btn-684cdeaa-d5a2afea",
+                        hasImage: false
+                    })
+                });
+                
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                
+                while (true) {
+                    const { done, value } = await reader.read();
+                    
+                    if (done) {
+                        console.log('Stream completed');
+                        break;
+                    }
+                    
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop(); // Keep the last incomplete line in buffer
+                    
+                    for (const line of lines) {
+                        if (line.trim() === '') continue;
+                        
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            console.log('Received chunk:', data);
+                            
+                            if (data === '[DONE]') {
+                                console.log('Stream finished with [DONE]');
+                                document.getElementById('response').innerHTML += '<br><strong>Stream completed!</strong>';
+                                return;
+                            }
+                            
+                            try {
+                                const chunk = JSON.parse(data);
+                                if (chunk.choices && chunk.choices[0] && chunk.choices[0].delta && chunk.choices[0].delta.content) {
+                                    const content = chunk.choices[0].delta.content;
+                                    document.getElementById('response').innerHTML += content;
+                                }
+                            } catch (e) {
+                                console.error('Error parsing chunk:', e);
+                            }
+                        }
+                    }
+                }
+                
+            } catch (error) {
+                console.error('Fetch error:', error);
+                document.getElementById('response').innerHTML = `<span style="color: red;">Error: ${error.message}</span>`;
+            }
+        });
+    </script>
+</body>
+</html>

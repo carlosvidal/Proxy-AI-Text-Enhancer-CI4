@@ -52,12 +52,27 @@ class CorsFilter implements FilterInterface
                 $buttonRows = $buttonsQuery->getResultArray();
                 foreach ($buttonRows as $row) {
                     if (!empty($row['domain'])) {
-                        // Extract just the domain part if it's a URL
-                        $parsed = parse_url($row['domain']);
-                        if (isset($parsed['host'])) {
-                            $allowedDomains[] = $parsed['host'];
-                        } else {
-                            $allowedDomains[] = $row['domain'];
+                        // Handle comma-separated domains
+                        $domains = explode(',', $row['domain']);
+                        foreach ($domains as $domain) {
+                            $domain = trim($domain);
+                            if (!empty($domain)) {
+                                // Add the full domain (including protocol and port)
+                                $allowedDomains[] = $domain;
+                                
+                                // Also extract just the host part for compatibility
+                                $parsed = parse_url($domain);
+                                if (isset($parsed['host'])) {
+                                    $allowedDomains[] = $parsed['host'];
+                                    // Add host:port combination if port exists
+                                    if (isset($parsed['port'])) {
+                                        $allowedDomains[] = $parsed['host'] . ':' . $parsed['port'];
+                                    }
+                                } else {
+                                    // If not a valid URL, treat as domain
+                                    $allowedDomains[] = $domain;
+                                }
+                            }
                         }
                     }
                 }

@@ -1093,7 +1093,7 @@ class Admin extends BaseController
             'models' => $models,
             'domains' => $domains
         ];
-        return view('shared/buttons/create', $data);
+        return view('admin/tenant_button_form', $data);
     }
 
     public function storeButton($tenantId)
@@ -1122,17 +1122,28 @@ class Admin extends BaseController
         // Validate input
         $rules = [
             'name' => 'required|min_length[3]|max_length[255]',
-            'domain' => 'required|valid_url_strict[https]',
-            'provider' => 'required|in_list[openai,anthropic,mistral,cohere,deepseek,google]',
+            'domain' => 'required',
+            'api_key_id' => 'required',
             'model' => 'required',
-            'api_key' => 'required',
-            'system_prompt' => 'required'
+            'system_prompt' => 'required',
+            'temperature' => 'permit_empty|decimal',
+            'auto_create_api_users' => 'permit_empty|in_list[0,1]'
         ];
 
         if (!$this->validate($rules)) {
             return redirect()->back()
                 ->withInput()
                 ->with('errors', $this->validator->getErrors());
+        }
+
+        // Get the selected API key to determine provider
+        $apiKeyId = $this->request->getPost('api_key_id');
+        $apiKey = model('App\Models\ApiKeysModel')->where('tenant_id', $tenant['tenant_id'])
+            ->where('api_key_id', $apiKeyId)
+            ->first();
+
+        if (!$apiKey) {
+            return redirect()->back()->withInput()->with('error', 'Invalid API key selected.');
         }
 
         // Generate button ID using hash helper
@@ -1145,11 +1156,13 @@ class Admin extends BaseController
             'tenant_id' => $tenant['tenant_id'],
             'name' => $this->request->getPost('name'),
             'domain' => $this->request->getPost('domain'),
-            'provider' => $this->request->getPost('provider'),
+            'provider' => $apiKey['provider'],
             'model' => $this->request->getPost('model'),
-            'api_key_id' => $this->request->getPost('api_key_id'),
+            'api_key_id' => $apiKeyId,
             'system_prompt' => $this->request->getPost('system_prompt'),
-            'status' => 'active',
+            'temperature' => $this->request->getPost('temperature') ?: 0.7,
+            'status' => $this->request->getPost('status') ? 'active' : 'inactive',
+            'auto_create_api_users' => $this->request->getPost('auto_create_api_users') ? 1 : 0,
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s')
         ];
@@ -1334,6 +1347,12 @@ class Admin extends BaseController
                 ->with('error', 'Button not found');
         }
 
+        // Get API key information if available
+        $apiKey = null;
+        if (!empty($button['api_key_id'])) {
+            $apiKey = model('App\Models\ApiKeysModel')->where('api_key_id', $button['api_key_id'])->first();
+        }
+
         $data = [
             'title' => 'View Button - ' . $tenant['name'],
             'tenant' => $tenant,
@@ -1374,7 +1393,8 @@ class Admin extends BaseController
                     'gemini-pro' => 'Gemini Pro',
                     'gemini-pro-vision' => 'Gemini Pro Vision',
                 ]
-            ]
+            ],
+            'api_key' => $apiKey
         ];
 
         // Use the tenant's view template instead of admin view
