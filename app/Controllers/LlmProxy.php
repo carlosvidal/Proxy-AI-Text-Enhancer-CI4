@@ -600,8 +600,7 @@ class LlmProxy extends Controller
                 'cost' => $cost ?? 0,
                 'has_image' => $has_image ? 1 : 0,
                 'status' => 'success',
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s')
+                'created_at' => date('Y-m-d H:i:s')
             ];
 
             log_debug('USAGE', 'Intentando insertar log', [
