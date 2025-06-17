@@ -102,13 +102,49 @@ class LlmProxy extends Controller
             ]);
 
             // Extract request parameters
-            $provider = $json->provider ?? 'openai';
-            $model = $json->model ?? null;
             $messages = $json->messages ?? [];
             $options = $json->options ?? [];
             $stream = $json->stream ?? false;
             $external_id = $json->userId ?? $json->user_id ?? null; // Aceptar tanto userId como user_id
             $button_id = $json->buttonId ?? $json->button_id ?? null; // Aceptar tanto buttonId como button_id
+
+            // Get provider and model from button configuration in database
+            $provider = $json->provider ?? 'openai'; // Fallback por compatibilidad
+            $model = $json->model ?? null; // Fallback por compatibilidad
+            
+            if ($button_id) {
+                try {
+                    $db = \Config\Database::connect();
+                    $buttonQuery = $db->query("
+                        SELECT provider, model, api_key_id 
+                        FROM buttons 
+                        WHERE button_id = ? AND status = 'active'
+                    ", [$button_id]);
+                    
+                    if ($buttonQuery && $buttonRow = $buttonQuery->getRowArray()) {
+                        $provider = $buttonRow['provider'];
+                        $model = $buttonRow['model'];
+                        
+                        log_debug('PROXY', 'Button configuration loaded from database', [
+                            'button_id' => $button_id,
+                            'provider' => $provider,
+                            'model' => $model,
+                            'api_key_id' => $buttonRow['api_key_id']
+                        ]);
+                    } else {
+                        log_error('PROXY', 'Button not found or inactive', [
+                            'button_id' => $button_id
+                        ]);
+                        throw new \Exception('Button not found or inactive: ' . $button_id);
+                    }
+                } catch (\Exception $e) {
+                    log_error('PROXY', 'Error loading button configuration', [
+                        'button_id' => $button_id,
+                        'error' => $e->getMessage()
+                    ]);
+                    throw new \Exception('Error loading button configuration: ' . $e->getMessage());
+                }
+            }
 
             // --- SOPORTE PARA NUEVO PAYLOAD: prompt, content, context ---
             if ((empty($messages) || count($messages) === 0) && (isset($json->prompt) || isset($json->content) || isset($json->context))) {
@@ -303,6 +339,10 @@ class LlmProxy extends Controller
             ]);
 
             // Validate required parameters
+            if (!$provider) {
+                throw new \Exception('Missing required parameter: provider is required');
+            }
+            
             if (!$model || empty($messages)) {
                 throw new \Exception('Missing required parameters: model and messages are required');
             }
