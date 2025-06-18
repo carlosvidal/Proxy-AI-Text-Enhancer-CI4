@@ -24,17 +24,60 @@ if (file_exists('.env')) {
     }
 }
 
-// Database connection
-$host = getenv('database.default.hostname') ?: 'localhost';
-$database = getenv('database.default.database') ?: 'llmproxy';
-$username = getenv('database.default.username') ?: 'root';
-$password = getenv('database.default.password') ?: '';
+// Database connection - check for SQLite first
+$dbPath = getenv('database.default.database');
+if (!$dbPath) {
+    $dbPath = 'writable/database.sqlite';  // Default path
+}
 
-echo "Connecting to database: $host/$database as $username\n\n";
+echo "Environment database setting: " . (getenv('database.default.database') ?: 'not set') . "\n";
+echo "Attempting to connect to SQLite database: $dbPath\n";
+echo "Current working directory: " . getcwd() . "\n";
+echo "Database file exists: " . (file_exists($dbPath) ? 'YES' : 'NO') . "\n";
+
+// Try common SQLite paths
+$possiblePaths = [
+    $dbPath,
+    'writable/database.sqlite',
+    '../writable/database.sqlite',
+    'database.sqlite',
+    'app/writable/database.sqlite'
+];
+
+echo "Checking possible database paths:\n";
+foreach ($possiblePaths as $path) {
+    echo "  - $path: " . (file_exists($path) ? 'EXISTS' : 'not found') . "\n";
+}
+echo "\n";
 
 try {
-    $pdo = new PDO("mysql:host=$host;dbname=$database;charset=utf8mb4", $username, $password);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    // Find the first existing SQLite database
+    $foundPath = null;
+    foreach ($possiblePaths as $path) {
+        if (file_exists($path)) {
+            $foundPath = $path;
+            break;
+        }
+    }
+    
+    if ($foundPath) {
+        echo "Using SQLite database: $foundPath\n\n";
+        $pdo = new PDO("sqlite:$foundPath");
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        echo "SQLite connection successful!\n\n";
+    } else {
+        echo "No SQLite database found, trying MySQL...\n";
+        // Fallback to MySQL if SQLite file doesn't exist
+        $host = getenv('database.default.hostname') ?: 'localhost';
+        $database = getenv('database.default.database') ?: 'llmproxy';
+        $username = getenv('database.default.username') ?: 'root';
+        $password = getenv('database.default.password') ?: '';
+        
+        echo "Trying MySQL: $host/$database as $username\n\n";
+        $pdo = new PDO("mysql:host=$host;dbname=$database;charset=utf8mb4", $username, $password);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        echo "MySQL connection successful!\n\n";
+    }
     
     echo "Database connection successful!\n\n";
     
