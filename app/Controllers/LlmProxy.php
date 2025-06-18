@@ -350,22 +350,45 @@ class LlmProxy extends Controller
                 'button_id' => $button_id
             ]);
 
+            log_debug('PROXY', 'About to validate parameters and get button configuration', [
+                'request_id' => $request_id,
+                'button_id' => $button_id,
+                'tenant_id' => $json->tenantId ?? 'missing'
+            ]);
+
             // Validate required parameters
+            log_debug('PROXY', 'Validating required parameters', [
+                'provider' => $provider,
+                'model' => $model,
+                'messages_count' => count($messages),
+                'external_id' => $external_id,
+                'button_id' => $button_id
+            ]);
+
             if (!$provider) {
+                log_error('PROXY', 'Missing provider parameter');
                 throw new \Exception('Missing required parameter: provider is required');
             }
             
             if (!$model || empty($messages)) {
+                log_error('PROXY', 'Missing model or messages', [
+                    'model' => $model,
+                    'messages_count' => count($messages)
+                ]);
                 throw new \Exception('Missing required parameters: model and messages are required');
             }
 
             if (!$external_id) {
+                log_error('PROXY', 'Missing external_id parameter');
                 throw new \Exception('Missing user_id in request');
             }
 
             if (!$button_id) {
+                log_error('PROXY', 'Missing button_id parameter');
                 throw new \Exception('Missing button_id in request');
             }
+
+            log_debug('PROXY', 'All required parameters validated successfully');
 
             // Get domain from headers
             $domain = $this->_extract_domain_from_headers();
