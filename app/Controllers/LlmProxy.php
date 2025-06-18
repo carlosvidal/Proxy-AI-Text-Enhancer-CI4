@@ -792,17 +792,35 @@ class LlmProxy extends Controller
         
         // First try to get API key from database if tenant_id is provided
         if ($tenant_id) {
-            $apiKeysModel = new \App\Models\ApiKeysModel();
-            $apiKeyRecord = $apiKeysModel->getDefaultKey($tenant_id, $provider);
-            
-            log_debug('PROXY', 'Database API key lookup result', [
-                'provider' => $provider,
+            log_debug('PROXY', 'Attempting to get API key from database', [
                 'tenant_id' => $tenant_id,
-                'found_record' => !empty($apiKeyRecord),
-                'has_api_key' => !empty($apiKeyRecord['api_key']) ? 'yes' : 'no',
-                'api_key_length' => !empty($apiKeyRecord['api_key']) ? strlen($apiKeyRecord['api_key']) : 0,
-                'record_data' => $apiKeyRecord ? array_merge($apiKeyRecord, ['api_key' => '***REDACTED***']) : null
+                'provider' => $provider
             ]);
+            
+            $apiKeysModel = new \App\Models\ApiKeysModel();
+            
+            try {
+                $apiKeyRecord = $apiKeysModel->getDefaultKey($tenant_id, $provider);
+                
+                log_debug('PROXY', 'Database API key lookup result', [
+                    'provider' => $provider,
+                    'tenant_id' => $tenant_id,
+                    'found_record' => !empty($apiKeyRecord),
+                    'has_api_key' => !empty($apiKeyRecord['api_key']) ? 'yes' : 'no',
+                    'api_key_length' => !empty($apiKeyRecord['api_key']) ? strlen($apiKeyRecord['api_key']) : 0,
+                    'api_key_starts_with' => !empty($apiKeyRecord['api_key']) ? substr($apiKeyRecord['api_key'], 0, 10) : 'none',
+                    'looks_encrypted' => !empty($apiKeyRecord['api_key']) && strlen($apiKeyRecord['api_key']) > 50 ? 'yes' : 'no',
+                    'record_data' => $apiKeyRecord ? array_merge($apiKeyRecord, ['api_key' => '***REDACTED***']) : null
+                ]);
+            } catch (\Exception $e) {
+                log_error('PROXY', 'Error getting API key from database', [
+                    'tenant_id' => $tenant_id,
+                    'provider' => $provider,
+                    'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+                throw $e;
+            }
             
             if ($apiKeyRecord && !empty($apiKeyRecord['api_key'])) {
                 $api_key = $apiKeyRecord['api_key']; // Already decrypted by the model's afterFind method
@@ -813,11 +831,43 @@ class LlmProxy extends Controller
                     'api_key_id' => $apiKeyRecord['api_key_id'] ?? 'Unknown'
                 ]);
             } else {
-                log_warning('PROXY', 'No database API key found for provider, falling back to environment', [
+                log_warning('PROXY', 'No default API key found for provider, checking for any active key', [
                     'provider' => $provider,
-                    'tenant_id' => $tenant_id,
-                    'available_keys_query' => $apiKeysModel->where('tenant_id', $tenant_id)->where('active', 1)->findAll()
+                    'tenant_id' => $tenant_id
                 ]);
+                
+                // Fallback: try to get any active API key for this provider and tenant
+                $anyActiveKey = $apiKeysModel->where('tenant_id', $tenant_id)
+                                           ->where('provider', $provider)
+                                           ->where('active', 1)
+                                           ->first();
+                
+                if ($anyActiveKey && !empty($anyActiveKey['api_key'])) {
+                    $api_key = $anyActiveKey['api_key'];
+                    log_info('PROXY', 'Using any active API key for provider', [
+                        'provider' => $provider,
+                        'tenant_id' => $tenant_id,
+                        'api_key_name' => $anyActiveKey['name'] ?? 'Unknown',
+                        'api_key_id' => $anyActiveKey['api_key_id'] ?? 'Unknown',
+                        'is_default' => $anyActiveKey['is_default'] ?? 'Unknown'
+                    ]);
+                } else {
+                    // Debug: show all available keys for this tenant
+                    $allKeys = $apiKeysModel->where('tenant_id', $tenant_id)->where('active', 1)->findAll();
+                    log_warning('PROXY', 'No API key found for provider, falling back to environment', [
+                        'provider' => $provider,
+                        'tenant_id' => $tenant_id,
+                        'all_active_keys_count' => count($allKeys),
+                        'all_active_keys' => array_map(function($key) {
+                            return [
+                                'api_key_id' => $key['api_key_id'],
+                                'provider' => $key['provider'],
+                                'name' => $key['name'],
+                                'is_default' => $key['is_default']
+                            ];
+                        }, $allKeys)
+                    ]);
+                }
             }
         }
         
