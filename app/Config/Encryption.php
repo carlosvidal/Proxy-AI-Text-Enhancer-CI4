@@ -23,6 +23,14 @@ class Encryption extends BaseConfig
      */
     public string $key;
 
+    public function __construct()
+    {
+        parent::__construct();
+        
+        // Initialize encryption key from environment
+        $this->key = $_ENV['encryption.key'] ?? env('encryption.key', '');
+    }
+
     /**
      * --------------------------------------------------------------------------
      * Encryption Driver to Use
