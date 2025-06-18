@@ -137,7 +137,30 @@ try {
     if ($button) {
         echo "   Button found:\n";
         foreach ($button as $key => $value) {
-            echo "   - $key: $value\n";
+            if ($key === 'api_key_id') {
+                echo "   - $key: '" . $value . "' (length: " . strlen($value) . ", empty: " . (empty($value) ? 'YES' : 'NO') . ")\n";
+            } else {
+                echo "   - $key: $value\n";
+            }
+        }
+        
+        // Extra check for API key assignment
+        if (empty($button['api_key_id'])) {
+            echo "   ⚠️  WARNING: Button has no API key assigned!\n";
+            echo "   This is why the 401 error occurs.\n";
+        } else {
+            echo "   ✅ Button has API key assigned: {$button['api_key_id']}\n";
+            
+            // Verify the API key exists
+            $stmt = $pdo->prepare("SELECT name, provider, active FROM api_keys WHERE api_key_id = ?");
+            $stmt->execute([$button['api_key_id']]);
+            $keyInfo = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($keyInfo) {
+                echo "   ✅ API key exists: {$keyInfo['name']} ({$keyInfo['provider']}, active: {$keyInfo['active']})\n";
+            } else {
+                echo "   ❌ API key {$button['api_key_id']} not found in database!\n";
+            }
         }
     } else {
         echo "   Button $button_id not found or not active\n";
