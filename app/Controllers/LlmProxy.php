@@ -797,6 +797,14 @@ class LlmProxy extends Controller
             ]);
         }
 
+        log_debug('PROXY', 'Final API key being used for provider', [
+            'provider' => $provider,
+            'api_key_prefix' => substr($api_key, 0, 10),
+            'api_key_suffix' => substr($api_key, -4),
+            'api_key_length' => strlen($api_key),
+            'is_base64_like' => preg_match('/^[A-Za-z0-9+\/]*={0,2}$/', $api_key) ? 'yes' : 'no'
+        ]);
+
         switch ($provider) {
             case 'openai':
                 return new OpenAiProvider($api_key, $this->endpoints[$provider]);
