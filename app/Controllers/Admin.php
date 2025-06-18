@@ -80,6 +80,159 @@ class Admin extends BaseController
             ->withInput()
             ->with('error', 'Error al agregar la API Key: ' . implode('<br>', $apiKeysModel->errors()));
     }
+
+    /**
+     * Elimina una API Key de un tenant (admin)
+     */
+    public function deleteTenantApiKey($tenantId, $apiKeyId)
+    {
+        if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
+            return redirect()->to('/auth/login');
+        }
+
+        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->first();
+        if (!$tenant) {
+            return redirect()->to('admin/tenants')->with('error', 'Tenant not found');
+        }
+
+        $apiKeysModel = model('App\Models\ApiKeysModel');
+        
+        // Verify the API key belongs to the tenant
+        $apiKey = $apiKeysModel->where('api_key_id', $apiKeyId)
+                              ->where('tenant_id', $tenantId)
+                              ->first();
+        
+        if (!$apiKey) {
+            return redirect()->to('admin/tenants/' . $tenantId . '/api_keys')
+                ->with('error', 'API Key not found.');
+        }
+
+        // Check if API key is being used by any buttons
+        $buttonsModel = model('App\Models\ButtonsModel');
+        $buttonsUsingKey = $buttonsModel->where('tenant_id', $tenantId)
+                                       ->where('api_key_id', $apiKeyId)
+                                       ->where('status', 'active')
+                                       ->findAll();
+
+        if (!empty($buttonsUsingKey)) {
+            $buttonNames = array_column($buttonsUsingKey, 'name');
+            return redirect()->to('admin/tenants/' . $tenantId . '/api_keys')
+                ->with('error', 'No se puede eliminar la API Key porque está siendo usada por los siguientes botones: ' . implode(', ', $buttonNames) . '. Primero cambia la configuración de estos botones.');
+        }
+
+        // Check if this is the last API key
+        $remaining_keys = $apiKeysModel->where('tenant_id', $tenantId)
+                                     ->where('api_key_id !=', $apiKeyId)
+                                     ->findAll();
+
+        // If this is the default key and there are other keys, set another one as default
+        if ($apiKey['is_default'] && !empty($remaining_keys)) {
+            $apiKeysModel->setDefault($remaining_keys[0]['api_key_id'], $tenantId);
+        }
+
+        if ($apiKeysModel->delete($apiKeyId)) {
+            return redirect()->to('admin/tenants/' . $tenantId . '/api_keys')
+                ->with('success', 'API Key eliminada correctamente.');
+        }
+
+        return redirect()->to('admin/tenants/' . $tenantId . '/api_keys')
+            ->with('error', 'Error al eliminar la API Key.');
+    }
+
+    /**
+     * Muestra el formulario de edición de una API Key (admin)
+     */
+    public function editTenantApiKey($tenantId, $apiKeyId)
+    {
+        if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
+            return redirect()->to('/auth/login');
+        }
+
+        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->first();
+        if (!$tenant) {
+            return redirect()->to('admin/tenants')->with('error', 'Tenant not found');
+        }
+
+        $apiKeysModel = model('App\Models\ApiKeysModel');
+        $apiKey = $apiKeysModel->where('api_key_id', $apiKeyId)
+                              ->where('tenant_id', $tenantId)
+                              ->first();
+
+        if (!$apiKey) {
+            return redirect()->to('admin/tenants/' . $tenantId . '/api_keys')
+                ->with('error', 'API Key not found.');
+        }
+
+        $data = [
+            'title' => 'Editar API Key',
+            'tenant' => $tenant,
+            'apiKey' => $apiKey,
+            'providers' => [
+                'openai' => 'OpenAI',
+                'anthropic' => 'Anthropic',
+                'cohere' => 'Cohere',
+                'mistral' => 'Mistral',
+                'deepseek' => 'DeepSeek',
+                'google' => 'Google'
+            ]
+        ];
+
+        return view('admin/edit_tenant_api_key', $data);
+    }
+
+    /**
+     * Actualiza una API Key de un tenant (admin)
+     */
+    public function updateTenantApiKey($tenantId, $apiKeyId)
+    {
+        if (!session()->get('isLoggedIn') || session()->get('role') !== 'superadmin') {
+            return redirect()->to('/auth/login');
+        }
+
+        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->first();
+        if (!$tenant) {
+            return redirect()->to('admin/tenants')->with('error', 'Tenant not found');
+        }
+
+        $apiKeysModel = model('App\Models\ApiKeysModel');
+        
+        // Verify the API key belongs to the tenant
+        $apiKey = $apiKeysModel->where('api_key_id', $apiKeyId)
+                              ->where('tenant_id', $tenantId)
+                              ->first();
+        
+        if (!$apiKey) {
+            return redirect()->to('admin/tenants/' . $tenantId . '/api_keys')
+                ->with('error', 'API Key not found.');
+        }
+
+        $rules = [
+            'name' => 'required|min_length[3]|max_length[100]',
+            'provider' => 'required|in_list[openai,anthropic,cohere,mistral,deepseek,google]',
+            'api_key' => 'required|min_length[10]'
+        ];
+
+        if (!$this->validate($rules)) {
+            return redirect()->back()
+                ->withInput()
+                ->with('error', implode('<br>', $this->validator->getErrors()));
+        }
+
+        $data = [
+            'name' => $this->request->getPost('name'),
+            'provider' => $this->request->getPost('provider'),
+            'api_key' => $this->request->getPost('api_key') // Let the model handle encryption/decryption
+        ];
+
+        if ($apiKeysModel->update($apiKeyId, $data)) {
+            return redirect()->to('admin/tenants/' . $tenantId . '/api_keys')
+                ->with('success', 'API Key actualizada correctamente.');
+        }
+
+        return redirect()->to('admin/tenants/' . $tenantId . '/api_keys')
+            ->withInput()
+            ->with('error', 'Error al actualizar la API Key: ' . implode('<br>', $apiKeysModel->errors()));
+    }
     protected $tenantsModel;
     protected $usersModel;
     protected $buttonsModel;
