@@ -828,12 +828,8 @@ class LlmProxy extends Controller
             
             if ($apiKeyRecord && !empty($apiKeyRecord['api_key'])) {
                 $api_key = $apiKeyRecord['api_key']; // Already decrypted by the model's afterFind method
-                log_info('PROXY', 'Using database API key for provider', [
-                    'provider' => $provider,
-                    'tenant_id' => $tenant_id,
-                    'api_key_name' => $apiKeyRecord['name'] ?? 'Unknown',
-                    'api_key_id' => $apiKeyRecord['api_key_id'] ?? 'Unknown'
-                ]);
+                
+                log_message('error', '[PROXY] CHECKPOINT 8: API key extracted. Length: ' . strlen($api_key) . ', starts with: ' . substr($api_key, 0, 10));
             } else {
                 log_warning('PROXY', 'No default API key found for provider, checking for any active key', [
                     'provider' => $provider,
@@ -886,13 +882,7 @@ class LlmProxy extends Controller
             ]);
         }
 
-        log_debug('PROXY', 'Final API key being used for provider', [
-            'provider' => $provider,
-            'api_key_prefix' => substr($api_key, 0, 10),
-            'api_key_suffix' => substr($api_key, -4),
-            'api_key_length' => strlen($api_key),
-            'is_base64_like' => preg_match('/^[A-Za-z0-9+\/]*={0,2}$/', $api_key) ? 'yes' : 'no'
-        ]);
+        log_message('error', '[PROXY] CHECKPOINT 9: About to create provider instance. Provider: ' . $provider . ', API key length: ' . strlen($api_key));
 
         switch ($provider) {
             case 'openai':
