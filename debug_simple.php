@@ -27,7 +27,7 @@ if (file_exists('.env')) {
 // Database connection - check for SQLite first
 $dbPath = getenv('database.default.database');
 if (!$dbPath) {
-    $dbPath = 'writable/database.sqlite';  // Default path
+    $dbPath = 'writable/database.sqlite';  // Default path based on WRITEPATH
 }
 
 echo "Environment database setting: " . (getenv('database.default.database') ?: 'not set') . "\n";
@@ -35,10 +35,10 @@ echo "Attempting to connect to SQLite database: $dbPath\n";
 echo "Current working directory: " . getcwd() . "\n";
 echo "Database file exists: " . (file_exists($dbPath) ? 'YES' : 'NO') . "\n";
 
-// Try common SQLite paths
+// Try common SQLite paths - prioritize writable/database.sqlite
 $possiblePaths = [
+    'writable/database.sqlite',  // Most likely location based on config
     $dbPath,
-    'writable/database.sqlite',
     '../writable/database.sqlite',
     'database.sqlite',
     'app/writable/database.sqlite'
