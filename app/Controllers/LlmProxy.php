@@ -350,6 +350,8 @@ class LlmProxy extends Controller
                 'button_id' => $button_id
             ]);
 
+            log_error('PROXY', 'CHECKPOINT 1: After parameter extraction');
+
             log_debug('PROXY', 'About to validate parameters and get button configuration', [
                 'request_id' => $request_id,
                 'button_id' => $button_id,
@@ -389,6 +391,7 @@ class LlmProxy extends Controller
             }
 
             log_debug('PROXY', 'All required parameters validated successfully');
+            log_error('PROXY', 'CHECKPOINT 2: After parameter validation');
 
             // Get domain from headers
             $domain = $this->_extract_domain_from_headers();
@@ -493,6 +496,12 @@ class LlmProxy extends Controller
             // Use button configuration
             $provider = $button['provider'];
             $model = $button['model'];
+
+            log_error('PROXY', 'CHECKPOINT 3: About to process LLM request', [
+                'provider' => $provider,
+                'model' => $model,
+                'tenant_id' => $button['tenant_id']
+            ]);
 
             // Process the request
             $response = $this->_process_llm_request(
