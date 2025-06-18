@@ -127,6 +127,8 @@ class ApiKeysModel extends Model
      */
     protected function beforeInsert(array $data): array
     {
+        // Temporarily disabled encryption - store API keys in plain text
+        /*
         if (isset($data['data']['api_key']) && !empty($data['data']['api_key'])) {
             $encrypter = \Config\Services::encrypter();
             // Only encrypt if it's not already encrypted (doesn't look like base64)
@@ -135,6 +137,7 @@ class ApiKeysModel extends Model
                 $data['data']['api_key'] = base64_encode($encrypter->encrypt($api_key));
             }
         }
+        */
         return $data;
     }
 
@@ -143,6 +146,8 @@ class ApiKeysModel extends Model
      */
     protected function beforeUpdate(array $data): array
     {
+        // Temporarily disabled encryption - store API keys in plain text
+        /*
         if (isset($data['data']['api_key']) && !empty($data['data']['api_key'])) {
             $encrypter = \Config\Services::encrypter();
             // Only encrypt if it's not already encrypted (doesn't look like base64)
@@ -151,6 +156,7 @@ class ApiKeysModel extends Model
                 $data['data']['api_key'] = base64_encode($encrypter->encrypt($api_key));
             }
         }
+        */
         return $data;
     }
 
@@ -159,6 +165,8 @@ class ApiKeysModel extends Model
      */
     protected function afterFind($data)
     {
+        // Temporarily disabled decryption - API keys are stored in plain text
+        /*
         if (empty($data)) {
             return $data;
         }
@@ -190,6 +198,7 @@ class ApiKeysModel extends Model
                 }
             }
         }
+        */
 
         return $data;
     }

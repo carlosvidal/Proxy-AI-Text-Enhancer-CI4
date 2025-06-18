@@ -599,15 +599,16 @@ class LlmProxy extends Controller
                 'tokens' => $total_tokens,
                 'cost' => $cost ?? 0,
                 'has_image' => $has_image ? 1 : 0,
-                'status' => 'success',
-                'created_at' => date('Y-m-d H:i:s')
+                'status' => 'success'
             ];
 
             log_debug('USAGE', 'Intentando insertar log', [
                 'data' => $data
             ]);
 
-            $result = $db->table('usage_logs')->insert($data);
+            // Use model instead of direct insert to handle timestamps properly
+            $usageModel = new \App\Models\UsageLogsModel();
+            $result = $usageModel->insert($data);
 
             if (!$result) {
                 $error = $db->error();
