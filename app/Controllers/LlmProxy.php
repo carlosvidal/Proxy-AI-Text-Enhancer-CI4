@@ -115,6 +115,17 @@ class LlmProxy extends Controller
             if ($button_id) {
                 try {
                     $db = \Config\Database::connect();
+                    
+                    // Debug: Check all buttons for this tenant
+                    $allButtonsQuery = $db->query("SELECT button_id, status, provider, model FROM buttons WHERE tenant_id = ?", [$json->tenantId ?? 'unknown']);
+                    $allButtons = $allButtonsQuery ? $allButtonsQuery->getResultArray() : [];
+                    
+                    log_debug('PROXY', 'All buttons for tenant', [
+                        'tenant_id' => $json->tenantId ?? 'unknown',
+                        'requested_button_id' => $button_id,
+                        'all_buttons' => $allButtons
+                    ]);
+                    
                     $buttonQuery = $db->query("
                         SELECT provider, model, api_key_id 
                         FROM buttons 
@@ -133,7 +144,8 @@ class LlmProxy extends Controller
                         ]);
                     } else {
                         log_error('PROXY', 'Button not found or inactive', [
-                            'button_id' => $button_id
+                            'button_id' => $button_id,
+                            'tenant_id' => $json->tenantId ?? 'unknown'
                         ]);
                         throw new \Exception('Button not found or inactive: ' . $button_id);
                     }
