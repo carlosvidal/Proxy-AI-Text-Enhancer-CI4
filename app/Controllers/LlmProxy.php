@@ -797,6 +797,11 @@ class LlmProxy extends Controller
      */
     private function _get_llm_provider($provider, $tenant_id = null)
     {
+        log_error('PROXY', 'CHECKPOINT 4: Entering _get_llm_provider', [
+            'provider' => $provider,
+            'tenant_id' => $tenant_id
+        ]);
+        
         $api_key = null;
         
         // First try to get API key from database if tenant_id is provided
