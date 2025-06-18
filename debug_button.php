@@ -1,7 +1,16 @@
 <?php
 
 // Debug script to check button configuration
-require_once 'vendor/autoload.php';
+define('FCPATH', __DIR__ . DIRECTORY_SEPARATOR);
+require_once FCPATH . 'vendor/autoload.php';
+
+// Bootstrap CodeIgniter
+$pathsConfig = FCPATH . 'app/Config/Paths.php';
+require $pathsConfig;
+$paths = new Config\Paths();
+
+$bootstrap = FCPATH . 'app/Config/Boot/production.php';
+require $bootstrap;
 
 $app = \Config\Services::codeigniter();
 $app->initialize();
