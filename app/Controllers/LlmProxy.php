@@ -827,7 +827,21 @@ class LlmProxy extends Controller
             }
             
             if ($apiKeyRecord && !empty($apiKeyRecord['api_key'])) {
-                $api_key = $apiKeyRecord['api_key']; // Already decrypted by the model's afterFind method
+                $raw_api_key = $apiKeyRecord['api_key'];
+                
+                // Manual decryption since afterFind is commented out
+                if (strlen($raw_api_key) > 100) { // Likely encrypted
+                    try {
+                        $encrypter = \Config\Services::encrypter();
+                        $api_key = $encrypter->decrypt(base64_decode($raw_api_key));
+                        log_message('error', '[PROXY] CHECKPOINT 8a: API key decrypted manually. Original length: ' . strlen($raw_api_key) . ', decrypted length: ' . strlen($api_key));
+                    } catch (\Exception $e) {
+                        log_message('error', '[PROXY] ERROR: Failed to decrypt API key: ' . $e->getMessage());
+                        $api_key = $raw_api_key; // Use as-is if decryption fails
+                    }
+                } else {
+                    $api_key = $raw_api_key; // Already decrypted or plain text
+                }
                 
                 log_message('error', '[PROXY] CHECKPOINT 8: API key extracted. Length: ' . strlen($api_key) . ', starts with: ' . substr($api_key, 0, 10));
             } else {
