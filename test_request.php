@@ -3,7 +3,7 @@
 // Test script to simulate the exact request that's failing
 echo "=== TEST REQUEST SIMULATION ===\n\n";
 
-$url = 'http://llmproxy.mitienda.host/api/llm-proxy';
+$url = 'http://llmproxy.mitienda.host/index.php/api/llm-proxy';
 $payload = [
     'model' => 'gpt-3.5-turbo',
     'messages' => [
