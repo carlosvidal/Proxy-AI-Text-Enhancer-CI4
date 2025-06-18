@@ -81,6 +81,40 @@ try {
     
     echo "Database connection successful!\n\n";
     
+    // First, let's see what tables exist
+    echo "Available tables in database:\n";
+    $stmt = $pdo->query("SELECT name FROM sqlite_master WHERE type='table'");
+    $tables = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    
+    if (empty($tables)) {
+        echo "   No tables found in database!\n";
+        echo "   This means migrations need to be run.\n\n";
+        echo "Please run the following command on your server:\n";
+        echo "   php spark migrate\n\n";
+        return;
+    } else {
+        foreach ($tables as $table) {
+            echo "   - $table\n";
+        }
+    }
+    echo "\n";
+    
+    // Check if required tables exist
+    $requiredTables = ['buttons', 'api_keys', 'tenants'];
+    $missingTables = [];
+    
+    foreach ($requiredTables as $table) {
+        if (!in_array($table, $tables)) {
+            $missingTables[] = $table;
+        }
+    }
+    
+    if (!empty($missingTables)) {
+        echo "Missing required tables: " . implode(', ', $missingTables) . "\n";
+        echo "Please run: php spark migrate\n\n";
+        return;
+    }
+    
     // Check all buttons for this tenant
     echo "1. All buttons for tenant $tenant_id:\n";
     $stmt = $pdo->prepare("SELECT button_id, status, provider, model, api_key_id, name FROM buttons WHERE tenant_id = ?");
