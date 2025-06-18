@@ -806,26 +806,16 @@ class LlmProxy extends Controller
         
         // First try to get API key from database if tenant_id is provided
         if ($tenant_id) {
-            log_debug('PROXY', 'Attempting to get API key from database', [
-                'tenant_id' => $tenant_id,
-                'provider' => $provider
-            ]);
+            log_message('error', '[PROXY] CHECKPOINT 5: About to get API key from database for tenant: ' . $tenant_id . ', provider: ' . $provider);
             
             $apiKeysModel = new \App\Models\ApiKeysModel();
+            
+            log_message('error', '[PROXY] CHECKPOINT 6: ApiKeysModel created successfully');
             
             try {
                 $apiKeyRecord = $apiKeysModel->getDefaultKey($tenant_id, $provider);
                 
-                log_debug('PROXY', 'Database API key lookup result', [
-                    'provider' => $provider,
-                    'tenant_id' => $tenant_id,
-                    'found_record' => !empty($apiKeyRecord),
-                    'has_api_key' => !empty($apiKeyRecord['api_key']) ? 'yes' : 'no',
-                    'api_key_length' => !empty($apiKeyRecord['api_key']) ? strlen($apiKeyRecord['api_key']) : 0,
-                    'api_key_starts_with' => !empty($apiKeyRecord['api_key']) ? substr($apiKeyRecord['api_key'], 0, 10) : 'none',
-                    'looks_encrypted' => !empty($apiKeyRecord['api_key']) && strlen($apiKeyRecord['api_key']) > 50 ? 'yes' : 'no',
-                    'record_data' => $apiKeyRecord ? array_merge($apiKeyRecord, ['api_key' => '***REDACTED***']) : null
-                ]);
+                log_message('error', '[PROXY] CHECKPOINT 7: API key lookup completed. Found: ' . (!empty($apiKeyRecord) ? 'YES' : 'NO'));
             } catch (\Exception $e) {
                 log_error('PROXY', 'Error getting API key from database', [
                     'tenant_id' => $tenant_id,
