@@ -1390,7 +1390,8 @@ class Admin extends BaseController
                 'model' => 'required',
                 'api_key' => 'permit_empty|min_length[10]|max_length[255]',
                 'api_key_id' => 'permit_empty',
-                'system_prompt' => 'permit_empty|max_length[2000]'
+                'system_prompt' => 'permit_empty|max_length[2000]',
+                'auto_create_api_users' => 'permit_empty|in_list[0,1]'
             ];
 
             if ($this->validate($rules)) {
@@ -1400,7 +1401,8 @@ class Admin extends BaseController
                         'domain' => $this->request->getPost('domain'),
                         'provider' => $this->request->getPost('provider'),
                         'model' => $this->request->getPost('model'),
-                        'system_prompt' => $this->request->getPost('system_prompt')
+                        'system_prompt' => $this->request->getPost('system_prompt'),
+                        'auto_create_api_users' => $this->request->getPost('auto_create_api_users') ? 1 : 0
                     ];
 
                     // Handle API key update - either raw key or key ID
@@ -1664,7 +1666,8 @@ class Admin extends BaseController
             'provider' => 'required|in_list[openai,anthropic,google,mistral,cohere,deepseek]',
             'model' => 'required|min_length[3]|max_length[255]',
             'active' => 'permit_empty|in_list[0,1]',
-            'api_key_id' => 'permit_empty'
+            'api_key_id' => 'permit_empty',
+            'auto_create_api_users' => 'permit_empty|in_list[0,1]'
         ];
 
         if (!$this->validate($validationRules)) {
@@ -1680,6 +1683,7 @@ class Admin extends BaseController
                 'provider' => $this->request->getPost('provider'),
                 'model' => $this->request->getPost('model'),
                 'active' => $this->request->getPost('active') ? 1 : 0,
+                'auto_create_api_users' => $this->request->getPost('auto_create_api_users') ? 1 : 0,
                 'updated_at' => date('Y-m-d H:i:s')
             ];
 
