@@ -458,10 +458,13 @@ class LlmProxy extends Controller
                 if (!empty($button['auto_create_api_users'])) {
                     // Crear usuario API en caliente
                     $apiUsersModel = new \App\Models\ApiUsersModel();
+                    // Generate unique user_id
+                    $user_id = 'usr-' . bin2hex(random_bytes(8)) . '-' . bin2hex(random_bytes(4));
+                    
                     $userData = [
+                        'user_id' => $user_id,
                         'tenant_id' => $button['tenant_id'],
                         'external_id' => $external_id,
-                        'name' => $external_id,
                         'active' => 1,
                         'quota' => 10000, // Fix: requerido por el modelo
                         // 'created_at' y 'updated_at' se manejan por el modelo
