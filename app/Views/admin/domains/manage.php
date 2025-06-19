@@ -1,11 +1,14 @@
 <?= $this->extend('layouts/main') ?>
 <?= $this->section('content') ?>
 <div class="container py-4">
-    <div class="row mb-4">
-        <div class="col-md-6">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <a href="<?= site_url('admin/tenants/view/' . $tenant['tenant_id']) ?>" class="btn btn-secondary btn-sm mb-2">
+                <i class="fas fa-arrow-left me-1"></i>Back to Tenant
+            </a>
             <h1>Dominios del Tenant: <?= esc($tenant['name']) ?></h1>
         </div>
-        <div class="col-md-6 text-end">
+        <div>
             <?php if (count($domains) < $tenant['max_domains']): ?>
                 <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/domains/create') ?>" class="btn btn-primary">
                     <i class="bi bi-plus-circle"></i> Agregar Dominio
