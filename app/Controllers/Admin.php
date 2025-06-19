@@ -1378,12 +1378,14 @@ class Admin extends BaseController
         }
 
         if ($this->request->getMethod() === 'post') {
+            log_message('info', '[ADMIN] editButton POST request - tenantId: ' . $tenantId . ', buttonId: ' . $buttonId);
             $rules = [
                 'name' => 'required|min_length[3]|max_length[255]',
                 'domain' => 'required|valid_domain',
                 'provider' => 'required|in_list[openai,anthropic,cohere,mistral,deepseek,google]',
                 'model' => 'required',
                 'api_key' => 'permit_empty|min_length[10]|max_length[255]',
+                'api_key_id' => 'permit_empty',
                 'system_prompt' => 'permit_empty|max_length[2000]'
             ];
 
@@ -1397,24 +1399,36 @@ class Admin extends BaseController
                         'system_prompt' => $this->request->getPost('system_prompt')
                     ];
 
-                    // Only update API key if a new one is provided
+                    // Handle API key update - either raw key or key ID
                     $newApiKey = $this->request->getPost('api_key');
+                    $apiKeyId = $this->request->getPost('api_key_id');
+                    
                     if (!empty($newApiKey)) {
+                        // Raw API key provided - encrypt and store
                         $encrypter = \Config\Services::encrypter();
                         $updateData['api_key'] = base64_encode($encrypter->encrypt($newApiKey));
+                    } elseif (!empty($apiKeyId)) {
+                        // API key ID provided - update reference
+                        $updateData['api_key_id'] = $apiKeyId;
                     }
 
-                    $this->buttonsModel->where('button_id', $buttonId)
+                    $result = $this->buttonsModel->where('button_id', $buttonId)
                         ->where('tenant_id', $tenant['tenant_id'])
                         ->set($updateData)
                         ->update();
 
+                    log_message('info', '[ADMIN] editButton update result: ' . ($result ? 'SUCCESS' : 'FAILED'));
+                    log_message('info', '[ADMIN] editButton redirecting to: admin/tenants/' . $tenantId . '/buttons');
+                    
                     return redirect()->to('admin/tenants/' . $tenantId . '/buttons')
                         ->with('success', 'Button updated successfully');
                 } catch (\Exception $e) {
                     log_message('error', 'Error updating button: ' . $e->getMessage());
                     return redirect()->back()->with('error', 'Failed to update button. Please try again.');
                 }
+            } else {
+                log_message('error', '[ADMIN] editButton validation failed: ' . json_encode($this->validator->getErrors()));
+                return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
             }
         }
 
@@ -1604,6 +1618,96 @@ class Admin extends BaseController
             log_message('error', 'Error deleting button: ' . $e->getMessage());
             return redirect()->back()
                 ->with('error', 'Failed to delete button. Please try again.');
+        }
+    }
+
+    public function updateButton($tenantId, $buttonId)
+    {
+        log_message('info', '[ADMIN] updateButton called with tenantId: ' . $tenantId . ', buttonId: ' . $buttonId);
+        
+        if (!session()->get('isLoggedIn')) {
+            return redirect()->to('/auth/login');
+        }
+        $role = session()->get('role');
+        $sessionTenantId = session()->get('tenant_id');
+        if ($role !== 'superadmin' && !($role === 'tenant' && $sessionTenantId === $tenantId)) {
+            return redirect()->to('/auth/login');
+        }
+
+        $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->asArray()->first();
+        if (!$tenant) {
+            return redirect()->to('admin/tenants')->with('error', 'Tenant not found');
+        }
+
+        $button = $this->buttonsModel->where('button_id', $buttonId)
+            ->where('tenant_id', $tenant['tenant_id'])
+            ->asArray()
+            ->first();
+        if (!$button) {
+            return redirect()->to('admin/tenants/' . $tenantId . '/buttons')
+                ->with('error', 'Button not found');
+        }
+
+        // Validation rules
+        $validationRules = [
+            'name' => 'required|min_length[3]|max_length[255]',
+            'description' => 'permit_empty|max_length[1000]',
+            'provider' => 'required|in_list[openai,anthropic,google,mistral,cohere,deepseek]',
+            'model' => 'required|min_length[3]|max_length[255]',
+            'active' => 'permit_empty|in_list[0,1]',
+            'api_key_id' => 'permit_empty'
+        ];
+
+        if (!$this->validate($validationRules)) {
+            return redirect()->back()
+                ->withInput()
+                ->with('errors', $this->validator->getErrors());
+        }
+
+        try {
+            $updateData = [
+                'name' => $this->request->getPost('name'),
+                'description' => $this->request->getPost('description'),
+                'provider' => $this->request->getPost('provider'),
+                'model' => $this->request->getPost('model'),
+                'active' => $this->request->getPost('active') ? 1 : 0,
+                'updated_at' => date('Y-m-d H:i:s')
+            ];
+
+            // Handle API key update if provided
+            $apiKeyId = $this->request->getPost('api_key_id');
+            if (!empty($apiKeyId)) {
+                // Verify the API key belongs to this tenant
+                $apiKey = $this->apiKeysModel->where('api_key_id', $apiKeyId)
+                    ->where('tenant_id', $tenant['tenant_id'])
+                    ->asArray()
+                    ->first();
+                
+                if ($apiKey) {
+                    $updateData['api_key_id'] = $apiKeyId;
+                } else {
+                    return redirect()->back()
+                        ->withInput()
+                        ->with('error', 'Invalid API key selected');
+                }
+            }
+
+            if ($this->buttonsModel->where('button_id', $buttonId)->set($updateData)->update()) {
+                log_message('info', '[ADMIN] Button updated successfully, redirecting to: admin/tenants/' . $tenantId . '/buttons');
+                return redirect()->to('admin/tenants/' . $tenantId . '/buttons')
+                    ->with('success', 'Button updated successfully');
+            }
+
+            log_message('error', '[ADMIN] Failed to update button in database');
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Failed to update button');
+
+        } catch (\Exception $e) {
+            log_message('error', 'Error updating button: ' . $e->getMessage());
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Failed to update button. Please try again.');
         }
     }
 }

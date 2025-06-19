@@ -89,10 +89,10 @@
 # ENCRYPTION
 #--------------------------------------------------------------------
 
-# encryption.key =
-# encryption.driver = OpenSSL
-# encryption.blockSize = 16
-# encryption.digest = SHA512
+encryption.key = 4WEOHsFjuSMPMZ5g6pX1m13DAo5W+73JmZGZzqEiPEY=
+encryption.driver = OpenSSL
+encryption.blockSize = 16
+encryption.digest = SHA512
 
 #--------------------------------------------------------------------
 # HONEYPOT

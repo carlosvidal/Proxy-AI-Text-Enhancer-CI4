@@ -29,9 +29,14 @@
                 <div class="alert alert-danger"><?= session('error') ?></div>
             <?php endif; ?>
 
-            <form action="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons/store') ?>" method="post">
+            <form action="<?= isset($button) 
+                ? site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons/' . $button['button_id'] . '/update') 
+                : site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons/store') ?>" method="post">
                 <?= csrf_field() ?>
                 <input type="hidden" name="tenant_id" value="<?= $tenant['tenant_id'] ?>">
+                <?php if (isset($button)): ?>
+                <input type="hidden" name="button_id" value="<?= $button['button_id'] ?>">
+                <?php endif; ?>
 
                 <div class="row">
                     <div class="col-md-6">
