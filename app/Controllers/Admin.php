@@ -1063,7 +1063,7 @@ class Admin extends BaseController
             ->getResultArray();
 
         $data = [
-            'title' => 'API Usage - ' . $user['name'],
+            'title' => 'API Usage - ' . ($user['name'] ?? $user['external_id'] ?? $user['user_id']),
             'tenant' => $tenant,
             'user' => $user,
             'usage' => $usage
