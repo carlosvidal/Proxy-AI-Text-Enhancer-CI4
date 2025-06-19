@@ -1434,12 +1434,17 @@ class Admin extends BaseController
 
         // Obtener las API Keys del tenant para el select
         $apiKeys = model('App\Models\ApiKeysModel')->getTenantApiKeys($tenant['tenant_id']);
+        
+        // Obtener los dominios del tenant para el formulario
+        $domainsModel = model('App\Models\DomainsModel');
+        $domains = $domainsModel->where('tenant_id', $tenant['tenant_id'])->findAll();
 
         $data = [
             'title' => 'Edit Button - ' . $tenant['name'],
             'tenant' => $tenant,
             'button' => $button,
             'apiKeys' => $apiKeys,
+            'domains' => $domains,
             'isAdmin' => true,
             'providers' => [
                 'openai' => 'OpenAI',
