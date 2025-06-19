@@ -4,7 +4,11 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <a href="<?= site_url('buttons') ?>" class="btn btn-secondary btn-sm mb-2">
+        <a href="<?= 
+            isset($isAdmin) && $isAdmin 
+                ? site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons')
+                : site_url('buttons') 
+        ?>" class="btn btn-secondary btn-sm mb-2">
             <i class="fas fa-arrow-left me-1"></i>Back to Buttons
         </a>
         <h2>Edit Button for <?= esc($tenant['name']) ?></h2>
@@ -33,6 +37,7 @@
                 <input type="hidden" name="tenant_id" value="<?= $tenant['tenant_id'] ?>">
                 <input type="hidden" name="button_id" value="<?= $button['button_id'] ?>">
             <?php endif; ?>
+            <input type="hidden" name="provider" id="provider" value="<?= old('provider', $button['provider']) ?>">
 
             <div class="row">
                 <div class="col-md-6">
@@ -204,7 +209,11 @@
             </div>
 
             <div class="d-flex justify-content-between mt-4">
-                <a href="<?= site_url('buttons') ?>" class="btn btn-secondary">Cancel</a>
+                <a href="<?= 
+                    isset($isAdmin) && $isAdmin 
+                        ? site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons')
+                        : site_url('buttons') 
+                ?>" class="btn btn-secondary">Cancel</a>
                 <button type="submit" class="btn btn-primary">Update Button</button>
             </div>
         </form>
@@ -221,6 +230,12 @@ document.addEventListener('DOMContentLoaded', function() {
     function filterModels() {
         const selectedOption = apiKeySelect.options[apiKeySelect.selectedIndex];
         const selectedProvider = selectedOption ? selectedOption.getAttribute('data-provider') : null;
+        
+        // Update hidden provider field
+        const providerField = document.getElementById('provider');
+        if (providerField) {
+            providerField.value = selectedProvider || '';
+        }
 
         // Hide all model groups
         modelGroups.forEach(group => {
