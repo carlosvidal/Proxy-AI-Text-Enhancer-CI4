@@ -638,13 +638,13 @@ class LlmProxy extends Controller
             $data = [
                 'usage_id' => $usage_id,
                 'tenant_id' => $tenant_id,
-                'user_id' => $external_id,
+                'user_id' => null, // Set to null since we use external_id for identification
                 'external_id' => $external_id,
                 'button_id' => $button_id,
                 'provider' => $provider,
                 'model' => $model,
-                'tokens' => $total_tokens,
-                'cost' => $cost ?? 0,
+                'tokens' => (int)$total_tokens, // Ensure it's an integer
+                'cost' => (float)($cost ?? 0),
                 'has_image' => $has_image ? 1 : 0,
                 'status' => 'success'
             ];
