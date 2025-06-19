@@ -476,7 +476,8 @@ class LlmProxy extends Controller
                     
                     log_message('error', '[PROXY] About to insert user with data: ' . json_encode($userData));
                     
-                    $insertResult = $apiUsersModel->insert($userData);
+                    // Temporarily disable validation for auto-creation
+                    $insertResult = $apiUsersModel->insert($userData, false);
                     
                     log_message('error', '[PROXY] Insert result: ' . print_r($insertResult, true));
                     

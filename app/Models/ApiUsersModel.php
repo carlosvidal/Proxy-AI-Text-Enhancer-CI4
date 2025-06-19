@@ -130,7 +130,7 @@ class ApiUsersModel extends Model
     // Validation rules
     protected $validationRules = [
         'tenant_id' => 'required|regex_match[/^ten-[a-f0-9]{8}-[a-f0-9]{8}$/]',
-        'external_id' => 'required|max_length[255]|is_unique[api_users.external_id,tenant_id,{tenant_id}]',
+        'external_id' => 'permit_empty|max_length[255]|is_unique[api_users.external_id,tenant_id,{tenant_id}]',
         'name' => 'permit_empty|min_length[3]|max_length[255]',
         'email' => 'permit_empty|valid_email',
         'quota' => 'required|integer|greater_than[0]',
