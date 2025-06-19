@@ -131,7 +131,7 @@ class ApiUsersModel extends Model
     protected $validationRules = [
         'tenant_id' => 'required|regex_match[/^ten-[a-f0-9]{8}-[a-f0-9]{8}$/]',
         'external_id' => 'required|max_length[255]|is_unique[api_users.external_id,tenant_id,{tenant_id}]',
-        'name' => 'required|min_length[3]|max_length[255]',
+        'name' => 'permit_empty|min_length[3]|max_length[255]',
         'email' => 'permit_empty|valid_email',
         'quota' => 'required|integer|greater_than[0]',
         'daily_quota' => 'permit_empty|integer|greater_than[0]',
