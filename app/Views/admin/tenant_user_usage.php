@@ -7,7 +7,7 @@
         <a href="<?= site_url('admin/tenants/users/' . $tenant['tenant_id']) ?>" class="btn btn-secondary btn-sm mb-2">
             <i class="fas fa-arrow-left me-1"></i>Back to API Users
         </a>
-        <h2>API Usage for <?= esc($user['name']) ?></h2>
+        <h2>API Usage for <?= esc($user['name'] ?? $user['external_id'] ?? $user['user_id']) ?></h2>
     </div>
 </div>
 
@@ -24,8 +24,11 @@
                     <dt class="col-sm-4">User ID</dt>
                     <dd class="col-sm-8"><code><?= esc($user['user_id']) ?></code></dd>
 
+                    <dt class="col-sm-4">External ID</dt>
+                    <dd class="col-sm-8"><code><?= esc($user['external_id'] ?? 'N/A') ?></code></dd>
+
                     <dt class="col-sm-4">Name</dt>
-                    <dd class="col-sm-8"><?= esc($user['name']) ?></dd>
+                    <dd class="col-sm-8"><?= esc($user['name'] ?? 'N/A') ?></dd>
 
                     <?php if ($user['email']): ?>
                         <dt class="col-sm-4">Email</dt>
