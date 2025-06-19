@@ -1062,11 +1062,22 @@ class Admin extends BaseController
             ->get()
             ->getResultArray();
 
+        // Get monthly usage statistics (SQLite syntax)
+        $monthlyUsage = $db->table('usage_logs')
+            ->select("strftime('%Y-%m', created_at) as month, COUNT(*) as total_requests, SUM(tokens) as total_tokens")
+            ->where('tenant_id', $tenant['tenant_id'])
+            ->where('external_id', $user['external_id'])
+            ->groupBy("strftime('%Y-%m', created_at)")
+            ->orderBy('month', 'DESC')
+            ->get()
+            ->getResultArray();
+
         $data = [
             'title' => 'API Usage - ' . ($user['name'] ?? $user['external_id'] ?? $user['user_id']),
             'tenant' => $tenant,
             'user' => $user,
-            'usage' => $usage
+            'usage' => $usage,
+            'monthlyUsage' => $monthlyUsage
         ];
 
         return view('admin/tenant_user_usage', $data);
