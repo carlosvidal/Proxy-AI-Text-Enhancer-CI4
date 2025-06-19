@@ -57,8 +57,55 @@
         </div>
     </div>
 
-    <!-- Usage Statistics -->
+    <!-- Quota Information -->
     <div class="col-md-8">
+        <!-- Current Usage Cards -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <i class="fas fa-calendar-alt me-1"></i>
+                        Monthly Usage
+                    </div>
+                    <div class="card-body">
+                        <h4 class="card-title"><?= number_format($quotaInfo['monthly_used']) ?> / <?= number_format($quotaInfo['monthly_quota']) ?></h4>
+                        <div class="progress mb-2">
+                            <div class="progress-bar" role="progressbar" style="width: <?= $quotaInfo['monthly_percentage'] ?>%" 
+                                 aria-valuenow="<?= $quotaInfo['monthly_percentage'] ?>" aria-valuemin="0" aria-valuemax="100">
+                                <?= $quotaInfo['monthly_percentage'] ?>%
+                            </div>
+                        </div>
+                        <small class="text-muted">
+                            <strong><?= number_format($quotaInfo['monthly_remaining']) ?> tokens remaining</strong><br>
+                            Resets on <?= date('M 1, Y', strtotime('+1 month')) ?>
+                        </small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <i class="fas fa-calendar-day me-1"></i>
+                        Daily Usage
+                    </div>
+                    <div class="card-body">
+                        <h4 class="card-title"><?= number_format($quotaInfo['daily_used']) ?> / <?= number_format($quotaInfo['daily_quota']) ?></h4>
+                        <div class="progress mb-2">
+                            <div class="progress-bar bg-success" role="progressbar" style="width: <?= $quotaInfo['daily_percentage'] ?>%" 
+                                 aria-valuenow="<?= $quotaInfo['daily_percentage'] ?>" aria-valuemin="0" aria-valuemax="100">
+                                <?= $quotaInfo['daily_percentage'] ?>%
+                            </div>
+                        </div>
+                        <small class="text-muted">
+                            <strong><?= number_format($quotaInfo['daily_remaining']) ?> tokens remaining</strong><br>
+                            Resets tomorrow at midnight
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Monthly Usage Chart -->
         <div class="card mb-4">
             <div class="card-header">
                 <i class="fas fa-chart-line me-1"></i>

@@ -1072,12 +1072,51 @@ class Admin extends BaseController
             ->get()
             ->getResultArray();
 
+        // Calculate current usage and remaining quotas
+        $firstDayOfMonth = date('Y-m-01 00:00:00');
+        $today = date('Y-m-d 00:00:00');
+        
+        // Get current month usage
+        $currentMonthUsage = $db->table('usage_logs')
+            ->selectSum('tokens')
+            ->where('tenant_id', $tenant['tenant_id'])
+            ->where('external_id', $user['external_id'])
+            ->where('created_at >=', $firstDayOfMonth)
+            ->get()
+            ->getRowArray();
+        
+        // Get current day usage
+        $currentDayUsage = $db->table('usage_logs')
+            ->selectSum('tokens')
+            ->where('tenant_id', $tenant['tenant_id'])
+            ->where('external_id', $user['external_id'])
+            ->where('created_at >=', $today)
+            ->get()
+            ->getRowArray();
+        
+        $monthlyUsed = (int)($currentMonthUsage['tokens'] ?? 0);
+        $dailyUsed = (int)($currentDayUsage['tokens'] ?? 0);
+        $monthlyQuota = (int)($user['quota'] ?? 10000);
+        $dailyQuota = (int)($user['daily_quota'] ?? 10000);
+        
+        $quotaInfo = [
+            'monthly_quota' => $monthlyQuota,
+            'monthly_used' => $monthlyUsed,
+            'monthly_remaining' => max(0, $monthlyQuota - $monthlyUsed),
+            'monthly_percentage' => $monthlyQuota > 0 ? round(($monthlyUsed / $monthlyQuota) * 100, 1) : 0,
+            'daily_quota' => $dailyQuota,
+            'daily_used' => $dailyUsed,
+            'daily_remaining' => max(0, $dailyQuota - $dailyUsed),
+            'daily_percentage' => $dailyQuota > 0 ? round(($dailyUsed / $dailyQuota) * 100, 1) : 0
+        ];
+
         $data = [
             'title' => 'API Usage - ' . ($user['name'] ?? $user['external_id'] ?? $user['user_id']),
             'tenant' => $tenant,
             'user' => $user,
             'usage' => $usage,
-            'monthlyUsage' => $monthlyUsage
+            'monthlyUsage' => $monthlyUsage,
+            'quotaInfo' => $quotaInfo
         ];
 
         return view('admin/tenant_user_usage', $data);
