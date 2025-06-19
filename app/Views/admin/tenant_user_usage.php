@@ -30,9 +30,12 @@
                     <dt class="col-sm-4">Name</dt>
                     <dd class="col-sm-8"><?= esc($user['name'] ?? 'N/A') ?></dd>
 
-                    <?php if ($user['email']): ?>
+                    <?php if (!empty($user['email'])): ?>
                         <dt class="col-sm-4">Email</dt>
                         <dd class="col-sm-8"><?= esc($user['email']) ?></dd>
+                    <?php else: ?>
+                        <dt class="col-sm-4">Email</dt>
+                        <dd class="col-sm-8">N/A</dd>
                     <?php endif; ?>
 
                     <dt class="col-sm-4">Status</dt>
