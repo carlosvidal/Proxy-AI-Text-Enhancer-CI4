@@ -9,6 +9,8 @@ use App\Models\ButtonsModel;
 use App\Models\UsageLogsModel;
 use App\Models\TenantUsersModel;
 use App\Models\ApiUsersModel;
+use App\Models\ApiKeysModel;
+use App\Models\DomainsModel;
 
 class Admin extends BaseController
 {
@@ -249,6 +251,8 @@ class Admin extends BaseController
         $this->usageLogsModel = new UsageLogsModel();
         $this->tenantUsersModel = new TenantUsersModel();
         $this->apiUsersModel = new ApiUsersModel();
+        $this->apiKeysModel = new ApiKeysModel();
+        $this->domainsModel = new DomainsModel();
     }
 
     public function index()
@@ -1433,11 +1437,10 @@ class Admin extends BaseController
         }
 
         // Obtener las API Keys del tenant para el select
-        $apiKeys = model('App\Models\ApiKeysModel')->getTenantApiKeys($tenant['tenant_id']);
+        $apiKeys = $this->apiKeysModel->getTenantApiKeys($tenant['tenant_id']);
         
         // Obtener los dominios del tenant para el formulario
-        $domainsModel = model('App\Models\DomainsModel');
-        $domains = $domainsModel->where('tenant_id', $tenant['tenant_id'])->findAll();
+        $domains = $this->domainsModel->where('tenant_id', $tenant['tenant_id'])->findAll();
 
         $data = [
             'title' => 'Edit Button - ' . $tenant['name'],
