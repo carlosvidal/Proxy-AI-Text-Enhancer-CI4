@@ -496,6 +496,15 @@ class LlmProxy extends Controller
                 throw new \Exception('Invalid or inactive API user');
             }
 
+            // Check quota before processing
+            $quotaCheck = $this->_check_user_quota($api_user, $button['tenant_id']);
+            if (!$quotaCheck['allowed']) {
+                throw new \Exception($quotaCheck['message']);
+            }
+            
+            // Store quota info for response
+            $quotaInfo = $quotaCheck;
+
             // Use button configuration
             $provider = $button['provider'];
             $model = $button['model'];
@@ -594,26 +603,45 @@ class LlmProxy extends Controller
                 // Log usage
                 $this->_log_usage($tenant_id, $external_id, $button_id, $provider, $model, $response['tokens_in'] + $response['tokens_out'], null, $has_image);
 
+                // Update quota info after processing
+                $finalQuotaCheck = $this->_check_user_quota($api_user, $button['tenant_id']);
+                
                 // Return successful response
                 return $this->response->setJSON([
                     'success' => true,
                     'response' => $response['response'],
                     'tokens_in' => $response['tokens_in'],
-                    'tokens_out' => $response['tokens_out']
+                    'tokens_out' => $response['tokens_out'],
+                    'quota' => [
+                        'monthly_remaining' => $finalQuotaCheck['monthly_remaining'] ?? 0,
+                        'daily_remaining' => $finalQuotaCheck['daily_remaining'] ?? 0,
+                        'monthly_used' => $finalQuotaCheck['monthly_used'] ?? 0,
+                        'daily_used' => $finalQuotaCheck['daily_used'] ?? 0
+                    ]
                 ]);
             }
         } catch (\Exception $e) {
+            $errorMessage = $e->getMessage();
+            $statusCode = 500;
+            
+            // Check if it's a quota error
+            if (strpos($errorMessage, 'quota exceeded') !== false) {
+                $statusCode = 429; // Too Many Requests
+            }
+            
             log_error('PROXY', 'Error processing LLM request', [
-                'error' => $e->getMessage(),
-                'provider' => $provider,
-                'model' => $model
+                'error' => $errorMessage,
+                'status_code' => $statusCode,
+                'provider' => $provider ?? 'unknown',
+                'model' => $model ?? 'unknown'
             ]);
 
             return $this->response
-                ->setStatusCode(500)
+                ->setStatusCode($statusCode)
                 ->setJSON([
                     'success' => false,
-                    'error' => $e->getMessage()
+                    'error' => $errorMessage,
+                    'error_type' => strpos($errorMessage, 'quota exceeded') !== false ? 'quota_exceeded' : 'server_error'
                 ]);
         }
     }
@@ -1012,5 +1040,69 @@ class LlmProxy extends Controller
         header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
         header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin');
         header('Access-Control-Max-Age: 86400');
+    }
+
+    /**
+     * Check if user has available quota for requests
+     */
+    private function _check_user_quota($api_user, $tenant_id)
+    {
+        $db = db_connect();
+        
+        // Get current month usage
+        $firstDayOfMonth = date('Y-m-01 00:00:00');
+        $monthlyUsage = $db->table('usage_logs')
+            ->selectSum('tokens')
+            ->where('tenant_id', $tenant_id)
+            ->where('external_id', $api_user['external_id'])
+            ->where('created_at >=', $firstDayOfMonth)
+            ->get()
+            ->getRowArray();
+        
+        $currentMonthlyUsage = (int)($monthlyUsage['tokens'] ?? 0);
+        $monthlyQuota = (int)($api_user['quota'] ?? 10000);
+        
+        // Get current day usage
+        $today = date('Y-m-d 00:00:00');
+        $dailyUsage = $db->table('usage_logs')
+            ->selectSum('tokens')
+            ->where('tenant_id', $tenant_id)
+            ->where('external_id', $api_user['external_id'])
+            ->where('created_at >=', $today)
+            ->get()
+            ->getRowArray();
+        
+        $currentDailyUsage = (int)($dailyUsage['tokens'] ?? 0);
+        $dailyQuota = (int)($api_user['daily_quota'] ?? 10000);
+        
+        // Check monthly quota
+        if ($currentMonthlyUsage >= $monthlyQuota) {
+            return [
+                'allowed' => false,
+                'message' => "Monthly quota exceeded. Used: {$currentMonthlyUsage}/{$monthlyQuota} tokens. Quota resets on " . date('Y-m-01', strtotime('+1 month')),
+                'quota_type' => 'monthly',
+                'used' => $currentMonthlyUsage,
+                'limit' => $monthlyQuota
+            ];
+        }
+        
+        // Check daily quota
+        if ($currentDailyUsage >= $dailyQuota) {
+            return [
+                'allowed' => false,
+                'message' => "Daily quota exceeded. Used: {$currentDailyUsage}/{$dailyQuota} tokens. Quota resets tomorrow.",
+                'quota_type' => 'daily',
+                'used' => $currentDailyUsage,
+                'limit' => $dailyQuota
+            ];
+        }
+        
+        return [
+            'allowed' => true,
+            'monthly_remaining' => $monthlyQuota - $currentMonthlyUsage,
+            'daily_remaining' => $dailyQuota - $currentDailyUsage,
+            'monthly_used' => $currentMonthlyUsage,
+            'daily_used' => $currentDailyUsage
+        ];
     }
 }
