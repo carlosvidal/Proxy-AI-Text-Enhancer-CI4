@@ -638,7 +638,7 @@ class LlmProxy extends Controller
             $data = [
                 'usage_id' => $usage_id,
                 'tenant_id' => $tenant_id,
-                'user_id' => null, // Set to null since we use external_id for identification
+                'user_id' => 0, // Set to 0 since column is NOT NULL but we use external_id for identification
                 'external_id' => $external_id,
                 'button_id' => $button_id,
                 'provider' => $provider,
