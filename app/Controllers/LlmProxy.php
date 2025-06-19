@@ -455,39 +455,28 @@ class LlmProxy extends Controller
 
             // Si no existe, intentar crear si el botón lo permite
             if (!$api_user) {
-                log_message('error', '[PROXY] API user not found, checking auto_create_api_users setting | Button auto_create: ' . ($button['auto_create_api_users'] ?? 'NULL') . ' | External ID: ' . $external_id);
-                
                 if (!empty($button['auto_create_api_users'])) {
-                    log_message('error', '[PROXY] AUTO-CREATE ENABLED - USING DIRECT INSERT VERSION 2.0 - Starting auto-creation process for external_id: ' . $external_id);
+                    log_message('info', '[PROXY] AUTO-CREATE ENABLED - Starting auto-creation process for external_id: ' . $external_id);
                     
-                    // Crear usuario API en caliente usando inserción directa
-                    // Generate unique user_id
-                    $user_id = 'usr-' . bin2hex(random_bytes(8)) . '-' . bin2hex(random_bytes(4));
+                    // Crear usuario API en caliente usando el modelo
+                    $apiUsersModel = new \App\Models\ApiUsersModel();
                     
                     $userData = [
-                        'user_id' => $user_id,
                         'tenant_id' => $button['tenant_id'],
                         'external_id' => $external_id,
                         'active' => 1,
-                        'quota' => 10000,
-                        'daily_quota' => 10000,
-                        'created_at' => date('Y-m-d H:i:s'),
-                        'updated_at' => date('Y-m-d H:i:s')
+                        'quota' => 10000
                     ];
                     
-                    log_message('error', '[PROXY] About to insert user directly with data: ' . json_encode($userData));
-                    
-                    // Insert directly into database to bypass model validation
-                    $insertResult = $db->table('api_users')->insert($userData);
-                    
-                    log_message('error', '[PROXY] Direct insert result: ' . print_r($insertResult, true));
+                    $insertResult = $apiUsersModel->insert($userData);
                     
                     if (!$insertResult) {
-                        log_message('error', '[PROXY] Error al crear usuario API automáticamente con inserción directa | UserData: ' . json_encode($userData));
-                        throw new \Exception('No se pudo crear el usuario API automáticamente con inserción directa');
+                        $modelErrors = $apiUsersModel->errors();
+                        log_message('error', '[PROXY] Error al crear usuario API automáticamente | Errors: ' . json_encode($modelErrors) . ' | UserData: ' . json_encode($userData));
+                        throw new \Exception('No se pudo crear el usuario API automáticamente: ' . json_encode($modelErrors));
                     }
                     
-                    log_message('error', '[PROXY] User inserted successfully! Checking if user can be found...');
+                    log_message('info', '[PROXY] User created successfully with user_id: ' . $insertResult);
                     
                     $api_user = $db->table('api_users')
                         ->where('tenant_id', $button['tenant_id'])
@@ -496,8 +485,6 @@ class LlmProxy extends Controller
                         ->get()
                         ->getRowArray();
                     log_message('info', '[PROXY] API user auto-created for external_id=' . $external_id . ' en tenant=' . $button['tenant_id']);
-                } else {
-                    log_message('error', '[PROXY] Auto-create is NOT enabled for this button');
                 }
             }
 
