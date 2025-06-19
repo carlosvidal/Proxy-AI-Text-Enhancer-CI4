@@ -4,7 +4,7 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
-        <a href="<?= site_url('tenants/view/' . $tenant['tenant_id']) ?>" class="btn btn-secondary btn-sm mb-2">
+        <a href="<?= site_url('admin/tenants/view/' . $tenant['tenant_id']) ?>" class="btn btn-secondary btn-sm mb-2">
             <i class="fas fa-arrow-left me-1"></i>Back to Tenant
         </a>
         <h2>Manage Buttons - <?= esc($tenant['name']) ?></h2>
