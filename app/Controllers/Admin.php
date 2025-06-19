@@ -1053,12 +1053,12 @@ class Admin extends BaseController
                 ->with('error', 'API user not found');
         }
 
-        // Get usage data ordered by request timestamp
+        // Get usage data ordered by created timestamp
         $db = \Config\Database::connect();
         $usage = $db->table('usage_logs')
             ->where('tenant_id', $tenant['tenant_id'])
-            ->where('user_id', $user['user_id'])
-            ->orderBy('request_timestamp', 'DESC')
+            ->where('external_id', $user['external_id'])
+            ->orderBy('created_at', 'DESC')
             ->get()
             ->getResultArray();
 
