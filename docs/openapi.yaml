@@ -1,0 +1,315 @@
+openapi: 3.0.3
+info:
+  title: AI Text Enhancer Proxy API
+  description: |
+    API proxy para servicios de Large Language Models (LLM) que permite el acceso controlado 
+    a múltiples proveedores de IA con gestión de cuotas, autenticación y logging de uso.
+    
+    ## Características
+    - Soporte para múltiples proveedores (OpenAI, Anthropic, Google, etc.)
+    - Control de cuotas diarias y mensuales
+    - Auto-creación de usuarios
+    - Streaming de respuestas en tiempo real
+    - Logging detallado de uso
+    
+  version: 1.0.0
+  contact:
+    name: AI Text Enhancer Support
+    url: https://github.com/carlosvidal/AI-Text-Enhancer
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://llmproxy.mitienda.host/index.php/api
+    description: Production server
+  - url: http://localhost:8081/index.php/api
+    description: Development server
+
+paths:
+  /llm-proxy:
+    post:
+      summary: Process LLM Request
+      description: |
+        Endpoint principal para procesar requests a modelos de lenguaje. 
+        Soporta tanto respuestas síncronas como streaming en tiempo real.
+      operationId: processLLMRequest
+      tags:
+        - LLM Proxy
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LLMRequest'
+            examples:
+              simple_request:
+                summary: Simple text enhancement
+                value:
+                  messages:
+                    - role: "system"
+                      content: "You are a professional content enhancer."
+                    - role: "user"
+                      content: "Improve this text: Hello world"
+                  temperature: 0.7
+                  stream: false
+                  tenantId: "ten-684cc05b-5d6457e5"
+                  userId: "DEMO"
+                  buttonId: "btn-001"
+              streaming_request:
+                summary: Streaming response
+                value:
+                  messages:
+                    - role: "system"
+                      content: "You are a helpful assistant."
+                    - role: "user"
+                      content: "Write a short story about AI"
+                  temperature: 0.8
+                  stream: true
+                  tenantId: "ten-684cc05b-5d6457e5"
+                  userId: "USER123"
+                  buttonId: "btn-002"
+                  hasImage: false
+      responses:
+        '200':
+          description: Request processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LLMResponse'
+            text/plain:
+              description: Streaming response (when stream=true)
+              schema:
+                type: string
+                description: Server-Sent Events stream
+        '400':
+          description: Bad request - Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: "Missing required parameter: messages are required"
+                error_type: "validation_error"
+        '401':
+          description: Unauthorized - Invalid tenant or button configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: "Invalid or inactive API user"
+                error_type: "authentication_error"
+        '403':
+          description: Forbidden - Domain not allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: "Domain not authorized for this tenant"
+                error_type: "authorization_error"
+        '429':
+          description: Too Many Requests - Quota exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuotaErrorResponse'
+              examples:
+                daily_quota_exceeded:
+                  summary: Daily quota exceeded
+                  value:
+                    success: false
+                    error: "Daily quota exceeded. Used: 10000/10000 tokens. Quota resets tomorrow."
+                    error_type: "quota_exceeded"
+                monthly_quota_exceeded:
+                  summary: Monthly quota exceeded
+                  value:
+                    success: false
+                    error: "Monthly quota exceeded. Used: 50000/50000 tokens. Quota resets on 2024-02-01"
+                    error_type: "quota_exceeded"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                success: false
+                error: "Provider API error"
+                error_type: "server_error"
+
+components:
+  schemas:
+    LLMRequest:
+      type: object
+      required:
+        - messages
+        - tenantId
+        - userId
+        - buttonId
+      properties:
+        messages:
+          type: array
+          description: Array of conversation messages
+          items:
+            $ref: '#/components/schemas/Message'
+          minItems: 1
+        temperature:
+          type: number
+          description: Sampling temperature (0.0 to 2.0)
+          minimum: 0.0
+          maximum: 2.0
+          default: 0.7
+        stream:
+          type: boolean
+          description: Enable streaming response
+          default: false
+        tenantId:
+          type: string
+          description: Tenant identifier
+          pattern: '^ten-[a-f0-9]{8}-[a-f0-9]{8}$'
+          example: "ten-684cc05b-5d6457e5"
+        userId:
+          type: string
+          description: External user identifier
+          maxLength: 255
+          example: "USER123"
+        buttonId:
+          type: string
+          description: Button configuration identifier
+          example: "btn-001"
+        hasImage:
+          type: boolean
+          description: Indicates if request contains images
+          default: false
+
+    Message:
+      type: object
+      required:
+        - role
+        - content
+      properties:
+        role:
+          type: string
+          enum: [system, user, assistant]
+          description: Message role in conversation
+        content:
+          oneOf:
+            - type: string
+              description: Text content
+            - type: array
+              description: Mixed content (text + images)
+              items:
+                $ref: '#/components/schemas/ContentPart'
+
+    ContentPart:
+      oneOf:
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: [text]
+            text:
+              type: string
+        - type: object
+          properties:
+            type:
+              type: string
+              enum: [image_url]
+            image_url:
+              type: object
+              properties:
+                url:
+                  type: string
+                  format: uri
+
+    LLMResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: Request success status
+          example: true
+        response:
+          type: string
+          description: Generated text response
+          example: "Here is the enhanced version of your text..."
+        tokens_in:
+          type: integer
+          description: Input tokens consumed
+          example: 50
+        tokens_out:
+          type: integer
+          description: Output tokens generated
+          example: 150
+        quota:
+          $ref: '#/components/schemas/QuotaInfo'
+
+    QuotaInfo:
+      type: object
+      description: Current quota usage information
+      properties:
+        monthly_remaining:
+          type: integer
+          description: Remaining tokens for current month
+          example: 8850
+        daily_remaining:
+          type: integer
+          description: Remaining tokens for current day
+          example: 9850
+        monthly_used:
+          type: integer
+          description: Tokens used this month
+          example: 1150
+        daily_used:
+          type: integer
+          description: Tokens used today
+          example: 150
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Error message
+        error_type:
+          type: string
+          enum: [validation_error, authentication_error, authorization_error, server_error]
+          description: Error category
+
+    QuotaErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            error_type:
+              type: string
+              enum: [quota_exceeded]
+
+  securitySchemes:
+    TenantAuth:
+      type: apiKey
+      in: header
+      name: X-Tenant-ID
+      description: Tenant identifier for authentication
+    
+    DomainAuth:
+      type: apiKey
+      in: header
+      name: Origin
+      description: Domain-based authentication via CORS
+
+security:
+  - TenantAuth: []
+  - DomainAuth: []
+
+tags:
+  - name: LLM Proxy
+    description: Large Language Model proxy operations

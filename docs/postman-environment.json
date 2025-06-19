@@ -1,0 +1,51 @@
+{
+  "id": "ai-text-enhancer-proxy-env",
+  "name": "AI Text Enhancer Proxy - Production",
+  "values": [
+    {
+      "key": "base_url",
+      "value": "https://llmproxy.mitienda.host/index.php",
+      "type": "default",
+      "enabled": true,
+      "description": "Base URL for the API"
+    },
+    {
+      "key": "tenant_id",
+      "value": "ten-684cc05b-5d6457e5",
+      "type": "default",
+      "enabled": true,
+      "description": "Valid tenant ID for testing"
+    },
+    {
+      "key": "button_id", 
+      "value": "btn-001",
+      "type": "default",
+      "enabled": true,
+      "description": "Valid button configuration ID"
+    },
+    {
+      "key": "user_id",
+      "value": "DEMO",
+      "type": "default",
+      "enabled": true,
+      "description": "User identifier for API requests"
+    },
+    {
+      "key": "origin_domain",
+      "value": "https://example.com",
+      "type": "default",
+      "enabled": true,
+      "description": "Origin domain for CORS validation"
+    },
+    {
+      "key": "api_version",
+      "value": "1.0.0",
+      "type": "default",
+      "enabled": true,
+      "description": "API version"
+    }
+  ],
+  "_postman_variable_scope": "environment",
+  "_postman_exported_at": "2025-06-19T22:30:00.000Z",
+  "_postman_exported_using": "Postman/10.20.0"
+}
