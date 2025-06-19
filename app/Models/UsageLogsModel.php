@@ -24,13 +24,12 @@ class UsageLogsModel extends Model
         'cost',
         'has_image',
         'status',
-        'created_at',
-        'updated_at'
+        'created_at'
     ];
 
     protected $useTimestamps = true;
     protected $createdField = 'created_at';
-    protected $updatedField = 'updated_at';
+    protected $updatedField = '';
     
     protected $validationRules = [
         'usage_id' => 'required|is_unique[usage_logs.usage_id]',
