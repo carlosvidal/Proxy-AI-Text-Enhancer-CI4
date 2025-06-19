@@ -1440,6 +1440,7 @@ class Admin extends BaseController
             'tenant' => $tenant,
             'button' => $button,
             'apiKeys' => $apiKeys,
+            'isAdmin' => true,
             'providers' => [
                 'openai' => 'OpenAI',
                 'anthropic' => 'Anthropic Claude',

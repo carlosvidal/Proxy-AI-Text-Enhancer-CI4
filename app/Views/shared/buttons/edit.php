@@ -23,8 +23,16 @@
             </div>
         <?php endif; ?>
 
-        <form action="<?= site_url('buttons/update/' . $button['button_id']) ?>" method="post">
+        <form action="<?= 
+            isset($isAdmin) && $isAdmin 
+                ? site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons/' . $button['button_id'] . '/update')
+                : site_url('buttons/update/' . $button['button_id']) 
+        ?>" method="post">
             <?= csrf_field() ?>
+            <?php if (isset($isAdmin) && $isAdmin): ?>
+                <input type="hidden" name="tenant_id" value="<?= $tenant['tenant_id'] ?>">
+                <input type="hidden" name="button_id" value="<?= $button['button_id'] ?>">
+            <?php endif; ?>
 
             <div class="row">
                 <div class="col-md-6">
