@@ -396,7 +396,7 @@ class Admin extends BaseController
         }
 
         // Get API users for this tenant with their usage statistics
-        $apiUsers = $this->tenantUsersModel->where('tenant_id', $tenant['tenant_id'])->asArray()->findAll();
+        $apiUsers = $this->apiUsersModel->where('tenant_id', $tenant['tenant_id'])->asArray()->findAll();
 
         // Get usage statistics for each API user
         $db = \Config\Database::connect();
