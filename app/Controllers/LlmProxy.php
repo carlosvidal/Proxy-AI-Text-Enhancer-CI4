@@ -649,21 +649,21 @@ class LlmProxy extends Controller
                 'status' => 'success'
             ];
 
-            log_debug('USAGE', 'Intentando insertar log', [
-                'data' => $data
-            ]);
+            log_message('error', '[USAGE] Intentando insertar log de uso | Data: ' . json_encode($data));
 
             // Use model instead of direct insert to handle timestamps properly
             $usageModel = new \App\Models\UsageLogsModel();
             $result = $usageModel->insert($data);
 
+            log_message('error', '[USAGE] Insert result: ' . print_r($result, true));
+
             if (!$result) {
+                $modelErrors = $usageModel->errors();
                 $error = $db->error();
-                log_error('USAGE', 'Error al insertar log', [
-                    'error' => $error,
-                    'last_query' => $db->getLastQuery() ? $db->getLastQuery()->getQuery() : 'No query available'
-                ]);
+                log_message('error', '[USAGE] Error al insertar log | DB Error: ' . json_encode($error) . ' | Model Errors: ' . json_encode($modelErrors) . ' | Data: ' . json_encode($data));
                 return false;
+            } else {
+                log_message('error', '[USAGE] Log de uso insertado exitosamente con ID: ' . $result);
             }
 
             $usage_log_id = $db->insertID();
