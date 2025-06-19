@@ -458,7 +458,7 @@ class LlmProxy extends Controller
                 log_message('error', '[PROXY] API user not found, checking auto_create_api_users setting | Button auto_create: ' . ($button['auto_create_api_users'] ?? 'NULL') . ' | External ID: ' . $external_id);
                 
                 if (!empty($button['auto_create_api_users'])) {
-                    log_message('error', '[PROXY] AUTO-CREATE ENABLED - Starting auto-creation process for external_id: ' . $external_id);
+                    log_message('error', '[PROXY] AUTO-CREATE ENABLED - USING DIRECT INSERT VERSION 2.0 - Starting auto-creation process for external_id: ' . $external_id);
                     
                     // Crear usuario API en caliente usando inserción directa
                     // Generate unique user_id
