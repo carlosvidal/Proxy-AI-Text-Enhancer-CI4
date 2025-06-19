@@ -31,7 +31,7 @@
                 <table class="table table-hover">
                     <thead>
                         <tr>
-                            <th><?= lang('App.tenant_users_id') ?></th>
+                            <th>External ID</th>
                             <th><?= lang('App.tenant_users_name') ?></th>
                             <th><?= lang('App.tenant_users_email') ?></th>
                             <th><?= lang('App.tenant_users_quota') ?></th>
@@ -42,7 +42,7 @@
                     <tbody>
                         <?php foreach ($users as $user): ?>
                             <tr>
-                                <td><?= esc($user['user_id']) ?></td>
+                                <td><?= esc($user['external_id'] ?? $user['user_id']) ?></td>
                                 <td><?= esc($user['name'] ?? 'N/A') ?></td>
                                 <td><?= esc($user['email'] ?? 'N/A') ?></td>
                                 <td><?= number_format($user['quota']) ?></td>
