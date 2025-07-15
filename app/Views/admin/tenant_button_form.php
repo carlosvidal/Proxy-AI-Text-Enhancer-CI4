@@ -203,10 +203,9 @@
                 providerInput.value = selectedProvider || '';
             }
 
-            // Hide all model groups
+            // Hide all model groups but don't disable options
             modelGroups.forEach(group => {
                 group.style.display = 'none';
-                group.querySelectorAll('option').forEach(option => option.disabled = true);
             });
 
             // Show only the selected provider's models
@@ -214,10 +213,10 @@
                 const selectedGroup = document.querySelector(`.model-group[data-provider="${selectedProvider}"]`);
                 if (selectedGroup) {
                     selectedGroup.style.display = '';
-                    selectedGroup.querySelectorAll('option').forEach(option => option.disabled = false);
 
-                    // Select first option if none selected
-                    if (!modelSelect.value || !selectedGroup.querySelector(`option[value="${modelSelect.value}"]`)) {
+                    // Select first option if none selected or current selection is from different provider
+                    const currentModelOption = selectedGroup.querySelector(`option[value="${modelSelect.value}"]`);
+                    if (!modelSelect.value || !currentModelOption) {
                         const firstOption = selectedGroup.querySelector('option');
                         if (firstOption) {
                             modelSelect.value = firstOption.value;
