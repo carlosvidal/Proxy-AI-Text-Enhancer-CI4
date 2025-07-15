@@ -1718,7 +1718,9 @@ class Admin extends BaseController
             'temperature' => 'permit_empty|decimal|greater_than_equal_to[0]|less_than_equal_to[1]',
             'active' => 'permit_empty|in_list[0,1]',
             'api_key_id' => 'permit_empty',
-            'auto_create_api_users' => 'permit_empty|in_list[0,1]'
+            'auto_create_api_users' => 'permit_empty|in_list[0,1]',
+            'system_prompt' => 'permit_empty|max_length[5000]',
+            'domain' => 'permit_empty|max_length[255]'
         ];
 
         if (!$this->validate($validationRules)) {
@@ -1745,12 +1747,24 @@ class Admin extends BaseController
                 'updated_at' => date('Y-m-d H:i:s')
             ];
             
+            // Handle system_prompt field
+            if (in_array('system_prompt', $existingColumns)) {
+                $updateData['system_prompt'] = $this->request->getPost('system_prompt');
+            } else if (in_array('prompt', $existingColumns)) {
+                $updateData['prompt'] = $this->request->getPost('system_prompt');
+            }
+            
+            // Handle domain field
+            if (in_array('domain', $existingColumns)) {
+                $updateData['domain'] = $this->request->getPost('domain');
+            }
+            
             // Only add temperature if column exists
             if (in_array('temperature', $existingColumns)) {
                 $updateData['temperature'] = $this->request->getPost('temperature') ?: '0.70';
             }
             
-            // Only add active if column exists, otherwise use status
+            // Handle active/status field mapping
             if (in_array('active', $existingColumns)) {
                 $updateData['active'] = $this->request->getPost('active') ? 1 : 0;
             } else if (in_array('status', $existingColumns)) {
