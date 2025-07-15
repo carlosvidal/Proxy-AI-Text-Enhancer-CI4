@@ -998,10 +998,10 @@ class LlmProxy extends Controller
         ];
 
         $this->endpoints = [
-            'openai' => env('OPENAI_API_ENDPOINT', 'https://api.openai.com/v1/chat/completions'),
-            'anthropic' => env('ANTHROPIC_API_ENDPOINT', 'https://api.anthropic.com/v1/messages'),
-            'mistral' => env('MISTRAL_API_ENDPOINT', 'https://api.mistral.ai/v1/chat/completions'),
-            'deepseek' => env('DEEPSEEK_API_ENDPOINT', 'https://api.deepseek.com/v1/chat/completions'),
+            'openai' => env('OPENAI_API_ENDPOINT', 'https://api.openai.com'),
+            'anthropic' => env('ANTHROPIC_API_ENDPOINT', 'https://api.anthropic.com'),
+            'mistral' => env('MISTRAL_API_ENDPOINT', 'https://api.mistral.ai'),
+            'deepseek' => env('DEEPSEEK_API_ENDPOINT', 'https://api.deepseek.com'),
             'google' => env('GOOGLE_API_ENDPOINT', 'https://generativelanguage.googleapis.com/v1/models'),
             'azure' => env('AZURE_API_ENDPOINT', '')
         ];
