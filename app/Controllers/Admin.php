@@ -1715,31 +1715,43 @@ class Admin extends BaseController
             'description' => 'permit_empty|max_length[1000]',
             'provider' => 'required|in_list[openai,anthropic,google,mistral,cohere,deepseek]',
             'model' => 'required|min_length[3]|max_length[255]',
+            'temperature' => 'permit_empty|decimal|greater_than_equal_to[0]|less_than_equal_to[1]',
             'active' => 'permit_empty|in_list[0,1]',
             'api_key_id' => 'permit_empty',
             'auto_create_api_users' => 'permit_empty|in_list[0,1]'
         ];
 
         if (!$this->validate($validationRules)) {
+            log_message('error', '[ADMIN] Validation failed for updateButton: ' . json_encode($this->validator->getErrors()));
+            log_message('error', '[ADMIN] POST data: ' . json_encode($this->request->getPost()));
             return redirect()->back()
                 ->withInput()
                 ->with('errors', $this->validator->getErrors());
         }
 
         try {
+            log_message('info', '[ADMIN] Validation passed, preparing update data');
+            log_message('info', '[ADMIN] POST data received: ' . json_encode($this->request->getPost()));
+            
             $updateData = [
                 'name' => $this->request->getPost('name'),
                 'description' => $this->request->getPost('description'),
                 'provider' => $this->request->getPost('provider'),
                 'model' => $this->request->getPost('model'),
+                'temperature' => $this->request->getPost('temperature') ?: '0.70',
                 'active' => $this->request->getPost('active') ? 1 : 0,
                 'auto_create_api_users' => $this->request->getPost('auto_create_api_users') ? 1 : 0,
                 'updated_at' => date('Y-m-d H:i:s')
             ];
+            
+            log_message('info', '[ADMIN] Prepared update data: ' . json_encode($updateData));
 
             // Handle API key update if provided
             $apiKeyId = $this->request->getPost('api_key_id');
+            log_message('info', '[ADMIN] API Key ID received: ' . ($apiKeyId ?: 'empty'));
+            
             if (!empty($apiKeyId)) {
+                log_message('info', '[ADMIN] Verifying API key belongs to tenant');
                 // Verify the API key belongs to this tenant
                 $apiKey = $this->apiKeysModel->where('api_key_id', $apiKeyId)
                     ->where('tenant_id', $tenant['tenant_id'])
@@ -1747,21 +1759,34 @@ class Admin extends BaseController
                     ->first();
                 
                 if ($apiKey) {
+                    log_message('info', '[ADMIN] API key validated successfully');
                     $updateData['api_key_id'] = $apiKeyId;
                 } else {
+                    log_message('error', '[ADMIN] Invalid API key selected: ' . $apiKeyId . ' for tenant: ' . $tenant['tenant_id']);
                     return redirect()->back()
                         ->withInput()
                         ->with('error', 'Invalid API key selected');
                 }
             }
 
-            if ($this->buttonsModel->where('button_id', $buttonId)->set($updateData)->update()) {
+            log_message('info', '[ADMIN] Final update data: ' . json_encode($updateData));
+            log_message('info', '[ADMIN] Attempting to update button with ID: ' . $buttonId);
+            
+            // Get the current button data before update for comparison
+            $currentButton = $this->buttonsModel->where('button_id', $buttonId)->asArray()->first();
+            log_message('info', '[ADMIN] Current button data: ' . json_encode($currentButton));
+            
+            $updateResult = $this->buttonsModel->where('button_id', $buttonId)->set($updateData)->update();
+            log_message('info', '[ADMIN] Update result: ' . ($updateResult ? 'true' : 'false'));
+            
+            if ($updateResult) {
                 log_message('info', '[ADMIN] Button updated successfully, redirecting to: admin/tenants/' . $tenantId . '/buttons');
                 return redirect()->to('admin/tenants/' . $tenantId . '/buttons')
                     ->with('success', 'Button updated successfully');
             }
 
-            log_message('error', '[ADMIN] Failed to update button in database');
+            log_message('error', '[ADMIN] Failed to update button in database - update() returned false');
+            log_message('error', '[ADMIN] Last database query: ' . $this->buttonsModel->getLastQuery());
             return redirect()->back()
                 ->withInput()
                 ->with('error', 'Failed to update button');
