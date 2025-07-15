@@ -1809,8 +1809,29 @@ class Admin extends BaseController
             $currentButton = $this->buttonsModel->where('button_id', $buttonId)->asArray()->first();
             log_message('info', '[ADMIN] Current button data: ' . json_encode($currentButton));
             
-            $updateResult = $this->buttonsModel->where('button_id', $buttonId)->set($updateData)->update();
+            // Try to build the UPDATE query manually to debug
+            $builder = $this->buttonsModel->where('button_id', $buttonId);
+            log_message('info', '[ADMIN] WHERE clause set for button_id: ' . $buttonId);
+            
+            $builder->set($updateData);
+            log_message('info', '[ADMIN] SET clause applied with data: ' . json_encode($updateData));
+            
+            // Enable query debugging
+            $db = \Config\Database::connect();
+            $db->enableQueryDebug();
+            
+            $updateResult = $builder->update();
             log_message('info', '[ADMIN] Update result: ' . ($updateResult ? 'true' : 'false'));
+            
+            // Get the last query after update
+            $lastQuery = $db->getLastQuery();
+            log_message('info', '[ADMIN] Last executed query: ' . $lastQuery);
+            
+            // Check for database errors
+            $error = $db->error();
+            if ($error['code'] !== 0) {
+                log_message('error', '[ADMIN] Database error: ' . json_encode($error));
+            }
             
             if ($updateResult) {
                 log_message('info', '[ADMIN] Button updated successfully, redirecting to: admin/tenants/' . $tenantId . '/buttons');
@@ -1819,7 +1840,7 @@ class Admin extends BaseController
             }
 
             log_message('error', '[ADMIN] Failed to update button in database - update() returned false');
-            log_message('error', '[ADMIN] Last database query: ' . $this->buttonsModel->getLastQuery());
+            log_message('error', '[ADMIN] Final query that failed: ' . $lastQuery);
             return redirect()->back()
                 ->withInput()
                 ->with('error', 'Failed to update button');
