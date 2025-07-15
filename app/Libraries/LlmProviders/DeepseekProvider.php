@@ -59,15 +59,18 @@ class DeepseekProvider extends BaseLlmProvider
         // In a real implementation, you would use a proper tokenizer
         $total_chars = 0;
         foreach ($messages as $message) {
-            if (is_array($message['content'])) {
+            // Handle both array and object formats
+            $content = is_array($message) ? $message['content'] : $message->content;
+            
+            if (is_array($content)) {
                 // Handle multimodal messages
-                foreach ($message['content'] as $content) {
-                    if (is_string($content)) {
-                        $total_chars += strlen($content);
+                foreach ($content as $contentItem) {
+                    if (is_string($contentItem)) {
+                        $total_chars += strlen($contentItem);
                     }
                 }
             } else {
-                $total_chars += strlen($message['content']);
+                $total_chars += strlen($content);
             }
         }
 
