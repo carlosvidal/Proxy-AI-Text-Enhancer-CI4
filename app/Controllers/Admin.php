@@ -1805,31 +1805,42 @@ class Admin extends BaseController
             log_message('info', '[ADMIN] Final update data: ' . json_encode($updateData));
             log_message('info', '[ADMIN] Attempting to update button with ID: ' . $buttonId);
             
-            // Get the current button data before update for comparison
-            $currentButton = $this->buttonsModel->where('button_id', $buttonId)->asArray()->first();
-            log_message('info', '[ADMIN] Current button data: ' . json_encode($currentButton));
-            
-            // Use direct update approach to avoid Query Builder issues
-            log_message('info', '[ADMIN] Attempting direct update for button_id: ' . $buttonId);
-            
-            // Get database connection for error checking
+            // Get database connection for direct SQL
             $db = \Config\Database::connect();
             
-            // Get the numeric ID first (since model uses 'id' as primary key)
-            $buttonRecord = $this->buttonsModel->where('button_id', $buttonId)->first();
-            $numericId = $buttonRecord ? $buttonRecord['id'] : null;
-            log_message('info', '[ADMIN] Button numeric ID: ' . ($numericId ?: 'not found'));
+            // Get the current button data before update for comparison
+            $currentButton = $db->query("SELECT * FROM buttons WHERE button_id = ?", [$buttonId])->getRowArray();
+            log_message('info', '[ADMIN] Current button data: ' . json_encode($currentButton));
             
-            // Try the update using the numeric ID
-            $updateResult = false;
-            if ($numericId) {
-                $updateResult = $this->buttonsModel->update($numericId, $updateData);
-                log_message('info', '[ADMIN] Update result with numeric ID: ' . ($updateResult ? 'true' : 'false'));
+            if (!$currentButton) {
+                log_message('error', '[ADMIN] Button not found with ID: ' . $buttonId);
+                return redirect()->back()
+                    ->withInput()
+                    ->with('error', 'Button not found');
             }
             
-            // Get the last query after update
-            $lastQuery = $db->getLastQuery();
-            log_message('info', '[ADMIN] Last executed query: ' . $lastQuery);
+            // Build UPDATE query manually to avoid Query Builder issues
+            $setParts = [];
+            $values = [];
+            
+            foreach ($updateData as $field => $value) {
+                $setParts[] = "`$field` = ?";
+                $values[] = $value;
+            }
+            
+            $values[] = $buttonId; // for WHERE clause
+            
+            $sql = "UPDATE buttons SET " . implode(', ', $setParts) . " WHERE button_id = ?";
+            log_message('info', '[ADMIN] Executing SQL: ' . $sql);
+            log_message('info', '[ADMIN] With values: ' . json_encode($values));
+            
+            // Execute the update
+            $updateResult = $db->query($sql, $values);
+            log_message('info', '[ADMIN] Update result: ' . ($updateResult ? 'true' : 'false'));
+            
+            // Check affected rows
+            $affectedRows = $db->affectedRows();
+            log_message('info', '[ADMIN] Affected rows: ' . $affectedRows);
             
             // Check for database errors
             $error = $db->error();
@@ -1837,25 +1848,8 @@ class Admin extends BaseController
                 log_message('error', '[ADMIN] Database error: ' . json_encode($error));
             }
             
-            // If update failed, try to understand why
-            if (!$updateResult) {
-                // Check if the record exists
-                $existingRecord = $this->buttonsModel->find($buttonId);
-                log_message('info', '[ADMIN] Record exists check: ' . ($existingRecord ? 'YES' : 'NO'));
-                
-                // Check affected rows
-                $affectedRows = $db->affectedRows();
-                log_message('info', '[ADMIN] Affected rows: ' . $affectedRows);
-                
-                // Try alternative update method
-                log_message('info', '[ADMIN] Trying alternative update method...');
-                $alternativeResult = $this->buttonsModel->where('button_id', $buttonId)->set($updateData)->update();
-                log_message('info', '[ADMIN] Alternative update result: ' . ($alternativeResult ? 'true' : 'false'));
-                
-                if ($alternativeResult) {
-                    $updateResult = $alternativeResult;
-                }
-            }
+            // Consider it successful if the query executed without errors
+            $updateResult = $updateResult && $error['code'] === 0;
             
             if ($updateResult) {
                 log_message('info', '[ADMIN] Button updated successfully, redirecting to: admin/tenants/' . $tenantId . '/buttons');
