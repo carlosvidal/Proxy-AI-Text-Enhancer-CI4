@@ -1809,19 +1809,23 @@ class Admin extends BaseController
             $currentButton = $this->buttonsModel->where('button_id', $buttonId)->asArray()->first();
             log_message('info', '[ADMIN] Current button data: ' . json_encode($currentButton));
             
-            // Try to build the UPDATE query manually to debug
-            $builder = $this->buttonsModel->where('button_id', $buttonId);
-            log_message('info', '[ADMIN] WHERE clause set for button_id: ' . $buttonId);
-            
-            $builder->set($updateData);
-            log_message('info', '[ADMIN] SET clause applied with data: ' . json_encode($updateData));
+            // Use direct update approach to avoid Query Builder issues
+            log_message('info', '[ADMIN] Attempting direct update for button_id: ' . $buttonId);
             
             // Get database connection for error checking
             $db = \Config\Database::connect();
             
-            // Try the update
-            $updateResult = $builder->update();
-            log_message('info', '[ADMIN] Update result: ' . ($updateResult ? 'true' : 'false'));
+            // Get the numeric ID first (since model uses 'id' as primary key)
+            $buttonRecord = $this->buttonsModel->where('button_id', $buttonId)->first();
+            $numericId = $buttonRecord ? $buttonRecord['id'] : null;
+            log_message('info', '[ADMIN] Button numeric ID: ' . ($numericId ?: 'not found'));
+            
+            // Try the update using the numeric ID
+            $updateResult = false;
+            if ($numericId) {
+                $updateResult = $this->buttonsModel->update($numericId, $updateData);
+                log_message('info', '[ADMIN] Update result with numeric ID: ' . ($updateResult ? 'true' : 'false'));
+            }
             
             // Get the last query after update
             $lastQuery = $db->getLastQuery();
@@ -1836,12 +1840,21 @@ class Admin extends BaseController
             // If update failed, try to understand why
             if (!$updateResult) {
                 // Check if the record exists
-                $existingRecord = $this->buttonsModel->where('button_id', $buttonId)->first();
+                $existingRecord = $this->buttonsModel->find($buttonId);
                 log_message('info', '[ADMIN] Record exists check: ' . ($existingRecord ? 'YES' : 'NO'));
                 
                 // Check affected rows
                 $affectedRows = $db->affectedRows();
                 log_message('info', '[ADMIN] Affected rows: ' . $affectedRows);
+                
+                // Try alternative update method
+                log_message('info', '[ADMIN] Trying alternative update method...');
+                $alternativeResult = $this->buttonsModel->where('button_id', $buttonId)->set($updateData)->update();
+                log_message('info', '[ADMIN] Alternative update result: ' . ($alternativeResult ? 'true' : 'false'));
+                
+                if ($alternativeResult) {
+                    $updateResult = $alternativeResult;
+                }
             }
             
             if ($updateResult) {

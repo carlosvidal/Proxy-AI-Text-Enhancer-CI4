@@ -18,10 +18,13 @@ class ButtonsModel extends Model
         'description',
         'domain',
         'system_prompt',
+        'prompt',
         'provider',
         'model',
         'api_key_id',
         'status',
+        'active',
+        'temperature',
         'auto_create_api_users',
         'created_at',
         'updated_at'
