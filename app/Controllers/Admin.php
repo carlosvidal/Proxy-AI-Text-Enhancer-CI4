@@ -1736,7 +1736,8 @@ class Admin extends BaseController
             log_message('info', '[ADMIN] POST data received: ' . json_encode($this->request->getPost()));
             
             // Get existing columns to avoid updating non-existent columns
-            $existingColumns = $this->db->getFieldNames('buttons');
+            $db = \Config\Database::connect();
+            $existingColumns = $db->getFieldNames('buttons');
             log_message('info', '[ADMIN] Existing buttons table columns: ' . implode(', ', $existingColumns));
             
             $updateData = [
