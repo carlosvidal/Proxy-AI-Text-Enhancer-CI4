@@ -549,8 +549,24 @@ class LlmProxy extends Controller
     private function _process_llm_request($provider, $model, $messages, $temperature, $stream, $tenant_id, $external_id, $button_id = null, $has_image = false)
     {
         try {
+            // Get button configuration to find the assigned API key
+            $button_api_key_id = null;
+            if ($button_id) {
+                $buttonsModel = new \App\Models\ButtonsModel();
+                $button = $buttonsModel->where('button_id', $button_id)
+                                     ->where('tenant_id', $tenant_id)
+                                     ->first();
+                
+                if ($button && !empty($button['api_key_id'])) {
+                    $button_api_key_id = $button['api_key_id'];
+                    log_message('error', '[PROXY] CHECKPOINT 3a: Found button API key ID: ' . $button_api_key_id);
+                } else {
+                    log_message('error', '[PROXY] CHECKPOINT 3b: No API key assigned to button, will use default');
+                }
+            }
+            
             // Get LLM provider instance
-            $llm = $this->_get_llm_provider($provider, $tenant_id);
+            $llm = $this->_get_llm_provider($provider, $tenant_id, $button_api_key_id);
 
             // Set options
             $options = [
@@ -826,11 +842,12 @@ class LlmProxy extends Controller
     /**
      * Get LLM provider instance
      */
-    private function _get_llm_provider($provider, $tenant_id = null)
+    private function _get_llm_provider($provider, $tenant_id = null, $button_api_key_id = null)
     {
         log_error('PROXY', 'CHECKPOINT 4: Entering _get_llm_provider', [
             'provider' => $provider,
-            'tenant_id' => $tenant_id
+            'tenant_id' => $tenant_id,
+            'button_api_key_id' => $button_api_key_id
         ]);
         
         $api_key = null;
@@ -844,13 +861,32 @@ class LlmProxy extends Controller
             log_message('error', '[PROXY] CHECKPOINT 6: ApiKeysModel created successfully');
             
             try {
-                $apiKeyRecord = $apiKeysModel->getDefaultKey($tenant_id, $provider);
+                // First try to get the specific API key assigned to the button
+                if ($button_api_key_id) {
+                    log_message('error', '[PROXY] CHECKPOINT 7a: Trying to get specific API key for button: ' . $button_api_key_id);
+                    $apiKeyRecord = $apiKeysModel->where('api_key_id', $button_api_key_id)
+                                                ->where('tenant_id', $tenant_id)
+                                                ->where('active', 1)
+                                                ->first();
+                    
+                    if ($apiKeyRecord) {
+                        log_message('error', '[PROXY] CHECKPOINT 7b: Button-specific API key found: ' . $apiKeyRecord['name']);
+                    } else {
+                        log_message('error', '[PROXY] CHECKPOINT 7c: Button-specific API key not found, falling back to default');
+                    }
+                }
                 
-                log_message('error', '[PROXY] CHECKPOINT 7: API key lookup completed. Found: ' . (!empty($apiKeyRecord) ? 'YES' : 'NO'));
+                // Fallback to default API key if no specific key found
+                if (!$apiKeyRecord) {
+                    $apiKeyRecord = $apiKeysModel->getDefaultKey($tenant_id, $provider);
+                    log_message('error', '[PROXY] CHECKPOINT 7d: Default API key lookup completed. Found: ' . (!empty($apiKeyRecord) ? 'YES' : 'NO'));
+                }
+                
             } catch (\Exception $e) {
                 log_error('PROXY', 'Error getting API key from database', [
                     'tenant_id' => $tenant_id,
                     'provider' => $provider,
+                    'button_api_key_id' => $button_api_key_id,
                     'error' => $e->getMessage(),
                     'trace' => $e->getTraceAsString()
                 ]);
