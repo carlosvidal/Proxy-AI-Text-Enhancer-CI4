@@ -91,7 +91,7 @@
                                     <?php if ($apiKey['active'] == 1): ?>
                                         <option value="<?= $apiKey['api_key_id'] ?>" 
                                                 data-provider="<?= $apiKey['provider'] ?>"
-                                                <?= old('api_key_id') == $apiKey['api_key_id'] ? 'selected' : '' ?>>
+                                                <?= old('api_key_id', $button['api_key_id'] ?? '') == $apiKey['api_key_id'] ? 'selected' : '' ?>>
                                             <?= $apiKey['name'] ?> (<?= $providers[$apiKey['provider']] ?>)
                                         </option>
                                     <?php endif; ?>
@@ -104,6 +104,12 @@
                                 Select an API key from the tenant's configured keys.
                             </div>
                         </div>
+                        
+                        <!-- Hidden provider field that gets populated by JavaScript -->
+                        <input type="hidden" name="provider" id="provider" value="<?= old('provider', $button['provider'] ?? '') ?>">
+                        
+                        <!-- Hidden description field (empty for now) -->
+                        <input type="hidden" name="description" value="<?= old('description', $button['description'] ?? '') ?>">
 
                         <div class="mb-3">
                             <label for="model" class="form-label">LLM Model</label>
@@ -135,13 +141,13 @@
                         <div class="mb-3">
                             <label for="status" class="form-label">Status</label><br>
                             <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="status" name="status" value="active" <?= old('status', $button['status'] ?? 'active') == 'active' ? 'checked' : '' ?>>
+                                <input class="form-check-input" type="checkbox" id="status" name="active" value="1" <?= old('active', $button['active'] ?? '1') == '1' ? 'checked' : '' ?>>
                                 <label class="form-check-label" for="status">
                                     <span id="status-label">Active</span>
                                 </label>
                             </div>
-                            <?php if (session('errors.status')): ?>
-                                <div class="invalid-feedback d-block"> <?= session('errors.status') ?> </div>
+                            <?php if (session('errors.active')): ?>
+                                <div class="invalid-feedback d-block"> <?= session('errors.active') ?> </div>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -184,12 +190,18 @@
     document.addEventListener('DOMContentLoaded', function() {
         const apiKeySelect = document.getElementById('api_key_id');
         const modelSelect = document.getElementById('model');
+        const providerInput = document.getElementById('provider');
         const modelGroups = document.querySelectorAll('.model-group');
 
         // Function to filter models based on selected API key's provider
         function filterModels() {
             const selectedOption = apiKeySelect.options[apiKeySelect.selectedIndex];
             const selectedProvider = selectedOption ? selectedOption.getAttribute('data-provider') : null;
+
+            // Update the hidden provider field
+            if (providerInput) {
+                providerInput.value = selectedProvider || '';
+            }
 
             // Hide all model groups
             modelGroups.forEach(group => {
