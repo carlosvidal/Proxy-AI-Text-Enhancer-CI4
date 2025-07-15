@@ -1733,16 +1733,34 @@ class Admin extends BaseController
             log_message('info', '[ADMIN] Validation passed, preparing update data');
             log_message('info', '[ADMIN] POST data received: ' . json_encode($this->request->getPost()));
             
+            // Get existing columns to avoid updating non-existent columns
+            $existingColumns = $this->db->getFieldNames('buttons');
+            log_message('info', '[ADMIN] Existing buttons table columns: ' . implode(', ', $existingColumns));
+            
             $updateData = [
                 'name' => $this->request->getPost('name'),
                 'description' => $this->request->getPost('description'),
                 'provider' => $this->request->getPost('provider'),
                 'model' => $this->request->getPost('model'),
-                'temperature' => $this->request->getPost('temperature') ?: '0.70',
-                'active' => $this->request->getPost('active') ? 1 : 0,
-                'auto_create_api_users' => $this->request->getPost('auto_create_api_users') ? 1 : 0,
                 'updated_at' => date('Y-m-d H:i:s')
             ];
+            
+            // Only add temperature if column exists
+            if (in_array('temperature', $existingColumns)) {
+                $updateData['temperature'] = $this->request->getPost('temperature') ?: '0.70';
+            }
+            
+            // Only add active if column exists, otherwise use status
+            if (in_array('active', $existingColumns)) {
+                $updateData['active'] = $this->request->getPost('active') ? 1 : 0;
+            } else if (in_array('status', $existingColumns)) {
+                $updateData['status'] = $this->request->getPost('active') ? 'active' : 'inactive';
+            }
+            
+            // Only add auto_create_api_users if column exists
+            if (in_array('auto_create_api_users', $existingColumns)) {
+                $updateData['auto_create_api_users'] = $this->request->getPost('auto_create_api_users') ? 1 : 0;
+            }
             
             log_message('info', '[ADMIN] Prepared update data: ' . json_encode($updateData));
 
