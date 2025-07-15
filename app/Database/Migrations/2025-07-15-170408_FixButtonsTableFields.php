@@ -8,25 +8,23 @@ class FixButtonsTableFields extends Migration
 {
     public function up()
     {
-        // Add temperature field to buttons table
+        // Add temperature field to buttons table (SQLite compatible - no AFTER clause)
         $this->forge->addColumn('buttons', [
             'temperature' => [
                 'type' => 'DECIMAL',
                 'constraint' => '3,2',
                 'default' => '0.70',
-                'null' => false,
-                'after' => 'model'
+                'null' => false
             ]
         ]);
         
-        // Add active field to buttons table
+        // Add active field to buttons table (SQLite compatible - no AFTER clause)
         $this->forge->addColumn('buttons', [
             'active' => [
                 'type' => 'TINYINT',
                 'constraint' => 1,
                 'default' => 1,
-                'null' => false,
-                'after' => 'temperature'
+                'null' => false
             ]
         ]);
     }
