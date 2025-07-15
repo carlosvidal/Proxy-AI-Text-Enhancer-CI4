@@ -1816,10 +1816,10 @@ class Admin extends BaseController
             $builder->set($updateData);
             log_message('info', '[ADMIN] SET clause applied with data: ' . json_encode($updateData));
             
-            // Enable query debugging
+            // Get database connection for error checking
             $db = \Config\Database::connect();
-            $db->enableQueryDebug();
             
+            // Try the update
             $updateResult = $builder->update();
             log_message('info', '[ADMIN] Update result: ' . ($updateResult ? 'true' : 'false'));
             
@@ -1831,6 +1831,17 @@ class Admin extends BaseController
             $error = $db->error();
             if ($error['code'] !== 0) {
                 log_message('error', '[ADMIN] Database error: ' . json_encode($error));
+            }
+            
+            // If update failed, try to understand why
+            if (!$updateResult) {
+                // Check if the record exists
+                $existingRecord = $this->buttonsModel->where('button_id', $buttonId)->first();
+                log_message('info', '[ADMIN] Record exists check: ' . ($existingRecord ? 'YES' : 'NO'));
+                
+                // Check affected rows
+                $affectedRows = $db->affectedRows();
+                log_message('info', '[ADMIN] Affected rows: ' . $affectedRows);
             }
             
             if ($updateResult) {
