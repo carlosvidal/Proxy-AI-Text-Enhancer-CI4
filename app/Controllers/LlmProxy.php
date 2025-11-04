@@ -465,7 +465,7 @@ class LlmProxy extends Controller
                         'tenant_id' => $button['tenant_id'],
                         'external_id' => $external_id,
                         'active' => 1,
-                        'quota' => 10000
+                        'quota' => 1000000
                     ];
                     
                     $insertResult = $apiUsersModel->insert($userData);
@@ -752,10 +752,8 @@ class LlmProxy extends Controller
 
             return true;
         } catch (\Exception $e) {
-            log_error('USAGE', 'Excepción al insertar log', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
+            // Use log_message directly to avoid issues during streaming
+            log_message('error', '[USAGE] Excepción al insertar log | Error: ' . $e->getMessage() . ' | Trace: ' . substr($e->getTraceAsString(), 0, 500) . ' | Data: ' . json_encode($data ?? []));
             return false;
         }
     }
@@ -782,11 +780,27 @@ class LlmProxy extends Controller
                 'mistral-large' => 0.00002,
                 'default' => 0.00001
             ],
+            'deepseek' => [
+                'deepseek-chat' => 0.00000014,  // $0.14 per 1M input tokens
+                'deepseek-coder' => 0.00000014,
+                'default' => 0.00000014
+            ],
+            'google' => [
+                'gemini-1.5-pro-latest' => 0.0000035,
+                'gemini-1.0-pro' => 0.00000025,
+                'default' => 0.0000035
+            ],
             'default' => 0.00001
         ];
 
         $provider_rates = $rates[$provider] ?? $rates['default'];
-        $rate = $provider_rates[$model] ?? $provider_rates['default'];
+
+        // Fix: if provider_rates is a scalar (float), treat it as the rate directly
+        if (is_array($provider_rates)) {
+            $rate = $provider_rates[$model] ?? $provider_rates['default'];
+        } else {
+            $rate = $provider_rates;
+        }
 
         return round($tokens * $rate, 4);
     }
