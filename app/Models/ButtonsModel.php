@@ -39,7 +39,7 @@ class ButtonsModel extends Model
         'tenant_id' => 'required',
         'name' => 'required|min_length[3]|max_length[255]',
         'domain' => 'required',
-        'provider' => 'required|in_list[openai,anthropic,google,azure]',
+        'provider' => 'required|in_list[openai,anthropic,cohere,mistral,deepseek,google]',
         'model' => 'required',
         'api_key_id' => 'required',
         'status' => 'required|in_list[active,inactive]'
