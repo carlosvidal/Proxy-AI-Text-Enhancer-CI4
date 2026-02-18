@@ -1368,7 +1368,8 @@ class Admin extends BaseController
             'api_key_id' => $apiKeyId,
             'system_prompt' => $this->request->getPost('system_prompt'),
             'temperature' => $this->request->getPost('temperature') ?: 0.7,
-            'status' => $this->request->getPost('status') ? 'active' : 'inactive',
+            'status' => $this->request->getPost('active') ? 'active' : 'inactive',
+            'active' => $this->request->getPost('active') ? 1 : 0,
             'auto_create_api_users' => $this->request->getPost('auto_create_api_users') ? 1 : 0,
             'created_at' => date('Y-m-d H:i:s'),
             'updated_at' => date('Y-m-d H:i:s')
@@ -1765,11 +1766,13 @@ class Admin extends BaseController
                 $updateData['temperature'] = $this->request->getPost('temperature') ?: '0.70';
             }
             
-            // Handle active/status field mapping
+            // Handle active/status field mapping — update both if both exist
+            $isActive = $this->request->getPost('active') ? true : false;
             if (in_array('active', $existingColumns)) {
-                $updateData['active'] = $this->request->getPost('active') ? 1 : 0;
-            } else if (in_array('status', $existingColumns)) {
-                $updateData['status'] = $this->request->getPost('active') ? 'active' : 'inactive';
+                $updateData['active'] = $isActive ? 1 : 0;
+            }
+            if (in_array('status', $existingColumns)) {
+                $updateData['status'] = $isActive ? 'active' : 'inactive';
             }
             
             // Only add auto_create_api_users if column exists

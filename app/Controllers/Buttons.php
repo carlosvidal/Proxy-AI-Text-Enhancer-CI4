@@ -163,7 +163,8 @@ class Buttons extends Controller
             'model' => $model,
             'system_prompt' => $this->request->getPost('system_prompt'),
             'api_key_id' => $api_key_id,
-            'status' => 'active',
+            'status' => $this->request->getPost('status') ? 'active' : 'inactive',
+            'active' => $this->request->getPost('status') ? 1 : 0,
             'auto_create_api_users' => $this->request->getPost('auto_create_api_users') ? 1 : 0
         ];
 
@@ -305,6 +306,7 @@ class Buttons extends Controller
             return redirect()->back()->withInput()->with('error', 'Invalid model selected for the provider.');
         }
 
+        $isActive = $this->request->getPost('status') ? true : false;
         $data = [
             'name' => $this->request->getPost('name'),
             'description' => $this->request->getPost('description'),
@@ -312,7 +314,8 @@ class Buttons extends Controller
             'provider' => $provider,
             'model' => $model,
             'system_prompt' => $this->request->getPost('system_prompt'),
-            'status' => $this->request->getPost('status') ? 'active' : 'inactive',
+            'status' => $isActive ? 'active' : 'inactive',
+            'active' => $isActive ? 1 : 0,
             'auto_create_api_users' => $this->request->getPost('auto_create_api_users') ? 1 : 0
         ];
 
