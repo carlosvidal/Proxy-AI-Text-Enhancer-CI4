@@ -113,6 +113,9 @@ $routes->group('admin', ['filter' => 'auth:superadmin'], function ($routes) {
     // Admin dashboard
     $routes->get('dashboard', 'Admin::dashboard');
 
+    // One-time fix (remove after use)
+    $routes->get('fix-buttons-status', 'Admin::fixButtonsStatus');
+
     // Tenants Management
     $routes->get('tenants', 'Admin::tenants');
     $routes->get('tenants/view/(:segment)', 'Admin::viewTenant/$1');

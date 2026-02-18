@@ -260,6 +260,28 @@ class Admin extends BaseController
         return redirect()->to('admin/dashboard');
     }
 
+    /**
+     * One-time fix: sync buttons.status from buttons.active
+     * Access: GET /admin/fix-buttons-status
+     * TODO: Remove after running once
+     */
+    public function fixButtonsStatus()
+    {
+        if (session()->get('role') !== 'superadmin') {
+            return redirect()->to('/auth/login');
+        }
+        $db = \Config\Database::connect();
+        $before = $db->query("SELECT button_id, active, status FROM buttons")->getResultArray();
+        $db->query("UPDATE buttons SET status = 'active' WHERE active = 1");
+        $db->query("UPDATE buttons SET status = 'inactive' WHERE active = 0 OR active IS NULL");
+        $after = $db->query("SELECT button_id, active, status FROM buttons")->getResultArray();
+        return $this->response->setJSON([
+            'message' => 'Buttons status synced from active column',
+            'before' => $before,
+            'after' => $after
+        ]);
+    }
+
     public function dashboard()
     {
         // Permitir acceso a superadmin o al tenant propietario
