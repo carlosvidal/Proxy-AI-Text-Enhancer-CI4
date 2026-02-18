@@ -312,7 +312,7 @@ class Buttons extends Controller
             'provider' => $provider,
             'model' => $model,
             'system_prompt' => $this->request->getPost('system_prompt'),
-            'status' => 'active',
+            'status' => $this->request->getPost('status') ? 'active' : 'inactive',
             'auto_create_api_users' => $this->request->getPost('auto_create_api_users') ? 1 : 0
         ];
 
