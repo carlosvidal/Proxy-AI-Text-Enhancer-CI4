@@ -236,6 +236,26 @@
 
         // Initial filter
         filterModels();
+
+        // DEBUG: Log button data and form values
+        <?php if (isset($button)): ?>
+        console.group('🔍 DEBUG: Button edit form');
+        console.log('Button data from DB:', <?= json_encode(array_intersect_key($button, array_flip(['button_id','name','active','status','domain']))) ?>);
+        console.log('active raw value:', <?= json_encode($button['active'] ?? 'NULL') ?>);
+        console.log('status raw value:', <?= json_encode($button['status'] ?? 'NULL') ?>);
+        console.log('Checkbox checked:', document.getElementById('status').checked);
+        console.groupEnd();
+        <?php endif; ?>
+
+        // DEBUG: Log form data on submit
+        document.querySelector('form').addEventListener('submit', function(e) {
+            const formData = new FormData(this);
+            console.group('🔍 DEBUG: Form submit data');
+            for (let [key, value] of formData.entries()) {
+                console.log(key + ':', value);
+            }
+            console.groupEnd();
+        });
     });
 </script>
 

@@ -143,4 +143,18 @@
     </div>
 </div>
 
+<!-- DEBUG: valores de active/status de cada botón -->
+<script>
+console.group('🔍 DEBUG: Buttons data');
+<?php foreach ($buttons as $i => $btn): ?>
+console.log('Button <?= $i ?>: <?= esc($btn['name']) ?>', {
+    button_id: '<?= $btn['button_id'] ?>',
+    active: <?= json_encode($btn['active'] ?? 'NULL') ?>,
+    status: <?= json_encode($btn['status'] ?? 'NULL') ?>,
+    raw: <?= json_encode(array_intersect_key($btn, array_flip(['button_id','name','active','status','domain']))) ?>
+});
+<?php endforeach; ?>
+console.groupEnd();
+</script>
+
 <?= $this->endSection() ?>
