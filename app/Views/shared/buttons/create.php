@@ -59,7 +59,10 @@ if (!isset($domains)) {
     </select>
 <?php } else { ?>
     <label class="form-label">Dominio Permitido</label>
-    <select name="domain" class="form-select" required>
+    <select name="domain" id="domain" class="form-select" required>
+        <option value="__tenant__" <?= old('domain') == '__tenant__' ? 'selected' : '' ?>>
+            Todos los dominios del tenant
+        </option>
         <?php foreach ($domains as $domain) { ?>
             <option value="<?= $domain['domain'] ?>" <?= old('domain') == $domain['domain'] ? 'selected' : '' ?>>
                 <?= $domain['domain'] ?>
@@ -67,6 +70,7 @@ if (!isset($domains)) {
             </option>
         <?php } ?>
     </select>
+    <div class="form-text">Selecciona "Todos los dominios del tenant" para que este botón funcione en cualquier dominio registrado.</div>
 <?php } ?>
                     </div>
 

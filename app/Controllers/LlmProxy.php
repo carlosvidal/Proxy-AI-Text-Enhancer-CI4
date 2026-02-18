@@ -418,31 +418,53 @@ class LlmProxy extends Controller
             // Store the actual button_id from database
             $actual_button_id = $button['button_id'];
 
-            // Validate domain - support multiple domains separated by commas
-            if ($button['domain'] !== '*') {
-                $allowed_domains = explode(',', $button['domain']);
-                $is_domain_allowed = false;
-                
-                foreach ($allowed_domains as $allowed_domain) {
-                    $allowed_domain = trim($allowed_domain);
-                    if ($this->_normalize_domain($allowed_domain) === $this->_normalize_domain($domain)) {
-                        $is_domain_allowed = true;
-                        break;
+            // Validate domain
+            $tenant_id = $button['tenant_id'];
+            $is_domain_allowed = false;
+            $all_allowed_domains = [];
+
+            if ($button['domain'] === '__tenant__') {
+                // Button allows all tenant domains — check against the domains table
+                $tenant_domains = $db->table('domains')
+                    ->select('domain')
+                    ->where('tenant_id', $tenant_id)
+                    ->get()
+                    ->getResultArray();
+
+                foreach ($tenant_domains as $row) {
+                    $d = trim($row['domain']);
+                    if (!empty($d)) {
+                        $all_allowed_domains[] = $d;
+                        if ($this->_normalize_domain($d) === $this->_normalize_domain($domain)) {
+                            $is_domain_allowed = true;
+                        }
                     }
                 }
-                
-                if (!$is_domain_allowed) {
-                    log_error('PROXY', 'Domain mismatch', [
-                        'request_domain' => $domain,
-                        'normalized_request_domain' => $this->_normalize_domain($domain),
-                        'button_domain' => $button['domain'],
-                        'allowed_domains' => $allowed_domains,
-                        'origin' => service('request')->getHeaderLine('Origin'),
-                        'referer' => service('request')->getHeaderLine('Referer'),
-                        'button' => $button
-                    ]);
-                    throw new \Exception('Invalid domain for this button');
+            } else {
+                // Button has specific domain(s) — check only those
+                $button_domains = explode(',', $button['domain']);
+                foreach ($button_domains as $d) {
+                    $d = trim($d);
+                    if (!empty($d)) {
+                        $all_allowed_domains[] = $d;
+                        if ($this->_normalize_domain($d) === $this->_normalize_domain($domain)) {
+                            $is_domain_allowed = true;
+                        }
+                    }
                 }
+            }
+
+            if (!$is_domain_allowed) {
+                log_error('PROXY', 'Domain mismatch', [
+                    'request_domain' => $domain,
+                    'normalized_request_domain' => $this->_normalize_domain($domain),
+                    'tenant_id' => $tenant_id,
+                    'button_domain_mode' => $button['domain'] === '__tenant__' ? 'tenant-level' : 'button-specific',
+                    'allowed_domains' => array_unique($all_allowed_domains),
+                    'origin' => service('request')->getHeaderLine('Origin'),
+                    'referer' => service('request')->getHeaderLine('Referer'),
+                ]);
+                throw new \Exception('Invalid domain for this button');
             }
 
             // Get API user

@@ -105,10 +105,14 @@ class ButtonsModel extends Model
     protected function formatDomain(array $data)
     {
         if (isset($data['data']['domain'])) {
-            $domain = $data['data']['domain'];
-            if (!preg_match('~^(?:f|ht)tps?://~i', $domain)) {
-                $data['data']['domain'] = 'https://' . $domain;
+            $domain = trim($data['data']['domain']);
+            // '__tenant__' means "all tenant domains" — skip https:// prefix
+            if ($domain !== '__tenant__') {
+                if (!preg_match('~^(?:f|ht)tps?://~i', $domain)) {
+                    $domain = 'https://' . $domain;
+                }
             }
+            $data['data']['domain'] = $domain;
             log_message('debug', 'Formatted domain: ' . $data['data']['domain']);
         }
         return $data;

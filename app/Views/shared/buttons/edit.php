@@ -58,18 +58,19 @@
                     </div>
 
                     <div class="mb-3">
-                        <?php
-                        if (empty($domains)): ?>
+                        <label class="form-label">Dominio Permitido</label>
+                        <?php if (empty($domains)): ?>
                             <div class="alert alert-warning">
                                 No hay dominios configurados. Por favor, configure al menos un dominio.
                             </div>
                             <input type="text" class="form-control <?= session('errors.domain') ? 'is-invalid' : '' ?>"
                                 id="domain" name="domain" value="<?= old('domain', $button['domain']) ?>" required>
-                        <?php elseif (isset($tenant['max_domains']) && $tenant['max_domains'] > 1 && count($domains) > 1): ?>
-                            <label class="form-label">Dominio Permitido</label>
+                        <?php else: ?>
                             <select class="form-select <?= session('errors.domain') ? 'is-invalid' : '' ?>"
                                 id="domain" name="domain" required>
-                                <option value="">Selecciona un dominio</option>
+                                <option value="__tenant__" <?= old('domain', $button['domain']) == '__tenant__' ? 'selected' : '' ?>>
+                                    Todos los dominios del tenant
+                                </option>
                                 <?php foreach ($domains as $d): ?>
                                     <option value="<?= $d['domain'] ?>" <?= old('domain', $button['domain']) == $d['domain'] ? 'selected' : '' ?>>
                                         <?= $d['domain'] ?>
@@ -77,15 +78,11 @@
                                     </option>
                                 <?php endforeach; ?>
                             </select>
-                        <?php else: ?>
-                            <input type="hidden" name="domain" value="<?= $domains[0]['domain'] ?>">
-                            <input type="text" class="form-control" value="<?= $domains[0]['domain'] ?> <?= isset($domains[0]['verified']) && $domains[0]['verified'] ? '' : ' (Pendiente de Verificación)' ?>" disabled>
                         <?php endif; ?>
-
                         <?php if (session('errors.domain')): ?>
                             <div class="invalid-feedback"><?= session('errors.domain') ?></div>
                         <?php endif; ?>
-                        <div class="form-text">The domain where this button will be used (must start with https://)</div>
+                        <div class="form-text">Selecciona "Todos los dominios del tenant" para que funcione en cualquier dominio registrado.</div>
                     </div>
 
                     <div class="mb-3">
