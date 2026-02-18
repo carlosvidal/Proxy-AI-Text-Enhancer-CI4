@@ -66,14 +66,20 @@
                             <input type="text" class="form-control <?= session('errors.domain') ? 'is-invalid' : '' ?>"
                                 id="domain" name="domain" value="<?= old('domain', $button['domain']) ?>" required>
                         <?php else: ?>
+                            <?php
+                                // Normalize button domain for comparison (strip protocol)
+                                $buttonDomain = old('domain', $button['domain'] ?? '');
+                                $buttonDomainNorm = preg_replace('#^https?://#', '', rtrim($buttonDomain, '/'));
+                            ?>
                             <select class="form-select <?= session('errors.domain') ? 'is-invalid' : '' ?>"
                                 id="domain" name="domain" required>
-                                <option value="__tenant__" <?= old('domain', $button['domain']) == '__tenant__' ? 'selected' : '' ?>>
+                                <option value="__tenant__" <?= $buttonDomain == '__tenant__' ? 'selected' : '' ?>>
                                     Todos los dominios del tenant
                                 </option>
                                 <?php foreach ($domains as $d): ?>
-                                    <option value="<?= $d['domain'] ?>" <?= old('domain', $button['domain']) == $d['domain'] ? 'selected' : '' ?>>
-                                        <?= $d['domain'] ?>
+                                    <?php $domainNorm = preg_replace('#^https?://#', '', rtrim($d['domain'], '/')); ?>
+                                    <option value="<?= esc($d['domain']) ?>" <?= ($buttonDomain == $d['domain'] || $buttonDomainNorm == $domainNorm) ? 'selected' : '' ?>>
+                                        <?= esc($d['domain']) ?>
                                         <?= isset($d['verified']) && $d['verified'] ? '' : ' (Pendiente de Verificación)' ?>
                                     </option>
                                 <?php endforeach; ?>
