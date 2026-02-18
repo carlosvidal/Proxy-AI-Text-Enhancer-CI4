@@ -145,6 +145,7 @@
                         <div class="mb-3">
                             <label for="status" class="form-label">Status</label><br>
                             <div class="form-check form-switch">
+                                <input type="hidden" name="active" value="0">
                                 <input class="form-check-input" type="checkbox" id="status" name="active" value="1" <?= old('active', $button['active'] ?? '1') == '1' ? 'checked' : '' ?>>
                                 <label class="form-check-label" for="status">
                                     <span id="status-label">Active</span>

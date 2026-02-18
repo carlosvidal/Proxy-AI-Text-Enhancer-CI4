@@ -128,6 +128,7 @@ if (!isset($domains)) {
                     <div class="mb-3">
                         <label for="status" class="form-label">Status</label><br>
                         <div class="form-check form-switch">
+                            <input type="hidden" name="status" value="inactive">
                             <input class="form-check-input" type="checkbox" id="status" name="status" value="active" <?= old('status', 'active') == 'active' ? 'checked' : '' ?>>
                             <label class="form-check-label" for="status">
                                 <span id="status-label">Active</span>
