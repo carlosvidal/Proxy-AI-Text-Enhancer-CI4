@@ -53,14 +53,11 @@
                         <tr>
                             <th>Name</th>
                             <th>Button ID</th>
-                            <th>Type</th>
-                            <th>Status</th>
-                            <th class="text-end">Requests</th>
-                            <th class="text-end">Tokens</th>
-                            <th class="text-end">Avg Tokens/Request</th>
-                            <th class="text-end">Max Tokens</th>
-                            <th class="text-end">Unique Users</th>
-                            <th>Last Used</th>
+                            <th>Provider / Model</th>
+                            <th>Domain</th>
+                            <th>API Key</th>
+                            <th class="text-center">Auto Users</th>
+                            <th class="text-center">Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -68,65 +65,53 @@
                         <?php foreach ($buttons as $button): ?>
                             <tr>
                                 <td>
-                                    <div class="d-flex align-items-center">
-                                        <div>
-                                            <strong><?= esc($button['name']) ?></strong>
-                                            <?php if (!empty($button['description'])): ?>
-                                                <div class="small text-muted"><?= esc($button['description']) ?></div>
-                                            <?php endif; ?>
-                                        </div>
-                                    </div>
+                                    <strong><?= esc($button['name']) ?></strong>
+                                    <?php if (!empty($button['description'])): ?>
+                                        <div class="small text-muted"><?= esc($button['description']) ?></div>
+                                    <?php endif; ?>
                                 </td>
-                                <td><code><?= esc($button['button_id']) ?></code></td>
+                                <td><code class="small"><?= esc($button['button_id']) ?></code></td>
                                 <td>
-                                    <span class="badge bg-secondary">
-                                        <?= ucfirst($button['type'] ?? 'Standard') ?>
-                                    </span>
+                                    <span class="badge bg-secondary"><?= esc(ucfirst($button['provider'] ?? '—')) ?></span>
+                                    <div class="small text-muted"><?= esc($button['model'] ?? '—') ?></div>
                                 </td>
                                 <td>
-                                    <?php if (isset($button['active']) && $button['active']): ?>
+                                    <code class="small"><?= esc($button['domain'] ?? '—') ?></code>
+                                </td>
+                                <td>
+                                    <?php if (!empty($button['api_key_id'])): ?>
+                                        <code class="small"><?= esc($button['api_key_id']) ?></code>
+                                    <?php else: ?>
+                                        <span class="text-muted">—</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="text-center">
+                                    <?php if (!empty($button['auto_create_api_users'])): ?>
+                                        <i class="fas fa-check text-success"></i>
+                                    <?php else: ?>
+                                        <i class="fas fa-times text-muted"></i>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="text-center">
+                                    <?php if (($button['status'] ?? '') === 'active' || (!empty($button['active']) && $button['active'])): ?>
                                         <span class="badge bg-success">Active</span>
                                     <?php else: ?>
                                         <span class="badge bg-danger">Inactive</span>
                                     <?php endif; ?>
                                 </td>
-                                <td class="text-end">
-                                    <?= number_format($button['usage']['total_requests'] ?? 0) ?>
-                                </td>
-                                <td class="text-end">
-                                    <?= number_format($button['usage']['total_tokens'] ?? 0) ?>
-                                </td>
-                                <td class="text-end">
-                                    <?= number_format($button['usage']['avg_tokens_per_request'] ?? 0, 1) ?>
-                                </td>
-                                <td class="text-end">
-                                    <?= number_format($button['usage']['max_tokens'] ?? 0) ?>
-                                </td>
-                                <td class="text-end">
-                                    <?= number_format($button['usage']['unique_users'] ?? 0) ?>
-                                </td>
-                                <td>
-                                    <?php if (!empty($button['last_used'])): ?>
-                                        <small class="text-muted">
-                                            <?= date('M j, Y g:i A', strtotime($button['last_used'])) ?>
-                                        </small>
-                                    <?php else: ?>
-                                        <small class="text-muted">Never</small>
-                                    <?php endif; ?>
-                                </td>
                                 <td>
                                     <div class="btn-group">
-                                        <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons/' . $button['button_id'] . '/view') ?>" 
+                                        <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons/' . $button['button_id'] . '/view') ?>"
                                            class="btn btn-sm btn-outline-info"
                                            title="View Button">
                                             <i class="fas fa-eye"></i>
                                         </a>
-                                        <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons/' . $button['button_id'] . '/edit') ?>" 
+                                        <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons/' . $button['button_id'] . '/edit') ?>"
                                            class="btn btn-sm btn-outline-primary"
                                            title="Edit Button">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons/' . $button['button_id'] . '/delete') ?>" 
+                                        <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/buttons/' . $button['button_id'] . '/delete') ?>"
                                            class="btn btn-sm btn-outline-danger"
                                            onclick="return confirm('Are you sure you want to delete this button? This will also delete all associated usage logs.')"
                                            title="Delete Button">
@@ -142,19 +127,5 @@
         <?php endif; ?>
     </div>
 </div>
-
-<!-- DEBUG: valores de active/status de cada botón -->
-<script>
-console.group('🔍 DEBUG: Buttons data');
-<?php foreach ($buttons as $i => $btn): ?>
-console.log('Button <?= $i ?>: <?= esc($btn['name']) ?>', {
-    button_id: '<?= $btn['button_id'] ?>',
-    active: <?= json_encode($btn['active'] ?? 'NULL') ?>,
-    status: <?= json_encode($btn['status'] ?? 'NULL') ?>,
-    raw: <?= json_encode(array_intersect_key($btn, array_flip(['button_id','name','active','status','domain']))) ?>
-});
-<?php endforeach; ?>
-console.groupEnd();
-</script>
 
 <?= $this->endSection() ?>
