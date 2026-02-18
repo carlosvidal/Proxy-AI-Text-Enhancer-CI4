@@ -62,6 +62,11 @@
                                     </td>
                                     <td><?= esc($domain['created_at']) ?></td>
                                     <td>
+                                        <?php if (!$domain['verified']): ?>
+                                            <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/domains/verify/' . $domain['domain_id']) ?>" class="btn btn-success btn-sm me-1" onclick="return confirm('¿Verificar este dominio?')">
+                                                <i class="bi bi-check-circle"></i> Verificar
+                                            </a>
+                                        <?php endif; ?>
                                         <a href="<?= site_url('admin/tenants/' . $tenant['tenant_id'] . '/domains/delete/' . $domain['domain_id']) ?>" class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar este dominio?')">
                                             <i class="bi bi-trash"></i> Eliminar
                                         </a>

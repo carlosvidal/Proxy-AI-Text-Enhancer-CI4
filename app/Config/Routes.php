@@ -152,6 +152,7 @@ $routes->group('admin', ['filter' => 'auth:superadmin'], function ($routes) {
     $routes->get('tenants/(:segment)/domains', 'AdminDomains::index/$1');
     $routes->get('tenants/(:segment)/domains/create', 'AdminDomains::create/$1');
     $routes->post('tenants/(:segment)/domains/store', 'AdminDomains::store/$1');
+    $routes->get('tenants/(:segment)/domains/verify/(:segment)', 'AdminDomains::verify/$1/$2');
     $routes->get('tenants/(:segment)/domains/delete/(:segment)', 'AdminDomains::delete/$1/$2');
     $routes->post('tenants/(:segment)/domains/max', 'Domains::updateMaxDomains/$1');
 

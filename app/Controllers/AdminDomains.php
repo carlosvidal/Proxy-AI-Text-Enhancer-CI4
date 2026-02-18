@@ -85,6 +85,22 @@ class AdminDomains extends Controller
         }
     }
 
+    // Verificar dominio (admin)
+    public function verify($tenantId, $domainId)
+    {
+        if (session('role') !== 'superadmin') {
+            return redirect()->to('/admin')->with('error', 'No tienes permisos para realizar esta acción');
+        }
+        $domain = $this->domainsModel->find($domainId);
+        if (!$domain || $domain['tenant_id'] != $tenantId) {
+            return redirect()->to('/admin/tenants/' . $tenantId . '/domains')->with('error', 'Dominio no encontrado');
+        }
+        if ($this->domainsModel->verifyDomain($domainId)) {
+            return redirect()->to('/admin/tenants/' . $tenantId . '/domains')->with('success', 'Dominio verificado correctamente');
+        }
+        return redirect()->to('/admin/tenants/' . $tenantId . '/domains')->with('error', 'Error al verificar el dominio');
+    }
+
     // Eliminar dominio (admin)
     public function delete($tenantId, $domainId)
     {
