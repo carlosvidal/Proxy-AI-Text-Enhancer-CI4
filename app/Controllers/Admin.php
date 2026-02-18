@@ -1707,30 +1707,37 @@ class Admin extends BaseController
 
     public function updateButton($tenantId, $buttonId)
     {
-        log_message('info', '[ADMIN] updateButton called with tenantId: ' . $tenantId . ', buttonId: ' . $buttonId);
-        
+        log_message('error', '[DEBUG-UB] ENTERED updateButton tenantId=' . $tenantId . ' buttonId=' . $buttonId);
+        log_message('error', '[DEBUG-UB] POST data: ' . json_encode($this->request->getPost()));
+
         if (!session()->get('isLoggedIn')) {
+            log_message('error', '[DEBUG-UB] EXIT: not logged in');
             return redirect()->to('/auth/login');
         }
         $role = session()->get('role');
         $sessionTenantId = session()->get('tenant_id');
         if ($role !== 'superadmin' && !($role === 'tenant' && $sessionTenantId === $tenantId)) {
+            log_message('error', '[DEBUG-UB] EXIT: no permission, role=' . $role);
             return redirect()->to('/auth/login');
         }
 
         $tenant = $this->tenantsModel->where('tenant_id', $tenantId)->asArray()->first();
         if (!$tenant) {
+            log_message('error', '[DEBUG-UB] EXIT: tenant not found');
             return redirect()->to('admin/tenants')->with('error', 'Tenant not found');
         }
+        log_message('error', '[DEBUG-UB] tenant found: ' . $tenant['tenant_id']);
 
         $button = $this->buttonsModel->where('button_id', $buttonId)
             ->where('tenant_id', $tenant['tenant_id'])
             ->asArray()
             ->first();
         if (!$button) {
+            log_message('error', '[DEBUG-UB] EXIT: button not found for buttonId=' . $buttonId);
             return redirect()->to('admin/tenants/' . $tenantId . '/buttons')
                 ->with('error', 'Button not found');
         }
+        log_message('error', '[DEBUG-UB] button found, current active=' . ($button['active'] ?? 'NULL') . ' status=' . ($button['status'] ?? 'NULL'));
 
         // Validation rules
         $validationRules = [
@@ -1747,21 +1754,21 @@ class Admin extends BaseController
         ];
 
         if (!$this->validate($validationRules)) {
-            log_message('error', '[ADMIN] Validation failed for updateButton: ' . json_encode($this->validator->getErrors()));
-            log_message('error', '[ADMIN] POST data: ' . json_encode($this->request->getPost()));
+            log_message('error', '[DEBUG-UB] EXIT: validation failed: ' . json_encode($this->validator->getErrors()));
             return redirect()->back()
                 ->withInput()
                 ->with('errors', $this->validator->getErrors());
         }
+        log_message('error', '[DEBUG-UB] validation passed');
 
         try {
-            log_message('info', '[ADMIN] Validation passed, preparing update data');
-            log_message('info', '[ADMIN] POST data received: ' . json_encode($this->request->getPost()));
+            log_message('error', '[DEBUG-UB] preparing update data');
+            log_message('error', '[DEBUG-UB] POST data received: ' . json_encode($this->request->getPost()));
             
             // Get existing columns to avoid updating non-existent columns
             $db = \Config\Database::connect();
             $existingColumns = $db->getFieldNames('buttons');
-            log_message('info', '[ADMIN] Existing buttons table columns: ' . implode(', ', $existingColumns));
+            log_message('error', '[DEBUG-UB] Existing buttons columns: ' . implode(', ', $existingColumns));
             
             $updateData = [
                 'name' => $this->request->getPost('name'),
@@ -1802,14 +1809,14 @@ class Admin extends BaseController
                 $updateData['auto_create_api_users'] = $this->request->getPost('auto_create_api_users') ? 1 : 0;
             }
             
-            log_message('info', '[ADMIN] Prepared update data: ' . json_encode($updateData));
+            log_message('error', '[DEBUG-UB] Prepared update data: ' . json_encode($updateData));
 
             // Handle API key update if provided
             $apiKeyId = $this->request->getPost('api_key_id');
-            log_message('info', '[ADMIN] API Key ID received: ' . ($apiKeyId ?: 'empty'));
+            log_message('error', '[DEBUG-UB] API Key ID received: ' . ($apiKeyId ?: 'empty'));
             
             if (!empty($apiKeyId)) {
-                log_message('info', '[ADMIN] Verifying API key belongs to tenant');
+                log_message('error', '[DEBUG-UB] Verifying API key belongs to tenant');
                 // Verify the API key belongs to this tenant
                 $apiKey = $this->apiKeysModel->where('api_key_id', $apiKeyId)
                     ->where('tenant_id', $tenant['tenant_id'])
@@ -1817,7 +1824,7 @@ class Admin extends BaseController
                     ->first();
                 
                 if ($apiKey) {
-                    log_message('info', '[ADMIN] API key validated successfully');
+                    log_message('error', '[DEBUG-UB] API key validated successfully');
                     $updateData['api_key_id'] = $apiKeyId;
                 } else {
                     log_message('error', '[ADMIN] Invalid API key selected: ' . $apiKeyId . ' for tenant: ' . $tenant['tenant_id']);
@@ -1827,15 +1834,15 @@ class Admin extends BaseController
                 }
             }
 
-            log_message('info', '[ADMIN] Final update data: ' . json_encode($updateData));
-            log_message('info', '[ADMIN] Attempting to update button with ID: ' . $buttonId);
+            log_message('error', '[DEBUG-UB] Final update data: ' . json_encode($updateData));
+            log_message('error', '[DEBUG-UB] Attempting to update button with ID: ' . $buttonId);
             
             // Get database connection for direct SQL
             $db = \Config\Database::connect();
             
             // Get the current button data before update for comparison
             $currentButton = $db->query("SELECT * FROM buttons WHERE button_id = ?", [$buttonId])->getRowArray();
-            log_message('info', '[ADMIN] Current button data: ' . json_encode($currentButton));
+            log_message('error', '[DEBUG-UB] Current button data before update: ' . json_encode($currentButton));
             
             if (!$currentButton) {
                 log_message('error', '[ADMIN] Button not found with ID: ' . $buttonId);
@@ -1856,16 +1863,16 @@ class Admin extends BaseController
             $values[] = $buttonId; // for WHERE clause
             
             $sql = "UPDATE buttons SET " . implode(', ', $setParts) . " WHERE button_id = ?";
-            log_message('info', '[ADMIN] Executing SQL: ' . $sql);
-            log_message('info', '[ADMIN] With values: ' . json_encode($values));
+            log_message('error', '[DEBUG-UB] Executing SQL: ' . $sql);
+            log_message('error', '[DEBUG-UB] With values: ' . json_encode($values));
             
             // Execute the update
             $updateResult = $db->query($sql, $values);
-            log_message('info', '[ADMIN] Update result: ' . ($updateResult ? 'true' : 'false'));
+            log_message('error', '[DEBUG-UB] Update result: ' . ($updateResult ? 'true' : 'false'));
             
             // Check affected rows
             $affectedRows = $db->affectedRows();
-            log_message('info', '[ADMIN] Affected rows: ' . $affectedRows);
+            log_message('error', '[DEBUG-UB] Affected rows: ' . $affectedRows);
             
             // Check for database errors
             $error = $db->error();
@@ -1877,13 +1884,14 @@ class Admin extends BaseController
             $updateResult = $updateResult && $error['code'] === 0;
             
             if ($updateResult) {
-                log_message('info', '[ADMIN] Button updated successfully, redirecting to: admin/tenants/' . $tenantId . '/buttons');
+                // Verify the update by re-reading the button
+                $verifyButton = $db->query("SELECT button_id, active, status FROM buttons WHERE button_id = ?", [$buttonId])->getRowArray();
+                log_message('error', '[DEBUG-UB] SUCCESS - button after update: ' . json_encode($verifyButton));
                 return redirect()->to('admin/tenants/' . $tenantId . '/buttons')
                     ->with('success', 'Button updated successfully');
             }
 
-            log_message('error', '[ADMIN] Failed to update button in database - update() returned false');
-            log_message('error', '[ADMIN] Final query that failed: ' . $lastQuery);
+            log_message('error', '[DEBUG-UB] FAILED - update() returned false, DB error: ' . json_encode($error));
             return redirect()->back()
                 ->withInput()
                 ->with('error', 'Failed to update button');
