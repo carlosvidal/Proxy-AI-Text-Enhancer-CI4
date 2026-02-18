@@ -1747,6 +1747,7 @@ class Admin extends BaseController
             'model' => 'required|min_length[3]|max_length[255]',
             'temperature' => 'permit_empty|decimal|greater_than_equal_to[0]|less_than_equal_to[1]',
             'active' => 'permit_empty|in_list[0,1]',
+            'status' => 'permit_empty|in_list[active,inactive]',
             'api_key_id' => 'permit_empty',
             'auto_create_api_users' => 'permit_empty|in_list[0,1]',
             'system_prompt' => 'permit_empty|max_length[5000]',
@@ -1796,7 +1797,19 @@ class Admin extends BaseController
             }
             
             // Handle active/status field mapping — update both if both exist
-            $isActive = $this->request->getPost('active') ? true : false;
+            // The form may send name="active" (value 0/1) or name="status" (value active/inactive)
+            $postActive = $this->request->getPost('active');
+            $postStatus = $this->request->getPost('status');
+            if ($postStatus !== null) {
+                // Form sends status=active/inactive (shared/buttons/edit.php)
+                $isActive = ($postStatus === 'active');
+            } elseif ($postActive !== null) {
+                // Form sends active=0/1 (admin/tenant_button_form.php)
+                $isActive = (bool) $postActive;
+            } else {
+                $isActive = false;
+            }
+            log_message('error', '[DEBUG-UB] postActive=' . json_encode($postActive) . ' postStatus=' . json_encode($postStatus) . ' isActive=' . json_encode($isActive));
             if (in_array('active', $existingColumns)) {
                 $updateData['active'] = $isActive ? 1 : 0;
             }
