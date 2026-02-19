@@ -39,27 +39,36 @@ class CorsFilter implements FilterInterface
         $allowedDomains = [];
         
         try {
-            // Get domains from database - only from active buttons
+            // Get domains from database - from active buttons and tenant domains
             $db = \Config\Database::connect();
-            
+
             // Get all domains from buttons table with status = 'active'
             $buttonsQuery = $db->query("
-                SELECT DISTINCT domain FROM buttons 
-                WHERE status = 'active'
+                SELECT DISTINCT b.domain, b.tenant_id FROM buttons b
+                WHERE b.status = 'active'
             ");
-            
+
+            // Collect tenant IDs that use __tenant__ so we can resolve their actual domains
+            $tenantIdsForDomainLookup = [];
+
             if ($buttonsQuery) {
                 $buttonRows = $buttonsQuery->getResultArray();
                 foreach ($buttonRows as $row) {
                     if (!empty($row['domain'])) {
+                        // If domain is __tenant__, resolve from domains table
+                        if ($row['domain'] === '__tenant__') {
+                            $tenantIdsForDomainLookup[] = $row['tenant_id'];
+                            continue;
+                        }
+
                         // Handle comma-separated domains
                         $domains = explode(',', $row['domain']);
                         foreach ($domains as $domain) {
-                            $domain = trim($domain);
+                            $domain = rtrim(trim($domain), '/');
                             if (!empty($domain)) {
                                 // Add the full domain (including protocol and port)
                                 $allowedDomains[] = $domain;
-                                
+
                                 // Also extract just the host part for compatibility
                                 $parsed = parse_url($domain);
                                 if (isset($parsed['host'])) {
@@ -78,10 +87,44 @@ class CorsFilter implements FilterInterface
                 }
             }
 
+            // Resolve __tenant__ domains from the domains table
+            if (!empty($tenantIdsForDomainLookup)) {
+                $tenantIdsForDomainLookup = array_unique($tenantIdsForDomainLookup);
+                $placeholders = implode(',', array_fill(0, count($tenantIdsForDomainLookup), '?'));
+                $domainsQuery = $db->query(
+                    "SELECT DISTINCT domain FROM domains WHERE tenant_id IN ({$placeholders})",
+                    $tenantIdsForDomainLookup
+                );
+
+                if ($domainsQuery) {
+                    foreach ($domainsQuery->getResultArray() as $row) {
+                        $domain = rtrim(trim($row['domain']), '/');
+                        if (!empty($domain)) {
+                            // Add with https:// protocol for origin matching
+                            $cleanDomain = preg_replace('#^https?://#', '', $domain);
+                            $cleanDomain = rtrim($cleanDomain, '/');
+                            $allowedDomains[] = 'https://' . $cleanDomain;
+                            $allowedDomains[] = 'http://' . $cleanDomain;
+                            $allowedDomains[] = $cleanDomain;
+
+                            // Also extract host for compatibility
+                            $parsed = parse_url('https://' . $cleanDomain);
+                            if (isset($parsed['host'])) {
+                                $allowedDomains[] = $parsed['host'];
+                                if (isset($parsed['port'])) {
+                                    $allowedDomains[] = $parsed['host'] . ':' . $parsed['port'];
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // Log the domains found
-            log_debug('CORS', 'Found domains from active buttons', [
+            log_debug('CORS', 'Found domains from active buttons and tenant domains', [
                 'count' => count($allowedDomains),
-                'domains' => $allowedDomains
+                'domains' => $allowedDomains,
+                'resolved_tenants' => $tenantIdsForDomainLookup
             ]);
 
         } catch (\Exception $e) {

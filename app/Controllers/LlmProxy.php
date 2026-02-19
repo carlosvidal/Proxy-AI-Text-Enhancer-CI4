@@ -871,6 +871,8 @@ class LlmProxy extends Controller
         // Remover protocolo y www si existen
         $domain = preg_replace('#^https?://#', '', $domain);
         $domain = preg_replace('#^www\.#', '', $domain);
+        // Remover barra final y espacios
+        $domain = rtrim(trim($domain), '/');
 
         return $domain;
     }
@@ -1070,21 +1072,27 @@ class LlmProxy extends Controller
     private function _set_cors_headers()
     {
         $origin = service('request')->getHeaderLine('Origin');
-        
+
         if (!empty($origin)) {
             // Get allowed domains from database same as CorsFilter
             $db = db_connect();
-            $buttonsQuery = $db->query("SELECT DISTINCT domain FROM buttons WHERE status = 'active'");
+            $buttonsQuery = $db->query("SELECT DISTINCT domain, tenant_id FROM buttons WHERE status = 'active'");
             $allowedDomains = [];
-            
+            $tenantIdsForDomainLookup = [];
+
             if ($buttonsQuery) {
                 $buttonRows = $buttonsQuery->getResultArray();
                 foreach ($buttonRows as $row) {
                     if (!empty($row['domain'])) {
+                        // If domain is __tenant__, resolve from domains table
+                        if ($row['domain'] === '__tenant__') {
+                            $tenantIdsForDomainLookup[] = $row['tenant_id'];
+                            continue;
+                        }
                         // Handle comma-separated domains
                         $domains = explode(',', $row['domain']);
                         foreach ($domains as $domain) {
-                            $domain = trim($domain);
+                            $domain = rtrim(trim($domain), '/');
                             if (!empty($domain)) {
                                 $allowedDomains[] = $domain;
                             }
@@ -1092,9 +1100,48 @@ class LlmProxy extends Controller
                     }
                 }
             }
-            
-            // Check if origin is allowed
-            if (in_array($origin, $allowedDomains) || $this->allowed_origins === '*') {
+
+            // Resolve __tenant__ domains from the domains table
+            if (!empty($tenantIdsForDomainLookup)) {
+                $tenantIdsForDomainLookup = array_unique($tenantIdsForDomainLookup);
+                $placeholders = implode(',', array_fill(0, count($tenantIdsForDomainLookup), '?'));
+                $domainsQuery = $db->query(
+                    "SELECT DISTINCT domain FROM domains WHERE tenant_id IN ({$placeholders})",
+                    $tenantIdsForDomainLookup
+                );
+
+                if ($domainsQuery) {
+                    foreach ($domainsQuery->getResultArray() as $row) {
+                        $domain = rtrim(trim($row['domain']), '/');
+                        if (!empty($domain)) {
+                            $cleanDomain = preg_replace('#^https?://#', '', $domain);
+                            $cleanDomain = rtrim($cleanDomain, '/');
+                            $allowedDomains[] = 'https://' . $cleanDomain;
+                            $allowedDomains[] = 'http://' . $cleanDomain;
+                            $allowedDomains[] = $cleanDomain;
+                        }
+                    }
+                }
+            }
+
+            // Check if origin is allowed (exact match or host-only match)
+            $originAllowed = false;
+            $originHost = parse_url($origin, PHP_URL_HOST);
+
+            foreach ($allowedDomains as $allowed) {
+                if ($origin === $allowed) {
+                    $originAllowed = true;
+                    break;
+                }
+                // Host-only fallback
+                $allowedHost = parse_url($allowed, PHP_URL_HOST) ?: $allowed;
+                if ($originHost === $allowedHost) {
+                    $originAllowed = true;
+                    break;
+                }
+            }
+
+            if ($originAllowed || $this->allowed_origins === '*') {
                 header("Access-Control-Allow-Origin: {$origin}");
                 header('Access-Control-Allow-Credentials: true');
                 log_debug('PROXY', 'CORS headers set for streaming', [
@@ -1108,7 +1155,7 @@ class LlmProxy extends Controller
                 header('Access-Control-Allow-Origin: *');
             }
         }
-        
+
         header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
         header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin');
         header('Access-Control-Max-Age: 86400');
