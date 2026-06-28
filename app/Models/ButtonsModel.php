@@ -226,7 +226,7 @@ class ButtonsModel extends Model
     /**
      * Get button configuration by domain
      */
-    public function getButtonByDomain(string $domain, string $tenant_id = null)
+    public function getButtonByDomain(string $domain, ?string $tenant_id = null)
     {
         $query = $this->where('domain', $domain)
             ->where('status', 'active');

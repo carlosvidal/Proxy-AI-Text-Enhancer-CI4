@@ -208,7 +208,7 @@ class TenantsModel extends Model
      * @param string|null $tenant_id Tenant ID to check (optional)
      * @return bool True if auto-creation is enabled
      */
-    public function isAutoCreateUsersEnabled(string $tenant_id = null): bool
+    public function isAutoCreateUsersEnabled(?string $tenant_id = null): bool
     {
         // If tenant_id is provided, check the database setting
         if ($tenant_id !== null) {

@@ -641,8 +641,12 @@ class LlmProxy extends Controller
                 // Log usage
                 $this->_log_usage($tenant_id, $external_id, $button_id, $provider, $model, $response['tokens_in'] + $response['tokens_out'], null, $has_image);
 
-                // Update quota info after processing
-                $finalQuotaCheck = $this->_check_user_quota($api_user, $button['tenant_id']);
+                // Update quota info after processing. Guard against $api_user being
+                // unset on this (non-streaming) branch — fall back to the pre-call
+                // quota snapshot computed earlier ($quotaInfo) instead of erroring.
+                $finalQuotaCheck = (isset($api_user) && $api_user)
+                    ? $this->_check_user_quota($api_user, $button['tenant_id'])
+                    : ($quotaInfo ?? ['monthly_remaining' => 0, 'daily_remaining' => 0, 'monthly_used' => 0, 'daily_used' => 0]);
                 
                 // Return successful response
                 return $this->response->setJSON([
