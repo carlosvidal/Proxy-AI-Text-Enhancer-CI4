@@ -11,7 +11,8 @@ class AuthFilter implements FilterInterface
     public function before(RequestInterface $request, $arguments = null)
     {
         // Don't check auth for login-related routes
-        $uri = $request->uri->getPath();
+        // (CI 4.5+: $request->uri is protected — use getUri())
+        $uri = $request->getUri()->getPath();
         if (in_array($uri, ['auth/login', 'auth/attemptLogin'])) {
             return;
         }
