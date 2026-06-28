@@ -54,6 +54,18 @@ class Filters extends BaseConfig
     ];
 
     /**
+     * Filters that are always applied (CI 4.5+). Kept EMPTY on purpose: the
+     * framework default ($required) would enable forcehttps/pagecache/performance,
+     * which this app never ran on 4.4. The debug toolbar still runs via $globals.
+     *
+     * @var array<string, list<string>>
+     */
+    public array $required = [
+        'before' => [],
+        'after'  => [],
+    ];
+
+    /**
      * List of filter aliases that works on a
      * particular HTTP method (GET, POST, etc.).
      *

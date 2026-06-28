@@ -103,6 +103,18 @@ class Cache extends BaseConfig
 
     /**
      * --------------------------------------------------------------------------
+     * Cacheable HTTP Status Codes (CI 4.5+)
+     * --------------------------------------------------------------------------
+     *
+     * Response status codes the web page caching is allowed to store. Empty
+     * array = the framework default behavior (cache regardless of status).
+     *
+     * @var list<int>
+     */
+    public array $cacheStatusCodes = [];
+
+    /**
+     * --------------------------------------------------------------------------
      * File settings
      * --------------------------------------------------------------------------
      * Your file storage preferences can be specified below, if you are using

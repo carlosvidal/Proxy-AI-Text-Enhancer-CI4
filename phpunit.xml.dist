@@ -3,22 +3,13 @@
         bootstrap="vendor/codeigniter4/framework/system/Test/bootstrap.php"
         backupGlobals="false"
         colors="true"
-        convertErrorsToExceptions="true"
-        convertNoticesToExceptions="true"
-        convertWarningsToExceptions="true"
         stopOnError="false"
         stopOnFailure="false"
         stopOnIncomplete="false"
         stopOnSkipped="false"
-        xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.3/phpunit.xsd">
-    <coverage includeUncoveredFiles="true" processUncoveredFiles="true">
-        <include>
-            <directory suffix=".php">./app</directory>
-        </include>
-        <exclude>
-            <directory suffix=".php">./app/Views</directory>
-            <file>./app/Config/Routes.php</file>
-        </exclude>
+        cacheDirectory="build/.phpunit.cache"
+        xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/11.5/phpunit.xsd">
+    <coverage>
         <report>
             <clover outputFile="build/logs/clover.xml"/>
             <html outputDirectory="build/logs/html"/>
@@ -36,6 +27,15 @@
         <testdoxText outputFile="build/logs/testdox.txt"/>
         <junit outputFile="build/logs/logfile.xml"/>
     </logging>
+    <source>
+        <include>
+            <directory suffix=".php">./app</directory>
+        </include>
+        <exclude>
+            <directory suffix=".php">./app/Views</directory>
+            <file>./app/Config/Routes.php</file>
+        </exclude>
+    </source>
     <php>
         <server name="app.baseURL" value="http://example.com/"/>
         <!-- Directory containing phpunit.xml -->

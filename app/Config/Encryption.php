@@ -23,10 +23,18 @@ class Encryption extends BaseConfig
      */
     public string $key;
 
+    /**
+     * Previous keys for seamless key rotation (CI 4.5+). Read by the Encryption
+     * service; empty means no rotation.
+     *
+     * @var array<int, string>|string
+     */
+    public array|string $previousKeys = '';
+
     public function __construct()
     {
         parent::__construct();
-        
+
         // Initialize encryption key from environment
         $this->key = $_ENV['encryption.key'] ?? env('encryption.key', '');
     }

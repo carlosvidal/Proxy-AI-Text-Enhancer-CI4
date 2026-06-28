@@ -74,4 +74,12 @@ class Session extends BaseConfig
     public string $cookieDomain = '';  // Let Apache handle the domain
     public string $cookiePath = '/';
     public string $cookieSameSite = 'Lax';
+
+    /**
+     * --------------------------------------------------------------------------
+     * Lock Retry Settings (CI 4.5+, used by FileHandler)
+     * --------------------------------------------------------------------------
+     */
+    public int $lockRetryInterval = 100_000;
+    public int $lockMaxRetries     = 300;
 }

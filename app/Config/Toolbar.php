@@ -18,7 +18,7 @@ use CodeIgniter\Debug\Toolbar\Collectors\Views;
  *
  * The Debug Toolbar provides a way to see information about the performance
  * and state of your application during that page display. By default it will
- * NOT be shown under production environments, and will only be shown if
+ * NOT be displayed under production environments, and will only display if
  * `CI_DEBUG` is true, since if it's not, there's not much to display anyway.
  */
 class Toolbar extends BaseConfig
@@ -31,7 +31,7 @@ class Toolbar extends BaseConfig
      * List of toolbar collectors that will be called when Debug Toolbar
      * fires up and collects data from.
      *
-     * @var string[]
+     * @var list<class-string>
      */
     public array $collectors = [
         Timers::class,
@@ -49,8 +49,8 @@ class Toolbar extends BaseConfig
      * Collect Var Data
      * --------------------------------------------------------------------------
      *
-     * If set to false var data from the views will not be collected
-     * to save memory.
+     * If set to false var data from the views will not be collected. Useful to
+     * avoid high memory usage when there are lots of data passed to the view.
      */
     public bool $collectVarData = true;
 
@@ -122,10 +122,26 @@ class Toolbar extends BaseConfig
 
     /**
      * --------------------------------------------------------------------------
-     * Toolbar Enable/Disable
+     * Ignored HTTP Headers
      * --------------------------------------------------------------------------
      *
-     * Set to false to disable the toolbar.
+     * CodeIgniter Debug Toolbar normally injects HTML and JavaScript into every
+     * HTML response. This is correct for full page loads, but it breaks requests
+     * that expect only a clean HTML fragment.
+     *
+     * Libraries like HTMX, Unpoly, and Hotwire (Turbo) update parts of the page or
+     * manage navigation on the client side. Injecting the Debug Toolbar into their
+     * responses can cause invalid HTML, duplicated scripts, or JavaScript errors
+     * (such as infinite loops or "Maximum call stack size exceeded").
+     *
+     * Any request containing one of the following headers is treated as a
+     * client-managed or partial request, and the Debug Toolbar injection is skipped.
+     *
+     * @var array<string, string|null>
      */
-    public bool $enabled = false;
+    public array $disableOnHeaders = [
+        'X-Requested-With' => 'xmlhttprequest', // AJAX requests
+        'HX-Request'       => 'true',           // HTMX requests
+        'X-Up-Version'     => null,             // Unpoly partial requests
+    ];
 }
