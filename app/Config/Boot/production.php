@@ -8,7 +8,9 @@
  | error display and send all errors to the system log.
  */
 ini_set('display_errors', '0');
-error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED & ~E_STRICT & ~E_USER_NOTICE & ~E_USER_DEPRECATED);
+// Note: E_STRICT was removed — it is deprecated as of PHP 8.4 and has had no
+// effect since PHP 8.0 (no errors are emitted at E_STRICT level anymore).
+error_reporting(E_ALL & ~E_NOTICE & ~E_DEPRECATED & ~E_USER_NOTICE & ~E_USER_DEPRECATED);
 
 /*
  |--------------------------------------------------------------------------
