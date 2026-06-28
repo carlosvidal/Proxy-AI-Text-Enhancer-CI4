@@ -967,7 +967,7 @@ class Admin extends BaseController
                 ->with('error', 'API user not found');
         }
 
-        if ($this->request->getMethod() === 'post') {
+        if (strtolower($this->request->getMethod()) === 'post') {
             // Validate input
             $rules = [
                 'name' => 'required|min_length[3]',
@@ -1421,7 +1421,7 @@ class Admin extends BaseController
                 ->with('error', 'Button not found');
         }
 
-        if ($this->request->getMethod() === 'post') {
+        if (strtolower($this->request->getMethod()) === 'post') {
             log_message('info', '[ADMIN] editButton POST request - tenantId: ' . $tenantId . ', buttonId: ' . $buttonId);
             $rules = [
                 'name' => 'required|min_length[3]|max_length[255]',

@@ -32,7 +32,7 @@ class Auth extends Controller
         }
 
         // If this is a POST request, handle login attempt
-        if ($this->request->getMethod() === 'post') {
+        if (strtolower($this->request->getMethod()) === 'post') {
             $rules = [
                 'username' => 'required|min_length[3]|max_length[50]',
                 'password' => 'required|min_length[3]|max_length[255]'

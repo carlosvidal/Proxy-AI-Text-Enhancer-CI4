@@ -67,7 +67,7 @@ class LlmProxy extends Controller
         $this->_set_cors_headers();
 
         // Verify this is a POST request
-        if (service('request')->getMethod() !== 'post') {
+        if (strtolower(service('request')->getMethod()) !== 'post') {
             log_error('PROXY', 'Method not allowed', [
                 'request_id' => $request_id,
                 'method' => service('request')->getMethod()

@@ -239,7 +239,7 @@ class CorsFilter implements FilterInterface
 
             // Route-specific CORS settings
             if (strpos($path, 'api/llm-proxy') === 0) {
-                if ($request->getMethod() === 'options') {
+                if (strtolower($request->getMethod()) === 'options') {
                     // LLM proxy routes - higher cache for preflight
                     header('Access-Control-Max-Age: 86400'); // 24 hours
                     header('Cache-Control: public, max-age=86400');
@@ -253,7 +253,7 @@ class CorsFilter implements FilterInterface
                     header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin');
                 }
             } else if (strpos($path, 'api/quota') === 0) {
-                if ($request->getMethod() === 'options') {
+                if (strtolower($request->getMethod()) === 'options') {
                     // Quota routes - shorter cache for preflight
                     header('Access-Control-Max-Age: 3600'); // 1 hour
                     header('Cache-Control: public, max-age=3600');
@@ -266,7 +266,7 @@ class CorsFilter implements FilterInterface
                     header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, Accept, Origin');
                 }
             } else {
-                if ($request->getMethod() === 'options') {
+                if (strtolower($request->getMethod()) === 'options') {
                     // Default routes - moderate cache for preflight
                     header('Access-Control-Max-Age: 7200'); // 2 hours
                     header('Cache-Control: public, max-age=7200');
@@ -280,7 +280,7 @@ class CorsFilter implements FilterInterface
             header('Vary: Origin, Access-Control-Request-Method, Access-Control-Request-Headers');
 
             // Handle preflight OPTIONS requests
-            if ($request->getMethod() === 'options') {
+            if (strtolower($request->getMethod()) === 'options') {
                 log_message('debug', 'Handling OPTIONS preflight request for path: ' . $path);
                 header('Content-Length: 0');
                 header('Content-Type: text/plain');

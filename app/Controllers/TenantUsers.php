@@ -106,7 +106,7 @@ class TenantUsers extends Controller
                 ->with('error', 'Tenant not found');
         }
 
-        if ($this->request->getMethod() === 'post') {
+        if (strtolower($this->request->getMethod()) === 'post') {
             $rules = [
                 'user_id' => 'required|min_length[3]|max_length[50]|is_unique[tenant_users.user_id]',
                 'name' => 'required|min_length[3]|max_length[255]',
@@ -196,7 +196,7 @@ class TenantUsers extends Controller
 
         $user['usage'] = $usage['total_tokens'] ?? 0;
 
-        if ($this->request->getMethod() === 'post') {
+        if (strtolower($this->request->getMethod()) === 'post') {
             $rules = [
                 'name' => 'required|min_length[3]|max_length[255]',
                 'email' => 'permit_empty|valid_email',

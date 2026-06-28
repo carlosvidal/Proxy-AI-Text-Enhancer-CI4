@@ -59,7 +59,7 @@ class Tenants extends Controller
         $planModel = new \App\Models\PlanModel();
         $data['plans'] = $planModel->findAll();
 
-        if ($this->request->getMethod() === 'post') {
+        if (strtolower($this->request->getMethod()) === 'post') {
             $rules = [
                 'name' => 'required|min_length[3]|max_length[255]',
                 'email' => 'required|valid_email',
@@ -107,7 +107,7 @@ class Tenants extends Controller
             return redirect()->to('/tenants')->with('error', 'Tenant not found');
         }
 
-        if ($this->request->getMethod() === 'post') {
+        if (strtolower($this->request->getMethod()) === 'post') {
             $rules = [
                 'name' => 'required|min_length[3]|max_length[255]',
                 'email' => 'required|valid_email',
@@ -208,7 +208,7 @@ class Tenants extends Controller
             return redirect()->to('/tenants')->with('error', 'Tenant not found');
         }
 
-        if ($this->request->getMethod() === 'post') {
+        if (strtolower($this->request->getMethod()) === 'post') {
             $rules = [
                 'user_id' => 'required|min_length[3]|max_length[100]',
                 'email' => 'required|valid_email',
@@ -295,7 +295,7 @@ class Tenants extends Controller
 
         $data['tenant'] = $tenant;
 
-        if ($this->request->getMethod() === 'post') {
+        if (strtolower($this->request->getMethod()) === 'post') {
             $rules = [
                 'email' => 'required|valid_email',
                 'name' => 'required|min_length[3]|max_length[255]',

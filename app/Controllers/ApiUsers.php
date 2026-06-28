@@ -284,7 +284,7 @@ class ApiUsers extends BaseController
 
     public function delete($id)
     {
-        if (!$this->request->isAJAX() && !$this->request->getMethod() === 'post') {
+        if (!$this->request->isAJAX() && !strtolower($this->request->getMethod()) === 'post') {
             return redirect()->back()->with('error', 'Invalid request method');
         }
 
