@@ -176,14 +176,17 @@ class LlmProxyModel extends Model
             $base_tokens = 500; // Valor base
             $token_multiplier = $has_image ? 2 : 1; // Las imágenes consumen más tokens
 
-            // Diferentes modelos tienen diferentes costos
+            // Diferentes modelos tienen diferentes costos (estimación de respaldo
+            // cuando el proveedor no devuelve conteo real de tokens)
             switch ($model) {
                 case 'gpt-4-turbo':
-                case 'claude-3-opus-20240229':
+                case 'claude-opus-4-8':
+                case 'claude-fable-5':
                     $model_multiplier = 2.0;
                     break;
                 case 'gpt-3.5-turbo':
-                case 'mistral-medium-latest':
+                case 'gpt-4o-mini':
+                case 'claude-haiku-4-5':
                     $model_multiplier = 0.5;
                     break;
                 default:

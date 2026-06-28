@@ -27,54 +27,11 @@ class Buttons extends Controller
         $this->domainsModel = new DomainsModel();
 
         // Define available providers
-        $this->providers = [
-            'openai' => 'OpenAI',
-            'anthropic' => 'Anthropic Claude',
-            'mistral' => 'Mistral AI',
-            'cohere' => 'Cohere',
-            'deepseek' => 'DeepSeek',
-            'google' => 'Google Gemini'
-        ];
-
-        // Define available models per provider (actualizado a abril 2025)
-        $this->models = [
-            'openai' => [
-                'gpt-3.5-turbo' => 'GPT-3.5 Turbo',
-                'gpt-4-turbo' => 'GPT-4 Turbo',
-                'gpt-4o' => 'GPT-4o (Omni)',
-                'gpt-4-vision-preview' => 'GPT-4 Vision Preview',
-                'gpt-4' => 'GPT-4 (Legacy)',
-            ],
-            'anthropic' => [
-                'claude-3-opus-20240229' => 'Claude 3 Opus',
-                'claude-3-sonnet-20240229' => 'Claude 3 Sonnet',
-                'claude-3-haiku-20240307' => 'Claude 3 Haiku',
-            ],
-            'mistral' => [
-                'mistral-tiny' => 'Mistral Tiny',
-                'mistral-small' => 'Mistral Small',
-                'mistral-medium' => 'Mistral Medium',
-                'mistral-large' => 'Mistral Large',
-                'mistral-next' => 'Mistral Next',
-            ],
-            'cohere' => [
-                'command' => 'Command',
-                'command-light' => 'Command Light',
-                'command-r' => 'Command-R',
-                'command-r-plus' => 'Command-R Plus',
-            ],
-            'deepseek' => [
-                'deepseek-coder' => 'DeepSeek Coder',
-                'deepseek-coder-v2' => 'DeepSeek Coder v2',
-                'deepseek-chat' => 'DeepSeek Chat',
-            ],
-            'google' => [
-                'gemini-1.5-pro-latest' => 'Gemini 1.5 Pro (Latest)',
-                'gemini-1.0-pro' => 'Gemini 1.0 Pro',
-                'gemini-1.0-pro-vision' => 'Gemini 1.0 Pro Vision',
-                'gemini-pro' => 'Gemini Pro (Legacy)',
-            ]
-        ];
+        // Providers and selectable models come from the single source of truth
+        // in app/Config/LlmModels.php — do not hardcode them here.
+        $llmModels = config('LlmModels');
+        $this->providers = $llmModels->providers;
+        $this->models = $llmModels->models;
     }
 
     /**

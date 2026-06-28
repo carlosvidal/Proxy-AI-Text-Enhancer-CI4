@@ -1275,43 +1275,10 @@ class Admin extends BaseController
 
         // Get available API keys for the tenant
         $apiKeys = model('App\Models\ApiKeysModel')->getTenantApiKeys($tenant['tenant_id']);
-        $providers = [
-            'openai' => 'OpenAI',
-            'anthropic' => 'Anthropic Claude',
-            'mistral' => 'Mistral AI',
-            'cohere' => 'Cohere',
-            'deepseek' => 'DeepSeek',
-            'google' => 'Google Gemini'
-        ];
-        $models = [
-            'openai' => [
-                'gpt-3.5-turbo' => 'GPT-3.5 Turbo',
-                'gpt-4-turbo' => 'GPT-4 Turbo',
-                'gpt-4-vision' => 'GPT-4 Vision',
-            ],
-            'anthropic' => [
-                'claude-3-opus-20240229' => 'Claude 3 Opus',
-                'claude-3-sonnet-20240229' => 'Claude 3 Sonnet',
-                'claude-3-haiku-20240307' => 'Claude 3 Haiku',
-            ],
-            'mistral' => [
-                'mistral-small-latest' => 'Mistral Small',
-                'mistral-medium-latest' => 'Mistral Medium',
-                'mistral-large-latest' => 'Mistral Large',
-            ],
-            'cohere' => [
-                'command' => 'Command',
-                'command-light' => 'Command Light',
-            ],
-            'deepseek' => [
-                'deepseek-chat' => 'DeepSeek Chat',
-                'deepseek-coder' => 'DeepSeek Coder',
-            ],
-            'google' => [
-                'gemini-pro' => 'Gemini Pro',
-                'gemini-pro-vision' => 'Gemini Pro Vision',
-            ]
-        ];
+        // Providers and models come from app/Config/LlmModels.php (single source).
+        $llmModels = config('LlmModels');
+        $providers = $llmModels->providers;
+        $models = $llmModels->models;
         // Obtener dominios del tenant
         $domains = model('App\\Models\\TenantsModel')->getDomains($tenant['tenant_id']);
         $data = [
@@ -1524,43 +1491,9 @@ class Admin extends BaseController
             'apiKeys' => $apiKeys,
             'domains' => $domains,
             'isAdmin' => true,
-            'providers' => [
-                'openai' => 'OpenAI',
-                'anthropic' => 'Anthropic Claude',
-                'mistral' => 'Mistral AI',
-                'cohere' => 'Cohere',
-                'deepseek' => 'DeepSeek',
-                'google' => 'Google Gemini'
-            ],
-            'models' => [
-                'openai' => [
-                    'gpt-3.5-turbo' => 'GPT-3.5 Turbo',
-                    'gpt-4-turbo' => 'GPT-4 Turbo',
-                    'gpt-4-vision' => 'GPT-4 Vision',
-                ],
-                'anthropic' => [
-                    'claude-3-opus-20240229' => 'Claude 3 Opus',
-                    'claude-3-sonnet-20240229' => 'Claude 3 Sonnet',
-                    'claude-3-haiku-20240307' => 'Claude 3 Haiku',
-                ],
-                'mistral' => [
-                    'mistral-small-latest' => 'Mistral Small',
-                    'mistral-medium-latest' => 'Mistral Medium',
-                    'mistral-large-latest' => 'Mistral Large',
-                ],
-                'cohere' => [
-                    'command' => 'Command',
-                    'command-light' => 'Command Light',
-                ],
-                'deepseek' => [
-                    'deepseek-chat' => 'DeepSeek Chat',
-                    'deepseek-coder' => 'DeepSeek Coder',
-                ],
-                'google' => [
-                    'gemini-pro' => 'Gemini Pro',
-                    'gemini-pro-vision' => 'Gemini Pro Vision',
-                ]
-            ]
+            // Providers and models come from app/Config/LlmModels.php (single source).
+            'providers' => config('LlmModels')->providers,
+            'models' => config('LlmModels')->models,
         ];
 
         // Use the tenant's edit view instead of admin view
@@ -1608,43 +1541,9 @@ class Admin extends BaseController
             'title' => 'View Button - ' . $tenant['name'],
             'tenant' => $tenant,
             'button' => $button,
-            'providers' => [
-                'openai' => 'OpenAI',
-                'anthropic' => 'Anthropic Claude',
-                'mistral' => 'Mistral AI',
-                'cohere' => 'Cohere',
-                'deepseek' => 'DeepSeek',
-                'google' => 'Google Gemini'
-            ],
-            'models' => [
-                'openai' => [
-                    'gpt-3.5-turbo' => 'GPT-3.5 Turbo',
-                    'gpt-4-turbo' => 'GPT-4 Turbo',
-                    'gpt-4-vision' => 'GPT-4 Vision',
-                ],
-                'anthropic' => [
-                    'claude-3-opus-20240229' => 'Claude 3 Opus',
-                    'claude-3-sonnet-20240229' => 'Claude 3 Sonnet',
-                    'claude-3-haiku-20240307' => 'Claude 3 Haiku',
-                ],
-                'mistral' => [
-                    'mistral-small-latest' => 'Mistral Small',
-                    'mistral-medium-latest' => 'Mistral Medium',
-                    'mistral-large-latest' => 'Mistral Large',
-                ],
-                'cohere' => [
-                    'command' => 'Command',
-                    'command-light' => 'Command Light',
-                ],
-                'deepseek' => [
-                    'deepseek-chat' => 'DeepSeek Chat',
-                    'deepseek-coder' => 'DeepSeek Coder',
-                ],
-                'google' => [
-                    'gemini-pro' => 'Gemini Pro',
-                    'gemini-pro-vision' => 'Gemini Pro Vision',
-                ]
-            ],
+            // Providers and models come from app/Config/LlmModels.php (single source).
+            'providers' => config('LlmModels')->providers,
+            'models' => config('LlmModels')->models,
             'api_key' => $apiKey
         ];
 

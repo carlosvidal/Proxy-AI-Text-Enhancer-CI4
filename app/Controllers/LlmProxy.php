@@ -289,22 +289,22 @@ class LlmProxy extends Controller
             // --- FIN ANTEPONER CONTEXTO ---
 
             // --- VALIDACIÓN DE IMÁGENES Y MODELOS MULTIMODAL ---
+            // Models that can accept images. NOTE: Anthropic models are vision-capable
+            // at the API level, but AnthropicProvider currently forwards text only, so
+            // Claude is intentionally excluded here — that makes an image request fail
+            // loudly instead of being silently stripped. Add Claude back once the
+            // provider forwards image content blocks.
             $multimodal_models = [
                 // OpenAI
                 'gpt-4o',
-                'gpt-4-vision-preview',
-                'gpt-4-vision',
-                'gpt-4-turbo-vision',
+                'gpt-4o-mini',
+                'gpt-4.1',
+                'gpt-4.1-mini',
+                'gpt-4-turbo',
                 // Google Gemini (multimodal)
-                'gemini-1.5-pro-latest',
-                'gemini-1.0-pro',
-                'gemini-1.0-pro-vision',
-                // Anthropic Claude 3 (multimodal)
-                'claude-3-opus-20240229',
-                'claude-3-sonnet-20240229',
-                'claude-3-haiku-20240307',
-                'claude-3-7-sonnet-20250219',
-                // Futuro: Mistral (si lanzan multimodal), otros proveedores...
+                'gemini-2.0-flash',
+                'gemini-1.5-pro',
+                'gemini-1.5-flash',
             ];
             $has_image = false;
             foreach ($messages as $msg) {
@@ -325,7 +325,7 @@ class LlmProxy extends Controller
             if ($has_image && (!in_array(strtolower($model), $multimodal_models))) {
                 return $this->response->setStatusCode(400)->setJSON([
                     'success' => false,
-                    'error' => 'El modelo o proveedor seleccionado no soporta imágenes. Usa un modelo multimodal como gpt-4-vision-preview, gpt-4o o gemini-1.0-pro-vision.'
+                    'error' => 'El modelo o proveedor seleccionado no soporta imágenes. Usa un modelo multimodal como gpt-4o, gpt-4.1 o gemini-2.0-flash.'
                 ]);
             }
             // --- FIN VALIDACIÓN DE IMÁGENES ---
@@ -785,32 +785,41 @@ class LlmProxy extends Controller
      */
     private function _calculate_cost($provider, $model, $tokens)
     {
+        // Approximate per-token rates for usage cost estimation (input pricing,
+        // USD/token). These drift — verify against each provider's pricing page.
         $rates = [
             'openai' => [
-                'gpt-4-turbo' => 0.00003,
-                'gpt-4-vision' => 0.00003,
-                'gpt-3.5-turbo' => 0.000002,
-                'default' => 0.00001
+                'gpt-4o' => 0.0000025,        // $2.50 / 1M
+                'gpt-4o-mini' => 0.00000015,  // $0.15 / 1M
+                'gpt-4.1' => 0.000002,        // $2.00 / 1M
+                'gpt-4.1-mini' => 0.0000004,  // $0.40 / 1M
+                'gpt-4-turbo' => 0.00001,     // $10.00 / 1M
+                'gpt-3.5-turbo' => 0.0000005, // $0.50 / 1M
+                'default' => 0.0000025
             ],
             'anthropic' => [
-                'claude-3-opus-20240229' => 0.00015,
-                'claude-3-sonnet-20240229' => 0.00003,
-                'claude-3-haiku-20240307' => 0.00001,
-                'default' => 0.00003
+                'claude-opus-4-8' => 0.000005,   // $5.00 / 1M
+                'claude-sonnet-4-6' => 0.000003, // $3.00 / 1M
+                'claude-haiku-4-5' => 0.000001,  // $1.00 / 1M
+                'claude-fable-5' => 0.00001,     // $10.00 / 1M
+                'default' => 0.000003
             ],
             'mistral' => [
-                'mistral-large' => 0.00002,
-                'default' => 0.00001
+                'mistral-large-latest' => 0.000002,
+                'mistral-medium-latest' => 0.0000004,
+                'mistral-small-latest' => 0.0000002,
+                'default' => 0.000001
             ],
             'deepseek' => [
-                'deepseek-chat' => 0.00000014,  // $0.14 per 1M input tokens
-                'deepseek-coder' => 0.00000014,
-                'default' => 0.00000014
+                'deepseek-chat' => 0.00000027,     // ~$0.27 / 1M
+                'deepseek-reasoner' => 0.00000055, // ~$0.55 / 1M
+                'default' => 0.00000027
             ],
             'google' => [
-                'gemini-1.5-pro-latest' => 0.0000035,
-                'gemini-1.0-pro' => 0.00000025,
-                'default' => 0.0000035
+                'gemini-1.5-pro' => 0.00000125,
+                'gemini-1.5-flash' => 0.000000075,
+                'gemini-2.0-flash' => 0.0000001,
+                'default' => 0.00000125
             ],
             'default' => 0.00001
         ];
